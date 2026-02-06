@@ -1,0 +1,65 @@
+SOFTWARE DEVELOPMENT SERVICES AGREEMENT
+
+This Software Development Services Agreement ("Agreement") is entered into as of January 15, 2026 ("Effective Date"), by and between Acme Technologies Inc., a Delaware corporation ("Company"), and BrightCode Solutions LLC, a California limited liability company ("Contractor").
+
+WHEREAS, the Company desires to engage the Contractor to provide certain software development services, and the Contractor desires to provide such services, the parties agree as follows:
+
+1. SCOPE OF WORK
+The Contractor shall provide software development services as described in Exhibit A attached hereto ("Services"). The Contractor shall deliver all work product within 90 days of the Effective Date. The Contractor must maintain industry-standard development practices and provide weekly progress reports to the Company.
+
+2. COMPENSATION AND PAYMENT TERMS
+The Company shall pay the Contractor a total fee of $150,000 for the Services, payable in three installments:
+- $50,000 upon execution of this Agreement
+- $50,000 upon delivery of the beta version
+- $50,000 upon final acceptance
+
+All invoices are due net 30 days from the date of receipt. Late payments shall accrue interest at a rate of 1.5% per month. The Contractor shall submit invoices to accounts@acmetech.com.
+
+3. INTELLECTUAL PROPERTY
+All work product, deliverables, and materials created by the Contractor in the performance of the Services shall be considered "work made for hire" and shall be the sole and exclusive property of the Company. The Contractor hereby assigns to the Company all right, title, and interest in and to any intellectual property created under this Agreement, including all patents, copyrights, and trademarks.
+
+4. CONFIDENTIALITY
+Each party agrees to maintain the confidentiality of all proprietary information disclosed by the other party during the term of this Agreement. Confidential information includes, but is not limited to, trade secrets, business plans, customer lists, technical data, and financial information. This confidentiality obligation shall survive termination of this Agreement for a period of three (3) years.
+
+5. WARRANTIES AND REPRESENTATIONS
+The Contractor represents and warrants that:
+(a) The Services will be performed in a professional and workmanlike manner;
+(b) The deliverables will conform to the specifications in Exhibit A;
+(c) The deliverables will not infringe upon any third-party intellectual property rights.
+THE COMPANY PROVIDES NO WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. ALL SERVICES ARE PROVIDED "AS-IS" AFTER ACCEPTANCE.
+
+6. LIMITATION OF LIABILITY
+In no event shall either party be liable for any indirect, incidental, special, consequential, or punitive damages. The aggregate liability of the Contractor under this Agreement shall not exceed the total fees paid to the Contractor. The Company shall not be liable for any damages arising from the use of the deliverables after acceptance.
+
+7. INDEMNIFICATION
+The Contractor shall indemnify, defend, and hold harmless the Company, its officers, directors, and employees from and against any and all claims, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising out of or related to (a) the Contractor's breach of this Agreement, or (b) any claim that the deliverables infringe a third-party's intellectual property rights.
+
+8. TERMINATION
+Either party may terminate this Agreement upon thirty (30) days written notice to the other party. The Company may terminate this Agreement immediately upon the Contractor's material breach. Upon termination, the Contractor shall deliver all completed work product to the Company and the Company shall pay for all Services rendered through the date of termination.
+
+9. NON-COMPETE AND NON-SOLICITATION
+During the term of this Agreement and for a period of two (2) years following termination, the Contractor shall not directly or indirectly compete with the Company in the field of enterprise resource planning software. The Contractor shall not solicit any employees or clients of the Company during this period.
+
+10. FORCE MAJEURE
+Neither party shall be liable for any failure or delay in performing its obligations under this Agreement if such failure or delay results from an act of God, fire, flood, war, terrorism, pandemic, government action, or any other unforeseeable event beyond the reasonable control of the affected party.
+
+11. DISPUTE RESOLUTION
+Any dispute arising out of or relating to this Agreement shall first be submitted to mediation. If mediation fails to resolve the dispute within sixty (60) days, either party may pursue arbitration under the rules of the American Arbitration Association. The arbitration shall take place in San Francisco, California.
+
+12. GOVERNING LAW
+This Agreement shall be governed by and construed in accordance with the laws of the State of California, without regard to its conflict of laws principles. The venue for any legal proceedings shall be the state or federal courts located in San Francisco County, California.
+
+13. GENERAL PROVISIONS
+This Agreement constitutes the entire agreement between the parties. This Agreement may not be amended or modified except by a written instrument signed by both parties. The Agreement shall automatically renew for successive one-year periods unless either party provides written notice of non-renewal at least sixty (60) days prior to the expiration date.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+ACME TECHNOLOGIES INC.
+By: ___________________________
+Name: Sarah Chen
+Title: Chief Technology Officer
+
+BRIGHTCODE SOLUTIONS LLC
+By: ___________________________
+Name: James Rodriguez
+Title: Managing Director

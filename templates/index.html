@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract Review</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-alt: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #22c55e;
+            --info: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .header .badge {
+            background: var(--primary);
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .input-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-section h2 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tab:hover:not(.active) {
+            border-color: var(--text-muted);
+            color: var(--text);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-area p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .upload-area .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-area .file-types {
+            font-size: 0.75rem;
+            color: var(--border);
+            margin-top: 0.5rem;
+        }
+
+        .file-name {
+            margin-top: 0.75rem;
+            color: var(--success);
+            font-size: 0.85rem;
+        }
+
+        input[type="file"] { display: none; }
+
+        .btn {
+            padding: 0.65rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .results { display: none; }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .risk-low { color: var(--success); }
+        .risk-moderate { color: var(--warning); }
+        .risk-high { color: var(--danger); }
+        .risk-critical { color: var(--danger); }
+
+        .risk-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--surface-alt);
+            border-radius: 999px;
+            margin-top: 0.75rem;
+            overflow: hidden;
+        }
+
+        .risk-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.6s ease;
+        }
+
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .section-header:hover { background: rgba(255, 255, 255, 0.02); }
+
+        .section-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .section-header .count {
+            background: var(--surface-alt);
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .section-header .arrow {
+            transition: transform 0.2s;
+            color: var(--text-muted);
+        }
+
+        .section.open .section-header .arrow { transform: rotate(180deg); }
+
+        .section-body {
+            display: none;
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .section.open .section-body { display: block; }
+
+        .clause-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .clause-item:last-child { border-bottom: none; }
+
+        .clause-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .clause-name .present { color: var(--success); }
+        .clause-name .missing { color: var(--danger); }
+
+        .clause-excerpt {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+            padding-left: 1.25rem;
+            border-left: 2px solid var(--border);
+            margin-left: 0.25rem;
+        }
+
+        .risk-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .risk-item.high { background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--danger); }
+        .risk-item.medium { background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); }
+        .risk-item.low { background: rgba(34, 197, 94, 0.1); border-left: 3px solid var(--success); }
+
+        .risk-item .risk-desc {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .risk-item .risk-context {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+        }
+
+        .severity-badge.high { background: var(--danger); color: white; }
+        .severity-badge.medium { background: var(--warning); color: black; }
+        .severity-badge.low { background: var(--success); color: white; }
+
+        .obligation-item, .date-item, .financial-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .obligation-item:last-child, .date-item:last-child, .financial-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-type {
+            font-size: 0.7rem;
+            color: var(--info);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .party-tag {
+            display: inline-block;
+            background: var(--surface-alt);
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin: 0.25rem;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--danger);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Contract Review</h1>
+        <span class="badge">Analyzer</span>
+    </div>
+
+    <div class="container">
+        <div class="input-section">
+            <h2>Submit a contract for analysis</h2>
+            <div class="tabs">
+                <button class="tab active" data-tab="paste">Paste Text</button>
+                <button class="tab" data-tab="upload">Upload File</button>
+            </div>
+
+            <div id="paste-tab" class="tab-content active">
+                <textarea id="contract-text" placeholder="Paste your contract text here..."></textarea>
+            </div>
+
+            <div id="upload-tab" class="tab-content">
+                <div class="upload-area" id="drop-zone">
+                    <div class="upload-icon">&#128196;</div>
+                    <p>Click or drag a file here to upload</p>
+                    <div class="file-types">Supported: .txt, .pdf, .docx</div>
+                    <div class="file-name" id="file-name"></div>
+                </div>
+                <input type="file" id="file-input" accept=".txt,.pdf,.docx">
+            </div>
+
+            <button class="btn btn-primary" id="analyze-btn">
+                <span>Analyze Contract</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+        </div>
+
+        <div class="error-msg" id="error-msg"></div>
+
+        <div class="results" id="results">
+            <div class="summary-card">
+                <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem;">Summary</h3>
+                <p id="summary-text"></p>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="value" id="risk-score-value">--</div>
+                    <div class="label">Risk Score</div>
+                    <div class="risk-bar-bg"><div class="risk-bar-fill" id="risk-bar"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="clauses-found">--</div>
+                    <div class="label">Clauses Found</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="word-count">--</div>
+                    <div class="label">Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="risk-count">--</div>
+                    <div class="label">Risk Items</div>
+                </div>
+            </div>
+
+            <div id="parties-section" class="section open" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Parties Identified</h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="parties-body"></div>
+            </div>
+
+            <div class="section open" id="clauses-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Clause Analysis <span class="count" id="clause-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="clauses-body"></div>
+            </div>
+
+            <div class="section open" id="risks-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Risk Assessment <span class="count" id="risk-item-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="risks-body"></div>
+            </div>
+
+            <div class="section" id="obligations-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Obligations & Duties <span class="count" id="obligation-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="obligations-body"></div>
+            </div>
+
+            <div class="section" id="dates-section" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Key Dates & Deadlines <span class="count" id="dates-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="dates-body"></div>
+            </div>
+
+            <div class="section" id="financials-section" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Financial Terms <span class="count" id="financials-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="financials-body"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const tabContents = document.querySelectorAll('.tab-content');
+const analyzeBtn = document.getElementById('analyze-btn');
+const spinner = document.getElementById('spinner');
+const errorMsg = document.getElementById('error-msg');
+const results = document.getElementById('results');
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+const fileNameEl = document.getElementById('file-name');
+
+let selectedFile = null;
+
+tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(tc => tc.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+    });
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+        selectedFile = e.dataTransfer.files[0];
+        fileNameEl.textContent = selectedFile.name;
+    }
+});
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) {
+        selectedFile = fileInput.files[0];
+        fileNameEl.textContent = selectedFile.name;
+    }
+});
+
+analyzeBtn.addEventListener('click', async () => {
+    errorMsg.style.display = 'none';
+    results.style.display = 'none';
+
+    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    let body;
+
+    if (activeTab === 'upload' && selectedFile) {
+        const fd = new FormData();
+        fd.append('contract', selectedFile);
+        body = fd;
+    } else if (activeTab === 'paste') {
+        const text = document.getElementById('contract-text').value.trim();
+        if (!text) {
+            showError('Please paste contract text before analyzing.');
+            return;
+        }
+        body = new FormData();
+        body.append('text', text);
+    } else {
+        showError('Please provide a contract via text or file upload.');
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+        const res = await fetch('/analyze', { method: 'POST', body });
+        const data = await res.json();
+        if (!res.ok) {
+            showError(data.error || 'Analysis failed.');
+            return;
+        }
+        renderResults(data);
+    } catch (err) {
+        showError('Network error. Please check the server is running.');
+    } finally {
+        setLoading(false);
+    }
+});
+
+function setLoading(on) {
+    analyzeBtn.disabled = on;
+    spinner.style.display = on ? 'inline-block' : 'none';
+}
+
+function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.style.display = 'block';
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function toggleSection(header) {
+    header.parentElement.classList.toggle('open');
+}
+
+function renderResults(data) {
+    document.getElementById('summary-text').textContent = data.summary;
+
+    const score = data.risk_score.score;
+    const label = data.risk_score.label;
+    const scoreEl = document.getElementById('risk-score-value');
+    scoreEl.textContent = score + '/100';
+    scoreEl.className = 'value risk-' + label.toLowerCase().replace(/\s+/g, '-');
+
+    const bar = document.getElementById('risk-bar');
+    bar.style.width = score + '%';
+    if (score <= 25) bar.style.background = 'var(--success)';
+    else if (score <= 50) bar.style.background = 'var(--warning)';
+    else bar.style.background = 'var(--danger)';
+
+    document.getElementById('clauses-found').textContent = data.clauses.found.length;
+    document.getElementById('word-count').textContent = data.word_count.toLocaleString();
+    const totalRisks = data.risks.high.length + data.risks.medium.length + data.risks.low.length;
+    document.getElementById('risk-count').textContent = totalRisks;
+
+    // Parties
+    const partiesSection = document.getElementById('parties-section');
+    if (data.parties && data.parties.length > 0) {
+        partiesSection.style.display = 'block';
+        document.getElementById('parties-body').innerHTML =
+            data.parties.map(p => `<span class="party-tag">${escapeHtml(p)}</span>`).join('');
+    } else {
+        partiesSection.style.display = 'none';
+    }
+
+    // Clauses
+    let clausesHtml = '';
+    document.getElementById('clause-count').textContent =
+        data.clauses.found.length + ' found, ' + data.clauses.missing.length + ' missing';
+
+    data.clauses.found.forEach(c => {
+        clausesHtml += `<div class="clause-item">
+            <div class="clause-name"><span class="present">&#10003;</span> ${escapeHtml(c.name)}</div>
+            ${c.excerpts.map(e => `<div class="clause-excerpt">${escapeHtml(e)}</div>`).join('')}
+        </div>`;
+    });
+    data.clauses.missing.forEach(name => {
+        clausesHtml += `<div class="clause-item">
+            <div class="clause-name"><span class="missing">&#10007;</span> ${escapeHtml(name)} <span style="color:var(--text-muted);font-weight:400;font-size:0.8rem;">(not found)</span></div>
+        </div>`;
+    });
+    document.getElementById('clauses-body').innerHTML = clausesHtml;
+
+    // Risks
+    let risksHtml = '';
+    const allRisks = [
+        ...data.risks.high.map(r => ({...r, severity: 'high'})),
+        ...data.risks.medium.map(r => ({...r, severity: 'medium'})),
+        ...data.risks.low.map(r => ({...r, severity: 'low'})),
+    ];
+    document.getElementById('risk-item-count').textContent = allRisks.length + ' items';
+
+    if (allRisks.length === 0) {
+        risksHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">No risk indicators detected.</p>';
+    }
+    allRisks.forEach(r => {
+        risksHtml += `<div class="risk-item ${r.severity}">
+            <div class="risk-desc"><span class="severity-badge ${r.severity}">${r.severity}</span>${escapeHtml(r.description)}</div>
+            <div class="risk-context">"...${escapeHtml(r.context)}..."</div>
+        </div>`;
+    });
+    document.getElementById('risks-body').innerHTML = risksHtml;
+
+    // Obligations
+    const oblSection = document.getElementById('obligations-section');
+    document.getElementById('obligation-count').textContent = data.obligations.length + ' items';
+    if (data.obligations.length === 0) {
+        document.getElementById('obligations-body').innerHTML =
+            '<p style="color:var(--text-muted);font-size:0.85rem;">No explicit obligations detected.</p>';
+    } else {
+        document.getElementById('obligations-body').innerHTML = data.obligations.map(o =>
+            `<div class="obligation-item"><div class="item-type">${escapeHtml(o.type)}</div><div>${escapeHtml(o.text)}</div></div>`
+        ).join('');
+    }
+
+    // Dates
+    const datesSection = document.getElementById('dates-section');
+    if (data.key_dates.length > 0) {
+        datesSection.style.display = 'block';
+        document.getElementById('dates-count').textContent = data.key_dates.length + ' items';
+        document.getElementById('dates-body').innerHTML = data.key_dates.map(d =>
+            `<div class="date-item"><div class="item-type">${escapeHtml(d.type)}</div><div>${escapeHtml(d.value)}</div></div>`
+        ).join('');
+    } else {
+        datesSection.style.display = 'none';
+    }
+
+    // Financials
+    const finSection = document.getElementById('financials-section');
+    if (data.financial_terms.length > 0) {
+        finSection.style.display = 'block';
+        document.getElementById('financials-count').textContent = data.financial_terms.length + ' items';
+        document.getElementById('financials-body').innerHTML = data.financial_terms.map(f =>
+            `<div class="financial-item"><div class="item-type">${escapeHtml(f.type)}</div><div>${escapeHtml(f.value)}</div></div>`
+        ).join('');
+    } else {
+        finSection.style.display = 'none';
+    }
+
+    results.style.display = 'block';
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
