@@ -120,6 +120,46 @@ class ContractAnalyzer:
         (r"(?:fee|cost|price|rate|compensation|salary|payment)[:\s]+([^.;]{5,80})", "Financial Term"),
     ]
 
+    WARRANTY_DURATION_PATTERNS = [
+        (r"(\d+)\s*[-\s]?\s*year\s+warrant(?:y|ies)", "year"),
+        (r"warrant(?:y|ies)\s+(?:period|term|duration)\s+(?:of|is|shall\s+be)\s+(\d+)\s*(year|month|day)s?", None),
+        (r"(\d+)\s*[-\s]?\s*month\s+warrant(?:y|ies)", "month"),
+        (r"(\d+)\s*[-\s]?\s*day\s+warrant(?:y|ies)", "day"),
+        (r"warrant(?:y|ies)\s+(?:for|of)\s+(\d+)\s*(year|month|day)s?", None),
+        (r"(\d+)\s*(year|month|day)s?\s+warrant(?:y|ies)", None),
+    ]
+
+    WARRANTY_COVERAGE_PATTERNS = [
+        (r"merchantability", "merchantability"),
+        (r"fitness\s+for\s+(?:a\s+)?particular\s+purpose", "fitness_for_purpose"),
+        (r"workmanlike\s+manner", "workmanlike"),
+        (r"free\s+(?:from|of)\s+defects?", "defect_free"),
+        (r"conform(?:s|ance|ity)?\s+(?:to|with)\s+(?:the\s+)?specifications?", "conformance"),
+        (r"professional(?:ly)?\s+(?:and\s+)?(?:workmanlike)?\s*(?:manner)?", "professional"),
+        (r"non-infring(?:e|ement|ing)", "non_infringement"),
+        (r"title\s+and\s+(?:quiet\s+)?enjoyment", "title"),
+    ]
+
+    WARRANTY_EXCLUSION_PATTERNS = [
+        (r"as[\s-]is", "as_is"),
+        (r"no\s+(?:express\s+or\s+implied\s+)?warrant(?:y|ies)", "no_warranty"),
+        (r"without\s+warrant(?:y|ies)", "no_warranty"),
+        (r"disclaim(?:s|ed|er)?\s+(?:all|any)\s+(?:express\s+or\s+implied\s+)?warrant(?:y|ies)", "disclaimer"),
+        (r"(?:exclude|exclud(?:es|ing)|waiv(?:e|es|er))\s+(?:all|any)\s+(?:implied\s+)?warrant(?:y|ies)", "disclaimer"),
+    ]
+
+    REMEDY_PATTERNS = [
+        (r"repair\s+or\s+replac(?:e|ement)", "repair_or_replace"),
+        (r"repair(?:s|ed|ing)?(?:\s+(?:the|any|all))?\s+(?:defect|nonconform)", "repair"),
+        (r"replac(?:e|ement|ing)(?:\s+(?:the|any|all))?\s+(?:defect|nonconform)", "replace"),
+        (r"refund(?:s|ed|ing)?", "refund"),
+        (r"credit(?:s|ed)?(?:\s+(?:toward|for|against))?", "credit"),
+        (r"(?:cure|remedy|remediat(?:e|ion))\s+(?:the\s+)?(?:defect|breach|nonconform|deficienc)", "cure"),
+        (r"(?:sole|exclusive)\s+remed(?:y|ies)", "exclusive_remedy"),
+        (r"(?:within|no\s+later\s+than)\s+(\d+)\s*(?:days?|business\s+days?)\s+(?:to\s+)?(?:cure|remedy|repair|fix|correct)", "cure_period"),
+        (r"re-?perform(?:ance)?", "reperformance"),
+    ]
+
     def extract_text(self, filepath):
         """Extract text from .txt, .pdf, or .docx files."""
         ext = os.path.splitext(filepath)[1].lower()
@@ -319,3 +359,235 @@ class ContractAnalyzer:
             label = "Critical Risk"
 
         return {"score": score, "label": label}
+
+    def _extract_warranty_duration(self, text):
+        """Extract warranty duration in days for normalization."""
+        for pattern, unit_override in self.WARRANTY_DURATION_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                groups = match.groups()
+                number = int(groups[0])
+                unit = unit_override if unit_override else groups[1].lower()
+                days = self._to_days(number, unit)
+                return {"value": number, "unit": unit, "days": days}
+        return None
+
+    def _to_days(self, number, unit):
+        """Convert a duration to days for comparison."""
+        if unit == "year":
+            return number * 365
+        elif unit == "month":
+            return number * 30
+        return number
+
+    def _extract_warranty_coverage(self, text):
+        """Extract warranty coverage types present in the text."""
+        found = []
+        for pattern, label in self.WARRANTY_COVERAGE_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                if label not in found:
+                    found.append(label)
+        return found
+
+    def _extract_warranty_exclusions(self, text):
+        """Extract warranty exclusions/disclaimers present in the text."""
+        found = []
+        for pattern, label in self.WARRANTY_EXCLUSION_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                if label not in found:
+                    found.append(label)
+        return found
+
+    def _extract_remedies(self, text):
+        """Extract remedy types and cure periods from the text."""
+        found = []
+        cure_period = None
+        for pattern, label in self.REMEDY_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                if label == "cure_period":
+                    cure_period = int(match.group(1))
+                elif label not in found:
+                    found.append(label)
+        return {"types": found, "cure_period_days": cure_period}
+
+    def compare_terms(self, customer_terms, supplier_terms):
+        """Compare customer and supplier terms, identifying gaps in warranty and remedies.
+
+        Returns a structured analysis with GAP or SECURE status for each category.
+        """
+        customer_warranty = {
+            "duration": self._extract_warranty_duration(customer_terms),
+            "coverage": self._extract_warranty_coverage(customer_terms),
+            "exclusions": self._extract_warranty_exclusions(customer_terms),
+        }
+        supplier_warranty = {
+            "duration": self._extract_warranty_duration(supplier_terms),
+            "coverage": self._extract_warranty_coverage(supplier_terms),
+            "exclusions": self._extract_warranty_exclusions(supplier_terms),
+        }
+        customer_remedies = self._extract_remedies(customer_terms)
+        supplier_remedies = self._extract_remedies(supplier_terms)
+
+        gaps = []
+
+        # Compare warranty duration
+        duration_status = self._compare_duration(
+            customer_warranty["duration"], supplier_warranty["duration"]
+        )
+        gaps.append(duration_status)
+
+        # Compare warranty coverage
+        coverage_status = self._compare_coverage(
+            customer_warranty["coverage"],
+            supplier_warranty["coverage"],
+            supplier_warranty["exclusions"],
+        )
+        gaps.append(coverage_status)
+
+        # Compare remedies
+        remedy_status = self._compare_remedies(customer_remedies, supplier_remedies)
+        gaps.append(remedy_status)
+
+        gap_count = sum(1 for g in gaps if g["status"] == "GAP")
+        overall = "GAP" if gap_count > 0 else "SECURE"
+
+        return {
+            "overall_status": overall,
+            "gap_count": gap_count,
+            "categories": gaps,
+            "customer_extracted": {
+                "warranty": customer_warranty,
+                "remedies": customer_remedies,
+            },
+            "supplier_extracted": {
+                "warranty": supplier_warranty,
+                "remedies": supplier_remedies,
+            },
+        }
+
+    def _compare_duration(self, customer_dur, supplier_dur):
+        """Compare warranty durations between customer and supplier terms."""
+        if customer_dur and not supplier_dur:
+            return {
+                "category": "Warranty Duration",
+                "status": "GAP",
+                "detail": (
+                    f"Customer requires {customer_dur['value']} {customer_dur['unit']}(s) "
+                    f"warranty but supplier specifies no warranty duration."
+                ),
+            }
+        if not customer_dur:
+            return {
+                "category": "Warranty Duration",
+                "status": "SECURE",
+                "detail": "No specific warranty duration required by customer terms.",
+            }
+        if not supplier_dur:
+            return {
+                "category": "Warranty Duration",
+                "status": "GAP",
+                "detail": "Supplier does not specify a warranty duration.",
+            }
+        if customer_dur["days"] > supplier_dur["days"]:
+            return {
+                "category": "Warranty Duration",
+                "status": "GAP",
+                "detail": (
+                    f"Customer requires {customer_dur['value']} {customer_dur['unit']}(s) "
+                    f"but supplier only offers {supplier_dur['value']} {supplier_dur['unit']}(s)."
+                ),
+            }
+        return {
+            "category": "Warranty Duration",
+            "status": "SECURE",
+            "detail": (
+                f"Supplier warranty duration ({supplier_dur['value']} {supplier_dur['unit']}(s)) "
+                f"meets or exceeds customer requirement ({customer_dur['value']} {customer_dur['unit']}(s))."
+            ),
+        }
+
+    def _compare_coverage(self, customer_coverage, supplier_coverage, supplier_exclusions):
+        """Compare warranty coverage between customer and supplier terms."""
+        missing = [c for c in customer_coverage if c not in supplier_coverage]
+        excluded = []
+        coverage_to_exclusion = {
+            "merchantability": "disclaimer",
+            "fitness_for_purpose": "disclaimer",
+        }
+        for cov in customer_coverage:
+            mapped_excl = coverage_to_exclusion.get(cov)
+            if mapped_excl and mapped_excl in supplier_exclusions:
+                if cov not in excluded:
+                    excluded.append(cov)
+        if "as_is" in supplier_exclusions and customer_coverage:
+            return {
+                "category": "Warranty Coverage",
+                "status": "GAP",
+                "detail": (
+                    f"Supplier provides 'as-is' terms, disclaiming warranties. "
+                    f"Customer expects: {', '.join(customer_coverage)}."
+                ),
+            }
+
+        all_gaps = list(set(missing + excluded))
+        if all_gaps:
+            return {
+                "category": "Warranty Coverage",
+                "status": "GAP",
+                "detail": (
+                    f"Customer expects warranty coverage for: {', '.join(all_gaps)} "
+                    f"but supplier does not provide or explicitly disclaims these."
+                ),
+            }
+        if not customer_coverage:
+            return {
+                "category": "Warranty Coverage",
+                "status": "SECURE",
+                "detail": "No specific warranty coverage requirements in customer terms.",
+            }
+        return {
+            "category": "Warranty Coverage",
+            "status": "SECURE",
+            "detail": "Supplier warranty coverage meets customer requirements.",
+        }
+
+    def _compare_remedies(self, customer_remedies, supplier_remedies):
+        """Compare remedy provisions between customer and supplier terms."""
+        customer_types = set(customer_remedies["types"])
+        supplier_types = set(supplier_remedies["types"])
+
+        missing = customer_types - supplier_types
+
+        # Check if customer expects refund but supplier limits to exclusive remedy
+        if "refund" in customer_types and "exclusive_remedy" in supplier_types and "refund" not in supplier_types:
+            return {
+                "category": "Remedies",
+                "status": "GAP",
+                "detail": (
+                    "Customer expects refund as a remedy but supplier limits to an "
+                    "exclusive remedy that does not include refund."
+                ),
+            }
+
+        if missing:
+            return {
+                "category": "Remedies",
+                "status": "GAP",
+                "detail": (
+                    f"Customer expects remedies: {', '.join(missing)} "
+                    f"not provided by supplier. "
+                    f"Supplier offers: {', '.join(supplier_types) if supplier_types else 'none specified'}."
+                ),
+            }
+        if not customer_types:
+            return {
+                "category": "Remedies",
+                "status": "SECURE",
+                "detail": "No specific remedy requirements in customer terms.",
+            }
+        return {
+            "category": "Remedies",
+            "status": "SECURE",
+            "detail": "Supplier remedy provisions meet customer requirements.",
+        }

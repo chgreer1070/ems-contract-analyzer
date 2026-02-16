@@ -73,6 +73,132 @@ class TestContractAnalyzer(unittest.TestCase):
         self.assertEqual(result["risk_score"]["score"], 0)
 
 
+class TestTermComparison(unittest.TestCase):
+    def setUp(self):
+        self.analyzer = ContractAnalyzer()
+
+    def test_compare_returns_all_keys(self):
+        result = self.analyzer.compare_terms("1 year warranty", "6 month warranty")
+        expected_keys = {
+            "overall_status", "gap_count", "categories",
+            "customer_extracted", "supplier_extracted",
+        }
+        self.assertEqual(set(result.keys()), expected_keys)
+
+    def test_warranty_duration_gap(self):
+        customer = "The product shall include a 2 year warranty from date of delivery."
+        supplier = "Supplier provides a 6 month warranty on all products."
+        result = self.analyzer.compare_terms(customer, supplier)
+        duration_cat = next(c for c in result["categories"] if c["category"] == "Warranty Duration")
+        self.assertEqual(duration_cat["status"], "GAP")
+        self.assertEqual(result["overall_status"], "GAP")
+
+    def test_warranty_duration_secure(self):
+        customer = "The product shall include a 1 year warranty."
+        supplier = "Supplier provides a 2 year warranty on all products."
+        result = self.analyzer.compare_terms(customer, supplier)
+        duration_cat = next(c for c in result["categories"] if c["category"] == "Warranty Duration")
+        self.assertEqual(duration_cat["status"], "SECURE")
+
+    def test_warranty_coverage_gap_as_is(self):
+        customer = "Vendor warrants merchantability and fitness for a particular purpose."
+        supplier = "All products are provided as-is without warranty."
+        result = self.analyzer.compare_terms(customer, supplier)
+        coverage_cat = next(c for c in result["categories"] if c["category"] == "Warranty Coverage")
+        self.assertEqual(coverage_cat["status"], "GAP")
+
+    def test_warranty_coverage_secure(self):
+        customer = "Vendor warrants merchantability."
+        supplier = "Supplier warrants merchantability and fitness for a particular purpose."
+        result = self.analyzer.compare_terms(customer, supplier)
+        coverage_cat = next(c for c in result["categories"] if c["category"] == "Warranty Coverage")
+        self.assertEqual(coverage_cat["status"], "SECURE")
+
+    def test_remedy_gap(self):
+        customer = "Customer is entitled to a full refund for defective products."
+        supplier = "Supplier will repair or replace defective products. This is the sole and exclusive remedy."
+        result = self.analyzer.compare_terms(customer, supplier)
+        remedy_cat = next(c for c in result["categories"] if c["category"] == "Remedies")
+        self.assertEqual(remedy_cat["status"], "GAP")
+
+    def test_remedy_secure(self):
+        customer = "Vendor shall repair or replace defective goods."
+        supplier = "Supplier will repair or replace any defective items at no cost."
+        result = self.analyzer.compare_terms(customer, supplier)
+        remedy_cat = next(c for c in result["categories"] if c["category"] == "Remedies")
+        self.assertEqual(remedy_cat["status"], "SECURE")
+
+    def test_overall_secure(self):
+        customer = "Simple agreement with no warranty or remedy terms."
+        supplier = "Simple agreement with no warranty or remedy terms."
+        result = self.analyzer.compare_terms(customer, supplier)
+        self.assertEqual(result["overall_status"], "SECURE")
+        self.assertEqual(result["gap_count"], 0)
+
+    def test_extracted_terms_structure(self):
+        customer = "2 year warranty with merchantability. Refund available."
+        supplier = "1 year warranty as-is. Repair or replace only."
+        result = self.analyzer.compare_terms(customer, supplier)
+        ce = result["customer_extracted"]
+        se = result["supplier_extracted"]
+        self.assertIn("warranty", ce)
+        self.assertIn("remedies", ce)
+        self.assertIn("warranty", se)
+        self.assertIn("remedies", se)
+        self.assertEqual(ce["warranty"]["duration"]["value"], 2)
+        self.assertEqual(se["warranty"]["duration"]["value"], 1)
+        self.assertIn("merchantability", ce["warranty"]["coverage"])
+        self.assertIn("refund", ce["remedies"]["types"])
+        self.assertIn("repair_or_replace", se["remedies"]["types"])
+
+    def test_no_supplier_duration(self):
+        customer = "Products must have a 1 year warranty."
+        supplier = "Supplier agrees to provide quality products."
+        result = self.analyzer.compare_terms(customer, supplier)
+        duration_cat = next(c for c in result["categories"] if c["category"] == "Warranty Duration")
+        self.assertEqual(duration_cat["status"], "GAP")
+
+
+class TestCompareEndpoint(unittest.TestCase):
+    def setUp(self):
+        app.config["TESTING"] = True
+        self.client = app.test_client()
+
+    def test_compare_success(self):
+        resp = self.client.post("/compare", data={
+            "customer_terms": "2 year warranty with refund.",
+            "supplier_terms": "1 year warranty, repair or replace.",
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertIn("overall_status", data)
+        self.assertIn("categories", data)
+
+    def test_compare_missing_customer(self):
+        resp = self.client.post("/compare", data={
+            "supplier_terms": "1 year warranty.",
+        })
+        self.assertEqual(resp.status_code, 400)
+
+    def test_compare_missing_supplier(self):
+        resp = self.client.post("/compare", data={
+            "customer_terms": "2 year warranty.",
+        })
+        self.assertEqual(resp.status_code, 400)
+
+    def test_compare_json_input(self):
+        resp = self.client.post("/compare",
+            data=json.dumps({
+                "customer_terms": "2 year warranty.",
+                "supplier_terms": "1 year warranty.",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data["overall_status"], "GAP")
+
+
 class TestFlaskApp(unittest.TestCase):
     def setUp(self):
         app.config["TESTING"] = True

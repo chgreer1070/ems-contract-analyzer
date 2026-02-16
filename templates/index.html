@@ -395,6 +395,157 @@
             margin: 0.25rem;
         }
 
+        .compare-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .compare-inputs label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            display: block;
+            font-weight: 500;
+        }
+
+        .compare-inputs textarea {
+            min-height: 180px;
+        }
+
+        .compare-results { display: none; }
+
+        .compare-overall {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .compare-overall .status {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .compare-overall .status.gap { color: var(--danger); }
+        .compare-overall .status.secure { color: var(--success); }
+
+        .compare-overall .subtitle {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+
+        .gap-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .gap-card .gap-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .gap-card .gap-category {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .gap-card .gap-status {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.6rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .gap-card .gap-status.gap-tag {
+            background: var(--danger);
+            color: white;
+        }
+
+        .gap-card .gap-status.secure-tag {
+            background: var(--success);
+            color: white;
+        }
+
+        .gap-card .gap-detail {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .extracted-terms {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .extracted-terms .et-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .extracted-terms .et-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .extracted-terms .et-body {
+            display: none;
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .extracted-terms.open .et-body { display: block; }
+        .extracted-terms .et-header .arrow {
+            transition: transform 0.2s;
+            color: var(--text-muted);
+        }
+        .extracted-terms.open .et-header .arrow { transform: rotate(180deg); }
+
+        .et-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .et-col h4 {
+            font-size: 0.8rem;
+            color: var(--info);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .et-col .et-item {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 0.25rem 0;
+        }
+
+        .et-col .et-none {
+            font-size: 0.8rem;
+            color: var(--border);
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .compare-inputs { grid-template-columns: 1fr; }
+            .et-grid { grid-template-columns: 1fr; }
+        }
+
         .error-msg {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid var(--danger);
@@ -423,6 +574,7 @@
             <div class="tabs">
                 <button class="tab active" data-tab="paste">Paste Text</button>
                 <button class="tab" data-tab="upload">Upload File</button>
+                <button class="tab" data-tab="compare">Compare Terms</button>
             </div>
 
             <div id="paste-tab" class="tab-content active">
@@ -439,6 +591,19 @@
                 <input type="file" id="file-input" accept=".txt,.pdf,.docx">
             </div>
 
+            <div id="compare-tab" class="tab-content">
+                <div class="compare-inputs">
+                    <div>
+                        <label for="customer-terms">Customer Terms</label>
+                        <textarea id="customer-terms" placeholder="Paste customer contract terms here..."></textarea>
+                    </div>
+                    <div>
+                        <label for="supplier-terms">Supplier Terms</label>
+                        <textarea id="supplier-terms" placeholder="Paste supplier contract terms here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
             <button class="btn btn-primary" id="analyze-btn">
                 <span>Analyze Contract</span>
                 <div class="spinner" id="spinner"></div>
@@ -446,6 +611,21 @@
         </div>
 
         <div class="error-msg" id="error-msg"></div>
+
+        <div class="compare-results" id="compare-results">
+            <div class="compare-overall">
+                <div class="status" id="compare-status"></div>
+                <div class="subtitle" id="compare-subtitle"></div>
+            </div>
+            <div id="gap-cards"></div>
+            <div class="extracted-terms" id="extracted-terms-section">
+                <div class="et-header" onclick="this.parentElement.classList.toggle('open')">
+                    <h3>Extracted Terms Detail</h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="et-body" id="extracted-terms-body"></div>
+            </div>
+        </div>
 
         <div class="results" id="results">
             <div class="summary-card">
@@ -542,6 +722,8 @@ tabs.forEach(tab => {
         tabContents.forEach(tc => tc.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+        const btnLabel = analyzeBtn.querySelector('span');
+        btnLabel.textContent = tab.dataset.tab === 'compare' ? 'Compare Terms' : 'Analyze Contract';
     });
 });
 
@@ -563,11 +745,47 @@ fileInput.addEventListener('change', () => {
     }
 });
 
+const compareResults = document.getElementById('compare-results');
+
 analyzeBtn.addEventListener('click', async () => {
     errorMsg.style.display = 'none';
     results.style.display = 'none';
+    compareResults.style.display = 'none';
 
     const activeTab = document.querySelector('.tab.active').dataset.tab;
+
+    if (activeTab === 'compare') {
+        const customerTerms = document.getElementById('customer-terms').value.trim();
+        const supplierTerms = document.getElementById('supplier-terms').value.trim();
+        if (!customerTerms) {
+            showError('Please paste customer terms before comparing.');
+            return;
+        }
+        if (!supplierTerms) {
+            showError('Please paste supplier terms before comparing.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const body = new FormData();
+            body.append('customer_terms', customerTerms);
+            body.append('supplier_terms', supplierTerms);
+            const res = await fetch('/compare', { method: 'POST', body });
+            const data = await res.json();
+            if (!res.ok) {
+                showError(data.error || 'Comparison failed.');
+                return;
+            }
+            renderCompareResults(data);
+        } catch (err) {
+            showError('Network error. Please check the server is running.');
+        } finally {
+            setLoading(false);
+        }
+        return;
+    }
+
     let body;
 
     if (activeTab === 'upload' && selectedFile) {
@@ -730,6 +948,73 @@ function renderResults(data) {
 
     results.style.display = 'block';
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderCompareResults(data) {
+    const statusEl = document.getElementById('compare-status');
+    statusEl.textContent = data.overall_status;
+    statusEl.className = 'status ' + (data.overall_status === 'GAP' ? 'gap' : 'secure');
+
+    document.getElementById('compare-subtitle').textContent =
+        data.overall_status === 'GAP'
+            ? data.gap_count + ' gap(s) found where customer terms are stricter than supplier terms.'
+            : 'Supplier terms meet or exceed all customer requirements.';
+
+    let cardsHtml = '';
+    data.categories.forEach(cat => {
+        const tagClass = cat.status === 'GAP' ? 'gap-tag' : 'secure-tag';
+        cardsHtml += `<div class="gap-card">
+            <div class="gap-header">
+                <span class="gap-category">${escapeHtml(cat.category)}</span>
+                <span class="gap-status ${tagClass}">${cat.status}</span>
+            </div>
+            <div class="gap-detail">${escapeHtml(cat.detail)}</div>
+        </div>`;
+    });
+    document.getElementById('gap-cards').innerHTML = cardsHtml;
+
+    const ce = data.customer_extracted;
+    const se = data.supplier_extracted;
+
+    let etHtml = '<div class="et-grid">';
+    etHtml += '<div class="et-col"><h4>Customer</h4>';
+    etHtml += renderExtracted(ce);
+    etHtml += '</div>';
+    etHtml += '<div class="et-col"><h4>Supplier</h4>';
+    etHtml += renderExtracted(se);
+    etHtml += '</div></div>';
+    document.getElementById('extracted-terms-body').innerHTML = etHtml;
+
+    compareResults.style.display = 'block';
+    compareResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderExtracted(extracted) {
+    let html = '';
+    const w = extracted.warranty;
+    if (w.duration) {
+        html += `<div class="et-item">Duration: ${w.duration.value} ${w.duration.unit}(s)</div>`;
+    } else {
+        html += '<div class="et-none">No warranty duration found</div>';
+    }
+    if (w.coverage.length > 0) {
+        html += `<div class="et-item">Coverage: ${w.coverage.join(', ')}</div>`;
+    } else {
+        html += '<div class="et-none">No warranty coverage found</div>';
+    }
+    if (w.exclusions.length > 0) {
+        html += `<div class="et-item">Exclusions: ${w.exclusions.join(', ')}</div>`;
+    }
+    const r = extracted.remedies;
+    if (r.types.length > 0) {
+        html += `<div class="et-item">Remedies: ${r.types.join(', ')}</div>`;
+    } else {
+        html += '<div class="et-none">No remedies found</div>';
+    }
+    if (r.cure_period_days !== null) {
+        html += `<div class="et-item">Cure period: ${r.cure_period_days} days</div>`;
+    }
+    return html;
 }
 </script>
 </body>

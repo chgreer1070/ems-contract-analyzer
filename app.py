@@ -48,5 +48,24 @@ def analyze():
     return jsonify(result)
 
 
+@app.route("/compare", methods=["POST"])
+def compare():
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+
+    customer_terms = data.get("customer_terms", "").strip()
+    supplier_terms = data.get("supplier_terms", "").strip()
+
+    if not customer_terms:
+        return jsonify({"error": "Customer terms text is required"}), 400
+    if not supplier_terms:
+        return jsonify({"error": "Supplier terms text is required"}), 400
+
+    result = analyzer.compare_terms(customer_terms, supplier_terms)
+    return jsonify(result)
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
