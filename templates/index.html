@@ -405,16 +405,187 @@
             display: none;
         }
 
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .mode-toggle label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--surface-alt);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+        .orchestration-panel {
+            background: var(--surface);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .orchestration-panel h3 {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .panel-score {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .panel-score .ps-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .panel-score .ps-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0.25rem 0;
+        }
+
+        .panel-score .ps-verdict {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .verdict-excellent { color: var(--success); }
+        .verdict-good { color: var(--info); }
+        .verdict-fair { color: var(--warning); }
+        .verdict-poor { color: var(--danger); }
+
+        .recommendation-box {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .decision-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+        }
+
+        .decision-approve { background: var(--success); color: white; }
+        .decision-review { background: var(--warning); color: black; }
+        .decision-reject { background: var(--danger); color: white; }
+
+        .agent-report {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .agent-report .agent-name {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--info);
+        }
+
+        .agent-report .agent-specialty {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .agent-report .agent-insights {
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-top: 0.35rem;
+        }
+
+        .agent-report .agent-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .trace-phase {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .trace-phase:last-child { border-bottom: none; }
+
+        .trace-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            flex-shrink: 0;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .panel-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Contract Review</h1>
-        <span class="badge">Analyzer</span>
+        <span class="badge">Multi-Agent Analyzer</span>
     </div>
 
     <div class="container">
@@ -439,6 +610,14 @@
                 <input type="file" id="file-input" accept=".txt,.pdf,.docx">
             </div>
 
+            <div class="mode-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="orchestrated-mode" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <label for="orchestrated-mode">Multi-Agent Orchestration</label>
+            </div>
+
             <button class="btn btn-primary" id="analyze-btn">
                 <span>Analyze Contract</span>
                 <div class="spinner" id="spinner"></div>
@@ -448,6 +627,26 @@
         <div class="error-msg" id="error-msg"></div>
 
         <div class="results" id="results">
+            <div class="orchestration-panel" id="orchestration-panel" style="display:none;">
+                <h3>Multi-Agent Orchestration Results</h3>
+                <div id="decision-box" class="recommendation-box"></div>
+                <div class="panel-grid" id="panel-scores-grid"></div>
+                <div class="section open" id="agent-reports-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <h3>Agent Reports <span class="count" id="agent-count"></span></h3>
+                        <span class="arrow">&#9660;</span>
+                    </div>
+                    <div class="section-body" id="agent-reports-body"></div>
+                </div>
+                <div class="section" id="trace-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <h3>Execution Trace</h3>
+                        <span class="arrow">&#9660;</span>
+                    </div>
+                    <div class="section-body" id="trace-body"></div>
+                </div>
+            </div>
+
             <div class="summary-card">
                 <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem;">Summary</h3>
                 <p id="summary-text"></p>
@@ -589,8 +788,11 @@ analyzeBtn.addEventListener('click', async () => {
 
     setLoading(true);
 
+    const useOrchestration = document.getElementById('orchestrated-mode').checked;
+    const endpoint = useOrchestration ? '/analyze/orchestrated' : '/analyze';
+
     try {
-        const res = await fetch('/analyze', { method: 'POST', body });
+        const res = await fetch(endpoint, { method: 'POST', body });
         const data = await res.json();
         if (!res.ok) {
             showError(data.error || 'Analysis failed.');
@@ -728,8 +930,82 @@ function renderResults(data) {
         finSection.style.display = 'none';
     }
 
+    // Orchestration panel
+    const orchPanel = document.getElementById('orchestration-panel');
+    if (data.orchestration) {
+        orchPanel.style.display = 'block';
+        renderOrchestration(data.orchestration);
+    } else {
+        orchPanel.style.display = 'none';
+    }
+
     results.style.display = 'block';
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderOrchestration(orch) {
+    // Decision box
+    const assessment = orch.overall_assessment || {};
+    const decision = assessment.decision || 'review';
+    const confidence = (assessment.confidence || 0).toFixed(0);
+    const recommendation = orch.recommendation || '';
+    const decisionBox = document.getElementById('decision-box');
+    decisionBox.innerHTML = `
+        <span class="decision-badge decision-${decision}">${decision}</span>
+        <strong>${confidence}% consensus</strong>
+        <div style="margin-top:0.5rem;color:var(--text-muted);">${escapeHtml(recommendation)}</div>
+    `;
+
+    // Panel scores grid
+    const panelScores = orch.panel_scores || {};
+    const grid = document.getElementById('panel-scores-grid');
+    grid.innerHTML = Object.entries(panelScores).map(([key, val]) => {
+        const label = key.replace(/_/g, ' ');
+        const verdict = val.verdict || 'Fair';
+        const verdictClass = 'verdict-' + verdict.toLowerCase();
+        const score = val.score != null ? val.score : '--';
+        return `<div class="panel-score">
+            <div class="ps-label">${escapeHtml(label)}</div>
+            <div class="ps-value">${typeof score === 'number' ? score.toFixed(0) : score}</div>
+            <div class="ps-verdict ${verdictClass}">${escapeHtml(verdict)}</div>
+        </div>`;
+    }).join('');
+
+    // Agent reports
+    const reports = orch.agent_reports || {};
+    const reportEntries = Object.entries(reports);
+    document.getElementById('agent-count').textContent = reportEntries.length + ' agents';
+    document.getElementById('agent-reports-body').innerHTML = reportEntries.map(([name, r]) => {
+        const insights = (r.top_insights || []).map(i => `<div>- ${escapeHtml(i)}</div>`).join('');
+        const warnings = (r.warnings || []).map(w =>
+            `<div style="color:var(--warning);">- ${escapeHtml(w)}</div>`
+        ).join('');
+        return `<div class="agent-report">
+            <div class="agent-name">${escapeHtml(name)}</div>
+            <div class="agent-specialty">${escapeHtml(r.specialty || '')}</div>
+            <div class="agent-insights">${insights}</div>
+            ${warnings ? '<div class="agent-insights" style="margin-top:0.25rem;">' + warnings + '</div>' : ''}
+            <div class="agent-meta">Confidence: ${((r.confidence || 0) * 100).toFixed(0)}% | Time: ${(r.execution_time_ms || 0).toFixed(1)}ms</div>
+        </div>`;
+    }).join('');
+
+    // Execution trace
+    const trace = orch.trace || {};
+    const phases = trace.phases || [];
+    let traceHtml = phases.map(p => {
+        const agents = (p.agents || []).join(', ');
+        return `<div class="trace-phase">
+            <div class="trace-dot"></div>
+            <div><strong>${escapeHtml(p.name)}</strong> &mdash; ${escapeHtml(agents)} (${(p.duration_ms || 0).toFixed(1)}ms)</div>
+        </div>`;
+    }).join('');
+    if (trace.total_duration_ms) {
+        traceHtml += `<div class="trace-phase">
+            <div class="trace-dot" style="background:var(--success);"></div>
+            <div><strong>Total</strong> &mdash; ${trace.total_agents_deployed || 0} agents deployed (${trace.total_duration_ms.toFixed(1)}ms)</div>
+        </div>`;
+    }
+    document.getElementById('trace-body').innerHTML = traceHtml;
 }
 </script>
 </body>
