@@ -1,0 +1,99 @@
+CONTRACT MANUFACTURING SERVICES AGREEMENT
+
+This Contract Manufacturing Services Agreement ("Agreement") is entered into as of March 1, 2026 ("Effective Date"), by and between NovaTech Electronics Corp., a Delaware corporation ("OEM"), and PrecisionBuild Manufacturing LLC, a Texas limited liability company ("Manufacturer").
+
+WHEREAS, the OEM desires to engage the Manufacturer to provide contract manufacturing services for electronic assemblies, and the Manufacturer desires to provide such EMS services, the parties agree as follows:
+
+1. SCOPE OF SERVICES
+The Manufacturer shall provide printed circuit board assembly (PCBA) manufacturing services, including surface mount technology (SMT) placement, through-hole assembly, testing, and final product assembly as described in the applicable Bill of Materials (BOM) and assembly specifications provided by the OEM. The Manufacturer shall maintain ISO 9001 certification throughout the term of this Agreement.
+
+2. COMPONENT SOURCING AND PROCUREMENT
+2.1 The Manufacturer shall source all components in accordance with the OEM's Approved Vendor List (AVL). Any deviation from the AVL requires prior written approval from the OEM.
+2.2 Component lead times shall be managed by the Manufacturer based on the rolling forecast provided by the OEM. The Manufacturer shall notify the OEM of any end-of-life (EOL) notifications within thirty (30) days of receipt.
+2.3 For single source components, the Manufacturer shall maintain a minimum of twelve (12) weeks of safety stock.
+
+3. FORECAST AND ORDERING
+3.1 The OEM shall provide a rolling twelve (12) month forecast, updated monthly. The first three (3) months of the forecast shall be binding purchase commitments ("Firm Zone"). Months four through twelve shall be non-binding planning estimates.
+3.2 The OEM shall have upside flexibility of twenty percent (20%) above the Firm Zone forecast without additional lead time.
+3.3 Minimum order quantity (MOQ) for each product shall be as specified in Exhibit B.
+
+4. QUALITY STANDARDS
+4.1 All PCBA assemblies shall conform to IPC-A-610 Class 2 standards at minimum. Class 3 workmanship shall apply to products designated by the OEM.
+4.2 The Manufacturer shall maintain a first pass yield rate of no less than 98.5%. Defect rates exceeding 1.5% shall trigger a corrective action process.
+4.3 First article inspection shall be required for all new products and after any engineering change order (ECO).
+4.4 The Manufacturer shall maintain ISO 9001:2015 quality management system certification.
+
+5. PRICING AND PAYMENT TERMS
+5.1 Unit pricing for each product is specified in Exhibit C. Non-recurring engineering (NRE) charges shall be invoiced separately upon completion of NPI milestones.
+5.2 All invoices are payable net 45 days from the date of shipment. Late payments shall accrue interest at a rate of 1.0% per month.
+5.3 Annual price reviews shall be conducted based on changes in component costs and commodity indices.
+
+6. INVENTORY AND EXCESS & OBSOLETE (E&O) LIABILITY
+6.1 The Manufacturer shall maintain safety stock levels as mutually agreed upon in Exhibit D.
+6.2 The OEM shall bear unlimited E&O liability for all components ordered within the Firm Zone forecast window. Components ordered beyond the Firm Zone at the Manufacturer's discretion shall be the Manufacturer's liability.
+6.3 Upon termination, the OEM shall purchase all finished goods and work-in-progress inventory at cost plus a ten percent (10%) handling fee. Raw material inventory ordered within the Firm Zone shall be purchased by the OEM at cost.
+6.4 Scrap costs resulting from OEM design issues shall be borne by the OEM.
+
+7. NEW PRODUCT INTRODUCTION (NPI) AND ENGINEERING CHANGES
+7.1 The NPI process shall follow the milestone schedule in Exhibit E, including prototype build, pilot run, and production qualification.
+7.2 Engineering change orders (ECOs) shall be submitted in writing with a minimum of thirty (30) days advance notice. The Manufacturer shall provide a cost impact analysis within ten (10) business days of receiving an ECO request.
+7.3 NPI milestone payments shall be invoiced upon completion of each phase.
+
+8. TOOLING AND EQUIPMENT
+8.1 All tooling, fixtures, and test equipment funded by the OEM shall remain the property of the OEM. The Manufacturer shall maintain all OEM-owned tooling in good working condition.
+8.2 Tooling funded by the Manufacturer shall remain Manufacturer property unless otherwise agreed in writing.
+8.3 Upon termination, OEM-owned tooling shall be returned to the OEM within thirty (30) days.
+
+9. REGULATORY COMPLIANCE
+9.1 All products manufactured under this Agreement shall comply with RoHS Directive 2011/65/EU and REACH regulation.
+9.2 The Manufacturer shall maintain conflict minerals reporting per Dodd-Frank Section 1502.
+9.3 Products requiring UL certification or FCC compliance shall be manufactured in accordance with the applicable standards. The OEM shall provide all necessary compliance documentation.
+
+10. CONFIDENTIALITY
+Each party agrees to maintain the confidentiality of all proprietary information, including but not limited to product designs, BOM data, pricing, manufacturing processes, and trade secrets. This confidentiality obligation shall survive termination for a period of five (5) years.
+
+11. INTELLECTUAL PROPERTY
+All product designs, schematics, and specifications provided by the OEM shall remain the exclusive property of the OEM. The Manufacturer shall not use OEM intellectual property for any purpose other than fulfilling obligations under this Agreement. Any process improvements developed by the Manufacturer shall be owned by the Manufacturer.
+
+12. WARRANTIES AND REPRESENTATIONS
+The Manufacturer warrants that all products shall be manufactured in accordance with the OEM's specifications and applicable quality standards. The Manufacturer's warranty period shall be twelve (12) months from the date of shipment. THE OEM PROVIDES NO WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+13. INDEMNIFICATION
+The Manufacturer shall indemnify, defend, and hold harmless the OEM from and against any and all claims arising from (a) manufacturing defects attributable to the Manufacturer, (b) the Manufacturer's failure to comply with applicable regulations, or (c) the Manufacturer's breach of this Agreement. The OEM shall indemnify the Manufacturer against claims arising from OEM-provided designs.
+
+14. LIMITATION OF LIABILITY
+In no event shall either party be liable for indirect, incidental, special, or consequential damages. The aggregate liability of the Manufacturer shall not exceed the total fees paid in the twelve (12) months preceding the claim. The Manufacturer shall not be liable for any damages arising from components sourced per the OEM's AVL specifications.
+
+15. SUPPLY CHAIN RISK
+15.1 The Manufacturer shall maintain a supply chain risk management program and notify the OEM of any supply disruptions within forty-eight (48) hours.
+15.2 In the event of component allocation, the Manufacturer shall allocate available inventory proportionally among its customers unless otherwise directed by the OEM.
+15.3 Dual sourcing shall be implemented for all critical components where technically feasible.
+
+16. TERMINATION
+16.1 Either party may terminate this Agreement with ninety (90) days written notice.
+16.2 Upon termination, the Manufacturer shall complete all orders in the production pipeline and the OEM shall purchase all committed inventory per Section 6.
+16.3 Last-time-buy notifications shall be provided no less than six (6) months prior to product discontinuation.
+
+17. FORCE MAJEURE
+Neither party shall be liable for delays caused by force majeure events, including natural disasters, pandemics, government actions, supply chain disruptions, or component shortages beyond reasonable control. The affected party shall provide notice within seventy-two (72) hours and use commercially reasonable efforts to mitigate the impact.
+
+18. DISPUTE RESOLUTION
+Any dispute shall first be submitted to mediation. If mediation fails within sixty (60) days, either party may pursue arbitration under the AAA rules in Dallas, Texas.
+
+19. GOVERNING LAW
+This Agreement shall be governed by the laws of the State of Texas without regard to conflict of laws principles.
+
+20. GENERAL PROVISIONS
+This Agreement constitutes the entire agreement between the parties. Amendments require mutual written consent. This Agreement shall automatically renew for successive one-year periods unless either party provides sixty (60) days written notice of non-renewal.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+NOVATECH ELECTRONICS CORP.
+By: ___________________________
+Name: Dr. Michelle Wang
+Title: VP of Supply Chain Operations
+
+PRECISIONBUILD MANUFACTURING LLC
+By: ___________________________
+Name: Robert K. Hernandez
+Title: President and CEO

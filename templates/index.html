@@ -18,6 +18,7 @@
             --warning: #f59e0b;
             --success: #22c55e;
             --info: #06b6d4;
+            --purple: #a855f7;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -212,9 +213,42 @@
             line-height: 1.7;
         }
 
+        .contract-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .contract-type-badge .type-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .confidence-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .confidence-dot.high { background: var(--success); }
+        .confidence-dot.medium { background: var(--warning); }
+        .confidence-dot.low { background: var(--text-muted); }
+
+        .confidence-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
@@ -368,6 +402,9 @@
         .severity-badge.high { background: var(--danger); color: white; }
         .severity-badge.medium { background: var(--warning); color: black; }
         .severity-badge.low { background: var(--success); color: white; }
+        .severity-badge.critical { background: var(--danger); color: white; }
+        .severity-badge.important { background: var(--warning); color: black; }
+        .severity-badge.recommended { background: var(--info); color: white; }
 
         .obligation-item, .date-item, .financial-item {
             padding: 0.5rem 0;
@@ -405,9 +442,190 @@
             display: none;
         }
 
+        /* Warning items for missing clauses */
+        .warning-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-item.critical { background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--danger); }
+        .warning-item.important { background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); }
+        .warning-item.recommended { background: rgba(6, 182, 212, 0.1); border-left: 3px solid var(--info); }
+
+        .warning-item .warning-clause {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .warning-item .warning-reason {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Suggestion items */
+        .suggestion-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: var(--surface-alt);
+            border-left: 3px solid var(--primary);
+        }
+
+        .suggestion-item.high { border-left-color: var(--danger); }
+        .suggestion-item.medium { border-left-color: var(--warning); }
+        .suggestion-item.low { border-left-color: var(--success); }
+
+        .suggestion-text {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .suggestion-basis {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Conflict / dependency / ambiguity items */
+        .conflict-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: rgba(239, 68, 68, 0.08);
+            border-left: 3px solid var(--danger);
+        }
+
+        .dependency-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: rgba(245, 158, 11, 0.08);
+            border-left: 3px solid var(--warning);
+        }
+
+        .ambiguity-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: rgba(6, 182, 212, 0.08);
+            border-left: 3px solid var(--info);
+        }
+
+        .dep-chain {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .dep-chain .dep-satisfied { color: var(--success); }
+        .dep-chain .dep-missing { color: var(--danger); }
+        .dep-chain .dep-circular { color: var(--warning); }
+
+        /* Balance bar */
+        .balance-container {
+            margin-bottom: 1rem;
+        }
+
+        .balance-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .balance-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: var(--surface-alt);
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .balance-bar-center {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--text-muted);
+        }
+
+        .balance-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            position: absolute;
+            transition: all 0.6s ease;
+        }
+
+        .balance-label-text {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .asymmetry-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .asymmetry-item:last-child { border-bottom: none; }
+
+        /* Definition table */
+        .definition-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .definition-row:last-child { border-bottom: none; }
+
+        .definition-term {
+            font-weight: 600;
+            color: var(--info);
+        }
+
+        .definition-text {
+            color: var(--text-muted);
+        }
+
+        /* Risk breakdown */
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .breakdown-item {
+            background: var(--surface-alt);
+            border-radius: 6px;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+        }
+
+        .breakdown-item .breakdown-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .breakdown-item .breakdown-label {
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .definition-row { grid-template-columns: 1fr; gap: 0.25rem; }
         }
     </style>
 </head>
@@ -453,6 +671,12 @@
                 <p id="summary-text"></p>
             </div>
 
+            <div id="contract-type-display" class="contract-type-badge" style="display:none;">
+                <span class="confidence-dot" id="confidence-dot"></span>
+                <span class="type-name" id="type-name"></span>
+                <span class="confidence-label" id="confidence-label"></span>
+            </div>
+
             <div class="stats-row">
                 <div class="stat-card">
                     <div class="value" id="risk-score-value">--</div>
@@ -471,6 +695,16 @@
                     <div class="value" id="risk-count">--</div>
                     <div class="label">Risk Items</div>
                 </div>
+                <div class="stat-card" id="suggestions-stat" style="display:none;">
+                    <div class="value" id="suggestions-count">--</div>
+                    <div class="label">Suggestions</div>
+                </div>
+            </div>
+
+            <!-- Risk Score Breakdown -->
+            <div id="breakdown-section" class="summary-card" style="display:none;">
+                <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem;">Risk Score Breakdown</h3>
+                <div class="breakdown-grid" id="breakdown-grid"></div>
             </div>
 
             <div id="parties-section" class="section open" style="display:none;">
@@ -481,6 +715,15 @@
                 <div class="section-body" id="parties-body"></div>
             </div>
 
+            <!-- Party Balance -->
+            <div id="party-balance-section" class="section open" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Party Balance Analysis</h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="party-balance-body"></div>
+            </div>
+
             <div class="section open" id="clauses-section">
                 <div class="section-header" onclick="toggleSection(this)">
                     <h3>Clause Analysis <span class="count" id="clause-count"></span></h3>
@@ -489,12 +732,39 @@
                 <div class="section-body" id="clauses-body"></div>
             </div>
 
+            <!-- Missing Clause Warnings -->
+            <div id="missing-clauses-section" class="section open" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Missing Clause Warnings <span class="count" id="missing-clause-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="missing-clauses-body"></div>
+            </div>
+
+            <!-- Clause Relationships -->
+            <div id="clause-relations-section" class="section" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Clause Relationships <span class="count" id="relations-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="clause-relations-body"></div>
+            </div>
+
             <div class="section open" id="risks-section">
                 <div class="section-header" onclick="toggleSection(this)">
                     <h3>Risk Assessment <span class="count" id="risk-item-count"></span></h3>
                     <span class="arrow">&#9660;</span>
                 </div>
                 <div class="section-body" id="risks-body"></div>
+            </div>
+
+            <!-- Negotiation Suggestions -->
+            <div id="suggestions-section" class="section open" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Negotiation Suggestions <span class="count" id="suggestion-item-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="suggestions-body"></div>
             </div>
 
             <div class="section" id="obligations-section">
@@ -519,6 +789,15 @@
                     <span class="arrow">&#9660;</span>
                 </div>
                 <div class="section-body" id="financials-body"></div>
+            </div>
+
+            <!-- Definitions Glossary -->
+            <div id="definitions-section" class="section" style="display:none;">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Definitions & Glossary <span class="count" id="definitions-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="definitions-body"></div>
             </div>
         </div>
     </div>
@@ -644,6 +923,40 @@ function renderResults(data) {
     const totalRisks = data.risks.high.length + data.risks.medium.length + data.risks.low.length;
     document.getElementById('risk-count').textContent = totalRisks;
 
+    // Contract Type Badge
+    if (data.contract_type && data.contract_type.type !== 'General') {
+        const typeDisplay = document.getElementById('contract-type-display');
+        typeDisplay.style.display = 'inline-flex';
+        document.getElementById('type-name').textContent = data.contract_type.type;
+        const dot = document.getElementById('confidence-dot');
+        dot.className = 'confidence-dot ' + (data.contract_type.confidence || 'low');
+        document.getElementById('confidence-label').textContent = data.contract_type.confidence || '';
+    } else {
+        document.getElementById('contract-type-display').style.display = 'none';
+    }
+
+    // Risk Score Breakdown
+    if (data.risk_score.breakdown) {
+        const bd = data.risk_score.breakdown;
+        const breakdownSection = document.getElementById('breakdown-section');
+        breakdownSection.style.display = 'block';
+        let html = '';
+        html += `<div class="breakdown-item"><div class="breakdown-value">${bd.base_risk_score}</div><div class="breakdown-label">Base Risk</div></div>`;
+        html += `<div class="breakdown-item"><div class="breakdown-value">+${bd.missing_clause_penalty}</div><div class="breakdown-label">Missing Clauses</div></div>`;
+        html += `<div class="breakdown-item"><div class="breakdown-value">+${bd.clause_conflict_penalty}</div><div class="breakdown-label">Conflicts</div></div>`;
+        html += `<div class="breakdown-item"><div class="breakdown-value">+${bd.dependency_penalty}</div><div class="breakdown-label">Dependencies</div></div>`;
+        if (bd.category_scores) {
+            for (const [cat, val] of Object.entries(bd.category_scores)) {
+                if (val > 0) {
+                    html += `<div class="breakdown-item"><div class="breakdown-value">${val}</div><div class="breakdown-label">${escapeHtml(cat.replace('_', ' '))}</div></div>`;
+                }
+            }
+        }
+        document.getElementById('breakdown-grid').innerHTML = html;
+    } else {
+        document.getElementById('breakdown-section').style.display = 'none';
+    }
+
     // Parties
     const partiesSection = document.getElementById('parties-section');
     if (data.parties && data.parties.length > 0) {
@@ -652,6 +965,60 @@ function renderResults(data) {
             data.parties.map(p => `<span class="party-tag">${escapeHtml(p)}</span>`).join('');
     } else {
         partiesSection.style.display = 'none';
+    }
+
+    // Party Balance
+    const balanceSection = document.getElementById('party-balance-section');
+    if (data.party_balance && data.party_balance.party_analysis && data.party_balance.party_analysis.length >= 2) {
+        balanceSection.style.display = 'block';
+        let balHtml = '';
+
+        const pb = data.party_balance;
+        const p1 = pb.parties[0] || {};
+        const p2 = pb.parties[1] || {};
+
+        balHtml += `<div class="balance-container">`;
+        balHtml += `<div class="balance-labels"><span>${escapeHtml(p1.name || 'Party 1')}</span><span>${escapeHtml(p2.name || 'Party 2')}</span></div>`;
+        balHtml += `<div class="balance-bar-bg"><div class="balance-bar-center"></div>`;
+
+        const barScore = pb.balance_score;
+        if (barScore < 0) {
+            const width = Math.abs(barScore) / 2;
+            const left = 50 - width;
+            balHtml += `<div class="balance-bar-fill" style="left:${left}%;width:${width}%;background:var(--warning);"></div>`;
+        } else if (barScore > 0) {
+            const width = barScore / 2;
+            balHtml += `<div class="balance-bar-fill" style="left:50%;width:${width}%;background:var(--info);"></div>`;
+        }
+
+        balHtml += `</div>`;
+        balHtml += `<div class="balance-label-text">${escapeHtml(pb.balance_label)}</div>`;
+        balHtml += `</div>`;
+
+        // Party breakdown table
+        if (pb.party_analysis.length >= 2) {
+            balHtml += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">`;
+            for (const pa of pb.party_analysis) {
+                balHtml += `<div style="background:var(--surface-alt);border-radius:8px;padding:0.75rem;">`;
+                balHtml += `<div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">${escapeHtml(pa.party)}</div>`;
+                balHtml += `<div style="font-size:0.8rem;color:var(--text-muted);">Obligations: ${pa.obligations} | Protections: ${pa.protections} | Powers: ${pa.powers} | Restrictions: ${pa.restrictions}</div>`;
+                balHtml += `</div>`;
+            }
+            balHtml += `</div>`;
+        }
+
+        // Asymmetries
+        if (pb.asymmetries && pb.asymmetries.length > 0) {
+            balHtml += `<div style="margin-top:1rem;">`;
+            for (const asym of pb.asymmetries) {
+                balHtml += `<div class="asymmetry-item"><span class="severity-badge ${asym.severity}">${escapeHtml(asym.severity)}</span> <strong>${escapeHtml(asym.area)}</strong>: ${escapeHtml(asym.description)}</div>`;
+            }
+            balHtml += `</div>`;
+        }
+
+        document.getElementById('party-balance-body').innerHTML = balHtml;
+    } else {
+        balanceSection.style.display = 'none';
     }
 
     // Clauses
@@ -672,6 +1039,101 @@ function renderResults(data) {
     });
     document.getElementById('clauses-body').innerHTML = clausesHtml;
 
+    // Missing Clause Warnings
+    const missingSection = document.getElementById('missing-clauses-section');
+    if (data.missing_clause_warnings && data.missing_clause_warnings.length > 0) {
+        missingSection.style.display = 'block';
+        document.getElementById('missing-clause-count').textContent = data.missing_clause_warnings.length + ' warnings';
+        let warningsHtml = '';
+        data.missing_clause_warnings.forEach(w => {
+            warningsHtml += `<div class="warning-item ${escapeHtml(w.severity)}">
+                <div class="warning-clause"><span class="severity-badge ${escapeHtml(w.severity)}">${escapeHtml(w.severity)}</span>${escapeHtml(w.clause)}</div>
+                <div class="warning-reason">${escapeHtml(w.reason)}</div>
+            </div>`;
+        });
+        document.getElementById('missing-clauses-body').innerHTML = warningsHtml;
+    } else {
+        missingSection.style.display = 'none';
+    }
+
+    // Clause Relationships
+    const relSection = document.getElementById('clause-relations-section');
+    if (data.clause_relationships) {
+        const cr = data.clause_relationships;
+        const hasContent = (cr.conflicts && cr.conflicts.length > 0) ||
+                          (cr.ambiguities && cr.ambiguities.length > 0) ||
+                          (cr.circular_dependencies && cr.circular_dependencies.length > 0);
+
+        if (hasContent) {
+            relSection.style.display = 'block';
+            let relHtml = '';
+            let relCount = 0;
+
+            // Conflicts
+            if (cr.conflicts && cr.conflicts.length > 0) {
+                relHtml += '<h4 style="font-size:0.85rem;margin-bottom:0.5rem;color:var(--danger);">Conflicts</h4>';
+                cr.conflicts.forEach(c => {
+                    relHtml += `<div class="conflict-item">
+                        <div style="font-weight:600;font-size:0.85rem;"><span class="severity-badge ${c.severity}">${escapeHtml(c.severity)}</span>${escapeHtml(c.clauses.join(' vs. '))}</div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.25rem;">${escapeHtml(c.description)}</div>
+                    </div>`;
+                    relCount++;
+                });
+            }
+
+            // Dependency chains with missing deps
+            if (cr.dependencies) {
+                let depHtml = '';
+                for (const [clause, deps] of Object.entries(cr.dependencies)) {
+                    if (deps.missing && deps.missing.length > 0) {
+                        const satisfied = (deps.satisfied || []).map(d => `<span class="dep-satisfied">&#10003; ${escapeHtml(d)}</span>`).join(' ');
+                        const missing = deps.missing.map(d => `<span class="dep-missing">&#10007; ${escapeHtml(d)}</span>`).join(' ');
+                        const circular = (deps.circular || []).map(d => `<span class="dep-circular">&#8635; ${escapeHtml(d)}</span>`).join(' ');
+                        depHtml += `<div class="dependency-item">
+                            <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(clause)}</div>
+                            <div class="dep-chain">Dependencies: ${satisfied} ${missing} ${circular}</div>
+                        </div>`;
+                        relCount++;
+                    }
+                }
+                if (depHtml) {
+                    relHtml += '<h4 style="font-size:0.85rem;margin:0.75rem 0 0.5rem;color:var(--warning);">Broken Dependency Chains</h4>';
+                    relHtml += depHtml;
+                }
+            }
+
+            // Circular dependencies
+            if (cr.circular_dependencies && cr.circular_dependencies.length > 0) {
+                relHtml += '<h4 style="font-size:0.85rem;margin:0.75rem 0 0.5rem;color:var(--warning);">Circular Dependencies</h4>';
+                cr.circular_dependencies.forEach(cd => {
+                    relHtml += `<div class="dependency-item">
+                        <div style="font-size:0.85rem;">&#8635; ${escapeHtml(cd.clauses.join(' ↔ '))}</div>
+                    </div>`;
+                    relCount++;
+                });
+            }
+
+            // Ambiguities
+            if (cr.ambiguities && cr.ambiguities.length > 0) {
+                relHtml += '<h4 style="font-size:0.85rem;margin:0.75rem 0 0.5rem;color:var(--info);">Ambiguous Language</h4>';
+                cr.ambiguities.forEach(a => {
+                    relHtml += `<div class="ambiguity-item">
+                        <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(a.issue)}</div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.25rem;font-style:italic;">"...${escapeHtml(a.context)}..."</div>
+                    </div>`;
+                    relCount++;
+                });
+            }
+
+            document.getElementById('relations-count').textContent = relCount + ' items';
+            document.getElementById('clause-relations-body').innerHTML = relHtml;
+        } else {
+            relSection.style.display = 'none';
+        }
+    } else {
+        relSection.style.display = 'none';
+    }
+
     // Risks
     let risksHtml = '';
     const allRisks = [
@@ -685,12 +1147,34 @@ function renderResults(data) {
         risksHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">No risk indicators detected.</p>';
     }
     allRisks.forEach(r => {
+        const categoryBadge = r.category ? `<span style="font-size:0.65rem;color:var(--text-muted);margin-left:0.5rem;">[${escapeHtml(r.category)}]</span>` : '';
         risksHtml += `<div class="risk-item ${r.severity}">
-            <div class="risk-desc"><span class="severity-badge ${r.severity}">${r.severity}</span>${escapeHtml(r.description)}</div>
+            <div class="risk-desc"><span class="severity-badge ${r.severity}">${r.severity}</span>${escapeHtml(r.description)}${categoryBadge}</div>
             <div class="risk-context">"...${escapeHtml(r.context)}..."</div>
         </div>`;
     });
     document.getElementById('risks-body').innerHTML = risksHtml;
+
+    // Negotiation Suggestions
+    const sugSection = document.getElementById('suggestions-section');
+    const sugStat = document.getElementById('suggestions-stat');
+    if (data.negotiation_suggestions && data.negotiation_suggestions.length > 0) {
+        sugSection.style.display = 'block';
+        sugStat.style.display = 'block';
+        document.getElementById('suggestions-count').textContent = data.negotiation_suggestions.length;
+        document.getElementById('suggestion-item-count').textContent = data.negotiation_suggestions.length + ' items';
+        let sugHtml = '';
+        data.negotiation_suggestions.forEach(s => {
+            sugHtml += `<div class="suggestion-item ${escapeHtml(s.priority)}">
+                <div class="suggestion-text"><span class="severity-badge ${escapeHtml(s.priority)}">${escapeHtml(s.priority)}</span>${escapeHtml(s.suggestion)}</div>
+                <div class="suggestion-basis">${escapeHtml(s.basis)}</div>
+            </div>`;
+        });
+        document.getElementById('suggestions-body').innerHTML = sugHtml;
+    } else {
+        sugSection.style.display = 'none';
+        sugStat.style.display = 'none';
+    }
 
     // Obligations
     const oblSection = document.getElementById('obligations-section');
@@ -726,6 +1210,23 @@ function renderResults(data) {
         ).join('');
     } else {
         finSection.style.display = 'none';
+    }
+
+    // Definitions
+    const defSection = document.getElementById('definitions-section');
+    if (data.definitions && data.definitions.length > 0) {
+        defSection.style.display = 'block';
+        document.getElementById('definitions-count').textContent = data.definitions.length + ' terms';
+        let defHtml = '';
+        data.definitions.forEach(d => {
+            defHtml += `<div class="definition-row">
+                <div class="definition-term">${escapeHtml(d.term)}</div>
+                <div class="definition-text">${escapeHtml(d.definition)}</div>
+            </div>`;
+        });
+        document.getElementById('definitions-body').innerHTML = defHtml;
+    } else {
+        defSection.style.display = 'none';
     }
 
     results.style.display = 'block';
