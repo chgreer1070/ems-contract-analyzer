@@ -1,6 +1,6 @@
 """Specialized agent for risk assessment in contracts."""
 
-import re
+from agents import patterns
 from agents.base_agent import BaseAgent
 
 
@@ -10,83 +10,50 @@ class RiskAssessmentAgent(BaseAgent):
     name = "RiskAssessmentAgent"
     specialty = "Risk Assessment & Scoring"
 
-    RISK_INDICATORS = {
-        "high": [
-            (r"unlimited\s+liability", "Unlimited liability exposure"),
-            (r"waiv(?:e|er)\s+(?:all|any)\s+(?:right|claim)", "Broad waiver of rights"),
-            (r"sole\s+(?:discretion|judgment)", "Sole discretion clause favoring one party"),
-            (r"irrevocabl[ey]", "Irrevocable commitment"),
-            (r"perpetual(?:ly)?(?:\s+and\s+irrevocabl[ey])?", "Perpetual obligation"),
-            (r"(?:shall|will)\s+not\s+(?:be\s+)?(?:liable|responsible)\s+(?:for\s+)?(?:any|all)",
-             "Broad liability exclusion"),
-            (r"automatic(?:ally)?\s+renew", "Auto-renewal clause"),
-            (r"(?:penalty|penalt?ies)\s+(?:for|of|in)", "Penalty clause detected"),
-        ],
-        "medium": [
-            (r"(?:may|shall)\s+(?:be\s+)?(?:amended|modified)\s+(?:at\s+)?(?:any\s+time|unilaterally)",
-             "Unilateral modification rights"),
-            (r"(?:reasonable\s+)?(?:best|commercial(?:ly)?)\s+efforts?",
-             "Best/commercial efforts standard (vague)"),
-            (r"(?:liquidated\s+)?damages", "Damages clause present"),
-            (r"non-solicitat(?:ion|e)", "Non-solicitation restriction"),
-            (r"(?:3|three|five|5)\s+year", "Long-term commitment period"),
-            (r"(?:exclusive|exclusivity)", "Exclusivity requirement"),
-        ],
-        "low": [
-            (r"(?:30|thirty)\s+days?\s+(?:written\s+)?notice", "Standard notice period"),
-            (r"mutual(?:ly)?\s+(?:agree|consent)", "Mutual agreement required"),
-            (r"(?:pro[\s-]?rata|proportional)", "Pro-rata provisions"),
-        ],
-    }
-
-    RISK_DIMENSIONS = {
-        "liability": [
-            r"(?:un)?limited\s+liability",
-            r"(?:shall|will)\s+not\s+(?:be\s+)?(?:liable|responsible)",
-            r"aggregate\s+liability",
-            r"cap\s+on\s+(?:damages|liability)",
-        ],
-        "commitment": [
-            r"perpetual", r"irrevocabl[ey]",
-            r"automatic(?:ally)?\s+renew",
-            r"(?:3|three|five|5|10|ten)\s+year",
-        ],
-        "control": [
-            r"sole\s+(?:discretion|judgment)",
-            r"unilateral(?:ly)?",
-            r"without\s+(?:prior\s+)?(?:consent|approval)",
-        ],
-        "flexibility": [
-            r"(?:may|shall)\s+(?:be\s+)?(?:amended|modified)",
-            r"(?:exclusive|exclusivity)",
-            r"non-compet(?:e|ition)",
-            r"restrictive\s+covenant",
-        ],
-    }
+    # Aliases for legacy access.
+    RISK_INDICATORS = patterns.RISK_INDICATORS_RAW
+    RISK_DIMENSIONS = patterns.RISK_DIMENSIONS_RAW
 
     def _perform_analysis(self, text, context):
+        cache = context.get("match_cache") if context else None
         risks = {"high": [], "medium": [], "low": []}
-        for severity, patterns in self.RISK_INDICATORS.items():
-            for pattern, description in patterns:
-                for match in re.finditer(pattern, text, re.IGNORECASE):
-                    start = max(0, match.start() - 50)
-                    end = min(len(text), match.end() + 100)
-                    ctx = text[start:end].strip()
+        citations = []
+
+        for severity, entries in patterns.RISK_INDICATORS.items():
+            for i, (compiled, description) in enumerate(entries):
+                match_tuples = patterns.iter_matches(
+                    cache, f"risk:{severity}:{i}", compiled, text
+                )
+                for start, end, _g0, _groups in match_tuples:
+                    ctx_start = max(0, start - 50)
+                    ctx_end = min(len(text), end + 100)
+                    ctx = text[ctx_start:ctx_end].strip()
                     entry = {
                         "description": description,
                         "context": ctx,
-                        "matched": match.group(),
+                        "matched": text[start:end],
                     }
                     if entry["description"] not in [r["description"] for r in risks[severity]]:
                         risks[severity].append(entry)
+                        citations.append({
+                            "start": start,
+                            "end": end,
+                            "label": description,
+                            "excerpt": ctx,
+                            "line": cache.line_for(start) if cache else None,
+                            "severity": severity,
+                        })
 
         dimension_scores = {}
-        for dim, patterns in self.RISK_DIMENSIONS.items():
+        for dim, compiled_list in patterns.RISK_DIMENSIONS.items():
             hits = 0
-            for pattern in patterns:
-                if re.search(pattern, text, re.IGNORECASE):
+            for i, compiled in enumerate(compiled_list):
+                match_tuples = patterns.iter_matches(
+                    cache, f"risk_dim:{dim}:{i}", compiled, text
+                )
+                if match_tuples:
                     hits += 1
-            dimension_scores[dim] = round(hits / len(patterns) * 100, 1)
+            dimension_scores[dim] = round(hits / len(compiled_list) * 100, 1) if compiled_list else 0.0
 
         score = 0
         score += len(risks["high"]) * 20
@@ -110,24 +77,29 @@ class RiskAssessmentAgent(BaseAgent):
             "total_indicators": (
                 len(risks["high"]) + len(risks["medium"]) + len(risks["low"])
             ),
+            "_citations": citations,
         }
 
     def _extract_insights(self, findings):
         insights = []
-        score = findings["risk_score"]
-        insights.append(f"Overall risk score: {score['score']}/100 ({score['label']})")
-        high_count = len(findings["risks"]["high"])
+        score = findings.get("risk_score", {})
+        if score:
+            insights.append(f"Overall risk score: {score.get('score', 0)}/100 ({score.get('label', 'Unknown')})")
+        high_count = len(findings.get("risks", {}).get("high", []))
         if high_count:
             insights.append(f"{high_count} high-severity risk indicator(s) found")
-        worst_dim = max(findings["dimension_scores"], key=findings["dimension_scores"].get)
-        insights.append(f"Highest risk dimension: {worst_dim} ({findings['dimension_scores'][worst_dim]}%)")
+        dimension_scores = findings.get("dimension_scores", {})
+        if dimension_scores:
+            worst_dim = max(dimension_scores, key=dimension_scores.get)
+            insights.append(f"Highest risk dimension: {worst_dim} ({dimension_scores[worst_dim]}%)")
         return insights
 
     def _identify_warnings(self, findings):
         warnings = []
-        if findings["risk_score"]["score"] >= 75:
+        risk_score = findings.get("risk_score", {}).get("score", 0)
+        if risk_score >= 75:
             warnings.append("CRITICAL: Risk score exceeds 75/100")
-        for risk in findings["risks"]["high"]:
+        for risk in findings.get("risks", {}).get("high", []):
             warnings.append(f"High risk: {risk['description']}")
         return warnings
 
@@ -138,7 +110,7 @@ class RiskAssessmentAgent(BaseAgent):
         ]
 
     def _compute_confidence(self, findings):
-        total = findings["total_indicators"]
+        total = findings.get("total_indicators", 0)
         if total == 0:
             return 0.4
         return min(0.9, 0.5 + total * 0.05)

@@ -1,124 +1,19 @@
 import re
 import os
 
+from agents import patterns as _patterns
+
 
 class ContractAnalyzer:
     """Analyzes contract text for clauses, risks, key terms, and obligations."""
 
-    CLAUSE_PATTERNS = {
-        "Termination": [
-            r"terminat(?:e|ion|ed)",
-            r"cancel(?:lation)?",
-            r"end\s+(?:of\s+)?(?:this\s+)?agreement",
-        ],
-        "Indemnification": [
-            r"indemnif(?:y|ication|ied)",
-            r"hold\s+harmless",
-            r"defend\s+and\s+indemnify",
-        ],
-        "Confidentiality": [
-            r"confidential(?:ity)?",
-            r"non-disclosure",
-            r"proprietary\s+information",
-            r"trade\s+secret",
-        ],
-        "Limitation of Liability": [
-            r"limit(?:ation)?\s+(?:of\s+)?liability",
-            r"in\s+no\s+event\s+shall.*(?:be\s+)?liable",
-            r"aggregate\s+liability",
-            r"cap\s+on\s+(?:damages|liability)",
-        ],
-        "Payment Terms": [
-            r"payment\s+(?:terms?|schedule|due)",
-            r"invoic(?:e|ing)",
-            r"net\s+\d+\s+days?",
-            r"(?:payable|due)\s+(?:within|upon|on)",
-        ],
-        "Intellectual Property": [
-            r"intellectual\s+property",
-            r"(?:patent|copyright|trademark)s?",
-            r"ownership\s+of\s+(?:work|deliverables|ip)",
-            r"license\s+grant",
-        ],
-        "Governing Law": [
-            r"governing\s+law",
-            r"governed\s+by\s+the\s+laws",
-            r"jurisdiction",
-            r"venue\s+(?:shall\s+be|for)",
-        ],
-        "Force Majeure": [
-            r"force\s+majeure",
-            r"act\s+of\s+god",
-            r"unforeseeable\s+(?:event|circumstance)",
-        ],
-        "Non-Compete": [
-            r"non-compet(?:e|ition)",
-            r"(?:shall|will)\s+not\s+(?:directly\s+or\s+indirectly\s+)?compete",
-            r"restrictive\s+covenant",
-        ],
-        "Warranty": [
-            r"warrant(?:y|ies|s)",
-            r"represent(?:s|ation)?\s+and\s+warrant",
-            r"as[\s-]is",
-            r"merchantability",
-        ],
-        "Dispute Resolution": [
-            r"dispute\s+resolution",
-            r"arbitrat(?:ion|e|or)",
-            r"mediat(?:ion|e|or)",
-            r"(?:shall|will)\s+(?:attempt\s+to\s+)?resolve.*(?:dispute|disagreement)",
-        ],
-        "Assignment": [
-            r"assign(?:ment)?(?:\s+of\s+(?:this\s+)?agreement)?",
-            r"(?:shall|may)\s+not\s+(?:be\s+)?assign(?:ed)?",
-            r"transfer(?:ability)?\s+of\s+(?:rights|obligations)",
-        ],
-    }
-
-    RISK_INDICATORS = {
-        "high": [
-            (r"unlimited\s+liability", "Unlimited liability exposure"),
-            (r"waiv(?:e|er)\s+(?:all|any)\s+(?:right|claim)", "Broad waiver of rights"),
-            (r"sole\s+(?:discretion|judgment)", "Sole discretion clause favoring one party"),
-            (r"irrevocabl[ey]", "Irrevocable commitment"),
-            (r"perpetual(?:ly)?(?:\s+and\s+irrevocabl[ey])?", "Perpetual obligation"),
-            (r"(?:shall|will)\s+not\s+(?:be\s+)?(?:liable|responsible)\s+(?:for\s+)?(?:any|all)", "Broad liability exclusion"),
-            (r"automatic(?:ally)?\s+renew", "Auto-renewal clause"),
-            (r"(?:penalty|penalt?ies)\s+(?:for|of|in)", "Penalty clause detected"),
-        ],
-        "medium": [
-            (r"(?:may|shall)\s+(?:be\s+)?(?:amended|modified)\s+(?:at\s+)?(?:any\s+time|unilaterally)", "Unilateral modification rights"),
-            (r"(?:reasonable\s+)?(?:best|commercial(?:ly)?)\s+efforts?", "Best/commercial efforts standard (vague)"),
-            (r"(?:liquidated\s+)?damages", "Damages clause present"),
-            (r"non-solicitat(?:ion|e)", "Non-solicitation restriction"),
-            (r"(?:3|three|five|5)\s+year", "Long-term commitment period"),
-            (r"(?:exclusive|exclusivity)", "Exclusivity requirement"),
-        ],
-        "low": [
-            (r"(?:30|thirty)\s+days?\s+(?:written\s+)?notice", "Standard notice period"),
-            (r"mutual(?:ly)?\s+(?:agree|consent)", "Mutual agreement required"),
-            (r"(?:pro[\s-]?rata|proportional)", "Pro-rata provisions"),
-        ],
-    }
-
-    OBLIGATION_PATTERNS = [
-        (r"(?:party|company|contractor|vendor|client|customer)\s+(?:shall|must|will|agrees?\s+to)\s+([^.;]{10,120})", "Obligation"),
-        (r"(?:is|are)\s+(?:required|obligated)\s+to\s+([^.;]{10,120})", "Requirement"),
-        (r"(?:shall|must)\s+(?:provide|deliver|submit|maintain|ensure|comply)\s+([^.;]{10,80})", "Duty"),
-    ]
-
-    KEY_DATE_PATTERNS = [
-        (r"(?:effective\s+date|commenc(?:e|ement)\s+date)[:\s]+([^.;,]{5,60})", "Effective Date"),
-        (r"(?:expir(?:ation|y)|termination)\s+date[:\s]+([^.;,]{5,60})", "Expiration Date"),
-        (r"(?:renew(?:al)?)\s+(?:date|deadline)[:\s]+([^.;,]{5,60})", "Renewal Date"),
-        (r"(?:within|no\s+later\s+than)\s+(\d+\s+(?:days?|months?|years?|business\s+days?))", "Deadline"),
-    ]
-
-    FINANCIAL_PATTERNS = [
-        (r"\$[\d,]+(?:\.\d{2})?(?:\s*(?:per|/)\s*\w+)?", "Monetary Amount"),
-        (r"(\d+(?:\.\d+)?)\s*%", "Percentage"),
-        (r"(?:fee|cost|price|rate|compensation|salary|payment)[:\s]+([^.;]{5,80})", "Financial Term"),
-    ]
+    # Pattern definitions live in agents/patterns.py (single source of truth).
+    # Class attributes are kept as aliases for backward compatibility.
+    CLAUSE_PATTERNS = _patterns.CLAUSE_PATTERNS_RAW
+    RISK_INDICATORS = _patterns.RISK_INDICATORS_RAW
+    OBLIGATION_PATTERNS = _patterns.OBLIGATION_PATTERNS_RAW
+    KEY_DATE_PATTERNS = _patterns.KEY_DATE_PATTERNS_RAW
+    FINANCIAL_PATTERNS = _patterns.FINANCIAL_PATTERNS_RAW
 
     def extract_text(self, filepath):
         """Extract text from .txt, .pdf, or .docx files."""

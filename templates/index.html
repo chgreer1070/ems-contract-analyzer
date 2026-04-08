@@ -575,6 +575,154 @@
             flex-shrink: 0;
         }
 
+        /* Agent failure badge */
+        .agent-report.failed {
+            border: 1px solid var(--danger);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .agent-report .failed-badge {
+            display: inline-block;
+            background: var(--danger);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            margin-left: 0.4rem;
+            text-transform: uppercase;
+        }
+
+        /* Citation chips */
+        .cite-chip {
+            display: inline-block;
+            background: var(--surface-alt);
+            color: var(--info);
+            border: 1px solid var(--border);
+            font-size: 0.65rem;
+            padding: 0.05rem 0.4rem;
+            border-radius: 999px;
+            cursor: pointer;
+            margin-left: 0.3rem;
+            font-family: inherit;
+        }
+
+        .cite-chip:hover {
+            background: var(--info);
+            color: var(--bg);
+            border-color: var(--info);
+        }
+
+        /* Source text panel */
+        .source-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .source-panel summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.95rem;
+            list-style: none;
+        }
+
+        .source-panel summary::before {
+            content: '▸ ';
+            color: var(--primary);
+        }
+
+        .source-panel[open] summary::before { content: '▾ '; }
+
+        .source-panel pre {
+            margin-top: 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text);
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 0.8rem;
+            max-height: 500px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .source-panel mark {
+            background: var(--warning);
+            color: var(--bg);
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        /* Decision rationale */
+        .rationale {
+            margin-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            padding-top: 0.5rem;
+        }
+
+        .rationale summary {
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--info);
+            list-style: none;
+        }
+
+        .rationale summary::before {
+            content: '▸ ';
+            color: var(--info);
+        }
+
+        .rationale[open] summary::before { content: '▾ '; }
+
+        .rationale ul {
+            margin-top: 0.5rem;
+            padding-left: 1.25rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .rationale li { margin-bottom: 0.25rem; }
+
+        .panel-score .ps-triggers {
+            margin-top: 0.35rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: left;
+            line-height: 1.3;
+        }
+
+        .panel-score .ps-triggers div {
+            padding: 0.15rem 0;
+            border-top: 1px dashed var(--border);
+        }
+
+        .panel-score .ps-weight {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .failures-list {
+            margin-top: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--danger);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .failures-list .failure-item {
+            color: var(--danger);
+            padding: 0.15rem 0;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
@@ -719,6 +867,11 @@
                 </div>
                 <div class="section-body" id="financials-body"></div>
             </div>
+
+            <details class="source-panel" id="source-panel" style="display:none;">
+                <summary>Source text (click citation chips to jump here)</summary>
+                <pre id="source-text"></pre>
+            </details>
         </div>
     </div>
 
@@ -734,6 +887,7 @@ const dropZone = document.getElementById('drop-zone');
 const fileNameEl = document.getElementById('file-name');
 
 let selectedFile = null;
+let sourceText = '';
 
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -768,6 +922,7 @@ analyzeBtn.addEventListener('click', async () => {
 
     const activeTab = document.querySelector('.tab.active').dataset.tab;
     let body;
+    sourceText = '';
 
     if (activeTab === 'upload' && selectedFile) {
         const fd = new FormData();
@@ -779,6 +934,7 @@ analyzeBtn.addEventListener('click', async () => {
             showError('Please paste contract text before analyzing.');
             return;
         }
+        sourceText = text;
         body = new FormData();
         body.append('text', text);
     } else {
@@ -826,8 +982,43 @@ function toggleSection(header) {
     header.parentElement.classList.toggle('open');
 }
 
+// Build a map of "AgentName:findingIndex" to citation list for chip rendering.
+let citationIndex = {};
+
+function citationsForLabel(orch, label) {
+    if (!orch || !orch.all_citations) return [];
+    return orch.all_citations.filter(c => c.label === label);
+}
+
+function chipHtml(citations) {
+    if (!citations || !citations.length) return '';
+    return citations.slice(0, 3).map(c => {
+        const line = c.line != null ? c.line : '?';
+        return `<button type="button" class="cite-chip" data-start="${c.start}" data-end="${c.end}">L${line}</button>`;
+    }).join('');
+}
+
 function renderResults(data) {
     document.getElementById('summary-text').textContent = data.summary;
+
+    const orch = data.orchestration;
+    citationIndex = {};
+    if (orch && Array.isArray(orch.all_citations)) {
+        orch.all_citations.forEach(c => {
+            const k = c.label || '';
+            if (!citationIndex[k]) citationIndex[k] = [];
+            citationIndex[k].push(c);
+        });
+    }
+
+    // Source text panel (use what the user pasted, or fall back to nothing)
+    const sourcePanel = document.getElementById('source-panel');
+    if (sourceText) {
+        document.getElementById('source-text').textContent = sourceText;
+        sourcePanel.style.display = 'block';
+    } else {
+        sourcePanel.style.display = 'none';
+    }
 
     const score = data.risk_score.score;
     const label = data.risk_score.label;
@@ -862,8 +1053,9 @@ function renderResults(data) {
         data.clauses.found.length + ' found, ' + data.clauses.missing.length + ' missing';
 
     data.clauses.found.forEach(c => {
+        const chips = chipHtml(citationIndex[c.name] || []);
         clausesHtml += `<div class="clause-item">
-            <div class="clause-name"><span class="present">&#10003;</span> ${escapeHtml(c.name)}</div>
+            <div class="clause-name"><span class="present">&#10003;</span> ${escapeHtml(c.name)}${chips}</div>
             ${c.excerpts.map(e => `<div class="clause-excerpt">${escapeHtml(e)}</div>`).join('')}
         </div>`;
     });
@@ -887,8 +1079,9 @@ function renderResults(data) {
         risksHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">No risk indicators detected.</p>';
     }
     allRisks.forEach(r => {
+        const chips = chipHtml(citationIndex[r.description] || []);
         risksHtml += `<div class="risk-item ${r.severity}">
-            <div class="risk-desc"><span class="severity-badge ${r.severity}">${r.severity}</span>${escapeHtml(r.description)}</div>
+            <div class="risk-desc"><span class="severity-badge ${r.severity}">${r.severity}</span>${escapeHtml(r.description)}${chips}</div>
             <div class="risk-context">"...${escapeHtml(r.context)}..."</div>
         </div>`;
     });
@@ -948,15 +1141,25 @@ function renderOrchestration(orch) {
     const assessment = orch.overall_assessment || {};
     const decision = assessment.decision || 'review';
     const confidence = (assessment.confidence || 0).toFixed(0);
+    const weighted = orch.weighted_score != null ? orch.weighted_score : (assessment.weighted_score || 0);
     const recommendation = orch.recommendation || '';
+    const rationale = orch.decision_rationale || [];
+    const rationaleHtml = rationale.length
+        ? `<details class="rationale" open>
+             <summary>Why this decision?</summary>
+             <ul>${rationale.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
+           </details>`
+        : '';
     const decisionBox = document.getElementById('decision-box');
     decisionBox.innerHTML = `
         <span class="decision-badge decision-${decision}">${decision}</span>
-        <strong>${confidence}% consensus</strong>
+        <strong>${confidence}% confidence</strong>
+        <span style="color:var(--text-muted);margin-left:0.5rem;">weighted score ${Number(weighted).toFixed(0)}/100</span>
         <div style="margin-top:0.5rem;color:var(--text-muted);">${escapeHtml(recommendation)}</div>
+        ${rationaleHtml}
     `;
 
-    // Panel scores grid
+    // Panel scores grid — now with weight + triggers
     const panelScores = orch.panel_scores || {};
     const grid = document.getElementById('panel-scores-grid');
     grid.innerHTML = Object.entries(panelScores).map(([key, val]) => {
@@ -964,10 +1167,17 @@ function renderOrchestration(orch) {
         const verdict = val.verdict || 'Fair';
         const verdictClass = 'verdict-' + verdict.toLowerCase();
         const score = val.score != null ? val.score : '--';
+        const weightPct = val.weight != null ? (val.weight * 100).toFixed(0) + '% weight' : '';
+        const triggers = (val.triggers || [])
+            .slice(0, 3)
+            .map(t => `<div>- ${escapeHtml(t)}</div>`)
+            .join('');
         return `<div class="panel-score">
             <div class="ps-label">${escapeHtml(label)}</div>
             <div class="ps-value">${typeof score === 'number' ? score.toFixed(0) : score}</div>
             <div class="ps-verdict ${verdictClass}">${escapeHtml(verdict)}</div>
+            <div class="ps-weight">${weightPct}</div>
+            ${triggers ? `<div class="ps-triggers">${triggers}</div>` : ''}
         </div>`;
     }).join('');
 
@@ -980,11 +1190,19 @@ function renderOrchestration(orch) {
         const warnings = (r.warnings || []).map(w =>
             `<div style="color:var(--warning);">- ${escapeHtml(w)}</div>`
         ).join('');
-        return `<div class="agent-report">
-            <div class="agent-name">${escapeHtml(name)}</div>
+        const failed = !!r.failed;
+        const failedBadge = failed ? `<span class="failed-badge">failed</span>` : '';
+        const failedClass = failed ? ' failed' : '';
+        const cites = (r.citations || []).slice(0, 5);
+        const citeChips = cites.length
+            ? `<div style="margin-top:0.35rem;">${chipHtml(cites)}</div>`
+            : '';
+        return `<div class="agent-report${failedClass}">
+            <div class="agent-name">${escapeHtml(name)}${failedBadge}</div>
             <div class="agent-specialty">${escapeHtml(r.specialty || '')}</div>
             <div class="agent-insights">${insights}</div>
             ${warnings ? '<div class="agent-insights" style="margin-top:0.25rem;">' + warnings + '</div>' : ''}
+            ${citeChips}
             <div class="agent-meta">Confidence: ${((r.confidence || 0) * 100).toFixed(0)}% | Time: ${(r.execution_time_ms || 0).toFixed(1)}ms</div>
         </div>`;
     }).join('');
@@ -1005,8 +1223,48 @@ function renderOrchestration(orch) {
             <div><strong>Total</strong> &mdash; ${trace.total_agents_deployed || 0} agents deployed (${trace.total_duration_ms.toFixed(1)}ms)</div>
         </div>`;
     }
+    const failures = trace.failures || [];
+    if (failures.length) {
+        traceHtml += `<div class="failures-list">
+            <strong>Failures:</strong>
+            ${failures.map(f =>
+                `<div class="failure-item">${escapeHtml(f.agent)} in ${escapeHtml(f.phase)}: ${escapeHtml(f.error)}</div>`
+            ).join('')}
+        </div>`;
+    }
+    const notes = trace.notes || [];
+    if (notes.length) {
+        traceHtml += `<div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted);">
+            ${notes.map(n => `<div>note: ${escapeHtml(n)}</div>`).join('')}
+        </div>`;
+    }
     document.getElementById('trace-body').innerHTML = traceHtml;
 }
+
+// Citation chip click handler: scroll to source panel and highlight the span.
+document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.cite-chip');
+    if (!chip) return;
+    const start = parseInt(chip.dataset.start, 10);
+    const end = parseInt(chip.dataset.end, 10);
+    if (!sourceText || isNaN(start) || isNaN(end)) return;
+    const panel = document.getElementById('source-panel');
+    panel.open = true;
+    panel.style.display = 'block';
+    const pre = document.getElementById('source-text');
+    const before = sourceText.substring(0, start);
+    const hit = sourceText.substring(start, end);
+    const after = sourceText.substring(end);
+    pre.innerHTML =
+        escapeHtml(before) +
+        '<mark id="cite-mark">' + escapeHtml(hit) + '</mark>' +
+        escapeHtml(after);
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const mark = document.getElementById('cite-mark');
+    if (mark) {
+        setTimeout(() => mark.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    }
+});
 </script>
 </body>
 </html>

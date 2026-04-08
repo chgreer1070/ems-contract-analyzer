@@ -24,17 +24,18 @@ class CrossValidationAgent(BaseAgent):
 
         # Check clause-risk consistency
         if clause_result and risk_result:
-            clause_findings = clause_result.findings
-            risk_findings = risk_result.findings
+            clause_findings = clause_result.findings or {}
+            risk_findings = risk_result.findings or {}
             found_names = {c["name"] for c in clause_findings.get("found", [])}
+            high_risks = (risk_findings.get("risks") or {}).get("high", [])
 
-            if "Limitation of Liability" not in found_names and risk_findings["risks"]["high"]:
+            if "Limitation of Liability" not in found_names and high_risks:
                 conflicts.append({
                     "type": "clause_risk_mismatch",
                     "detail": "High risk indicators found but no Limitation of Liability clause detected",
                     "severity": "high",
                 })
-            if "Limitation of Liability" in found_names and not risk_findings["risks"]["high"]:
+            if "Limitation of Liability" in found_names and not high_risks:
                 reinforcements.append(
                     "Liability clause present with no high-risk indicators: positive sign"
                 )
@@ -52,8 +53,10 @@ class CrossValidationAgent(BaseAgent):
 
         # Check temporal-risk consistency
         if temporal_result and risk_result:
-            has_auto = temporal_result.findings.get("has_auto_renewal", False)
-            risk_descs = [r["description"] for r in risk_result.findings["risks"]["high"]]
+            has_auto = (temporal_result.findings or {}).get("has_auto_renewal", False)
+            risk_findings = risk_result.findings or {}
+            high_risks = (risk_findings.get("risks") or {}).get("high", [])
+            risk_descs = [r.get("description", "") for r in high_risks]
             if has_auto and "Auto-renewal clause" not in risk_descs:
                 conflicts.append({
                     "type": "temporal_risk_gap",
@@ -73,8 +76,8 @@ class CrossValidationAgent(BaseAgent):
 
         # Check clause completeness vs overall risk
         if clause_result and risk_result:
-            completeness = clause_result.findings.get("completeness_pct", 0)
-            risk_score = risk_result.findings["risk_score"]["score"]
+            completeness = (clause_result.findings or {}).get("completeness_pct", 0)
+            risk_score = ((risk_result.findings or {}).get("risk_score") or {}).get("score", 0)
             if completeness < 50 and risk_score < 25:
                 gaps.append({
                     "type": "incomplete_low_risk",
@@ -115,23 +118,23 @@ class CrossValidationAgent(BaseAgent):
 
     def _extract_insights(self, findings):
         insights = []
-        consistency = findings["overall_consistency"]
+        consistency = findings.get("overall_consistency", 0)
         insights.append(f"Cross-agent consistency score: {consistency}/100")
-        if findings["conflicts"]:
+        if findings.get("conflicts"):
             insights.append(f"{len(findings['conflicts'])} conflict(s) between agent findings")
-        if findings["gaps"]:
+        if findings.get("gaps"):
             insights.append(f"{len(findings['gaps'])} analysis gap(s) identified")
         return insights
 
     def _identify_warnings(self, findings):
         warnings = []
-        for c in findings["conflicts"]:
-            if c["severity"] == "high":
-                warnings.append(f"Conflict: {c['detail']}")
-        for g in findings["gaps"]:
-            if g["severity"] in ("high", "medium"):
-                warnings.append(f"Gap: {g['detail']}")
+        for c in findings.get("conflicts", []):
+            if c.get("severity") == "high":
+                warnings.append(f"Conflict: {c.get('detail', '')}")
+        for g in findings.get("gaps", []):
+            if g.get("severity") in ("high", "medium"):
+                warnings.append(f"Gap: {g.get('detail', '')}")
         return warnings
 
     def _compute_confidence(self, findings):
-        return round(findings["overall_consistency"] / 100, 2)
+        return round(findings.get("overall_consistency", 0) / 100, 2)

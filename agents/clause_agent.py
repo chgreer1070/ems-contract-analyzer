@@ -1,7 +1,14 @@
 """Specialized agent for detecting and analyzing contract clauses."""
 
 import re
+
+from agents import patterns
 from agents.base_agent import BaseAgent
+
+
+# Iterate sentences with their start offset in the original text, so we can
+# track citation spans at the full-text level.
+_SENTENCE_RE = re.compile(r"[^.!?]+[.!?]?", re.DOTALL)
 
 
 class ClauseDetectionAgent(BaseAgent):
@@ -10,92 +17,47 @@ class ClauseDetectionAgent(BaseAgent):
     name = "ClauseDetectionAgent"
     specialty = "Clause Detection & Completeness"
 
-    CLAUSE_PATTERNS = {
-        "Termination": [
-            r"terminat(?:e|ion|ed)",
-            r"cancel(?:lation)?",
-            r"end\s+(?:of\s+)?(?:this\s+)?agreement",
-        ],
-        "Indemnification": [
-            r"indemnif(?:y|ication|ied)",
-            r"hold\s+harmless",
-            r"defend\s+and\s+indemnify",
-        ],
-        "Confidentiality": [
-            r"confidential(?:ity)?",
-            r"non-disclosure",
-            r"proprietary\s+information",
-            r"trade\s+secret",
-        ],
-        "Limitation of Liability": [
-            r"limit(?:ation)?\s+(?:of\s+)?liability",
-            r"in\s+no\s+event\s+shall.*(?:be\s+)?liable",
-            r"aggregate\s+liability",
-            r"cap\s+on\s+(?:damages|liability)",
-        ],
-        "Payment Terms": [
-            r"payment\s+(?:terms?|schedule|due)",
-            r"invoic(?:e|ing)",
-            r"net\s+\d+\s+days?",
-            r"(?:payable|due)\s+(?:within|upon|on)",
-        ],
-        "Intellectual Property": [
-            r"intellectual\s+property",
-            r"(?:patent|copyright|trademark)s?",
-            r"ownership\s+of\s+(?:work|deliverables|ip)",
-            r"license\s+grant",
-        ],
-        "Governing Law": [
-            r"governing\s+law",
-            r"governed\s+by\s+the\s+laws",
-            r"jurisdiction",
-            r"venue\s+(?:shall\s+be|for)",
-        ],
-        "Force Majeure": [
-            r"force\s+majeure",
-            r"act\s+of\s+god",
-            r"unforeseeable\s+(?:event|circumstance)",
-        ],
-        "Non-Compete": [
-            r"non-compet(?:e|ition)",
-            r"(?:shall|will)\s+not\s+(?:directly\s+or\s+indirectly\s+)?compete",
-            r"restrictive\s+covenant",
-        ],
-        "Warranty": [
-            r"warrant(?:y|ies|s)",
-            r"represent(?:s|ation)?\s+and\s+warrant",
-            r"as[\s-]is",
-            r"merchantability",
-        ],
-        "Dispute Resolution": [
-            r"dispute\s+resolution",
-            r"arbitrat(?:ion|e|or)",
-            r"mediat(?:ion|e|or)",
-            r"(?:shall|will)\s+(?:attempt\s+to\s+)?resolve.*(?:dispute|disagreement)",
-        ],
-        "Assignment": [
-            r"assign(?:ment)?(?:\s+of\s+(?:this\s+)?agreement)?",
-            r"(?:shall|may)\s+not\s+(?:be\s+)?assign(?:ed)?",
-            r"transfer(?:ability)?\s+of\s+(?:rights|obligations)",
-        ],
-    }
-
-    CRITICAL_CLAUSES = {
-        "Termination", "Indemnification", "Limitation of Liability",
-        "Confidentiality", "Governing Law",
-    }
+    # Aliases kept for any legacy callers that read these off the class.
+    CLAUSE_PATTERNS = patterns.CLAUSE_PATTERNS_RAW
+    CRITICAL_CLAUSES = patterns.CRITICAL_CLAUSES
 
     def _perform_analysis(self, text, context):
-        sentences = re.split(r"(?<=[.!?])\s+", text)
         found = []
-        for clause_name, patterns in self.CLAUSE_PATTERNS.items():
+        citations = []
+        total_clauses = len(patterns.CLAUSE_PATTERNS)
+
+        # Walk each sentence once, keeping its (start, end) in the full text
+        sentences = [
+            (m.start(), m.end(), m.group(0).strip())
+            for m in _SENTENCE_RE.finditer(text) if m.group(0).strip()
+        ]
+
+        cache = context.get("match_cache") if context else None
+
+        for clause_name, compiled_patterns in patterns.CLAUSE_PATTERNS.items():
             matching = []
-            for pattern in patterns:
-                for sentence in sentences:
-                    if re.search(pattern, sentence, re.IGNORECASE):
-                        clean = sentence.strip()[:300]
-                        if clean not in matching:
-                            matching.append(clean)
+            clause_citations = []
+            for i, pattern in enumerate(compiled_patterns):
+                # Read from cache or fall back to direct search against sentences
+                if cache is not None:
+                    hit_sentences = self._sentences_for_pattern_hits(
+                        cache.get(f"clause:{clause_name}:{i}"), sentences
+                    )
+                else:
+                    hit_sentences = [
+                        (s, e, t) for s, e, t in sentences if pattern.search(t)
+                    ]
+                for sent_start, sent_end, sent_text in hit_sentences:
+                    clean = sent_text[:300]
+                    if clean not in matching:
+                        matching.append(clean)
+                        clause_citations.append({
+                            "start": sent_start,
+                            "end": sent_end,
+                            "label": clause_name,
+                            "excerpt": clean[:160],
+                            "line": cache.line_for(sent_start) if cache else None,
+                        })
             if matching:
                 found.append({
                     "name": clause_name,
@@ -103,20 +65,39 @@ class ClauseDetectionAgent(BaseAgent):
                     "excerpts": matching[:3],
                     "match_strength": min(len(matching), 3),
                 })
+                citations.extend(clause_citations[:3])
 
         found_names = {c["name"] for c in found}
-        missing = [n for n in self.CLAUSE_PATTERNS if n not in found_names]
-        missing_critical = [n for n in missing if n in self.CRITICAL_CLAUSES]
+        missing = [n for n in patterns.CLAUSE_PATTERNS if n not in found_names]
+        missing_critical = [n for n in missing if n in patterns.CRITICAL_CLAUSES]
 
-        completeness = len(found) / len(self.CLAUSE_PATTERNS) * 100
+        completeness = len(found) / total_clauses * 100 if total_clauses else 0
 
         return {
             "found": found,
             "missing": missing,
             "missing_critical": missing_critical,
             "completeness_pct": round(completeness, 1),
-            "total_checked": len(self.CLAUSE_PATTERNS),
+            "total_checked": total_clauses,
+            "_citations": citations,
         }
+
+    @staticmethod
+    def _sentences_for_pattern_hits(match_tuples, sentences):
+        """Given cached pattern matches, return the sentences containing each."""
+        if not match_tuples:
+            return []
+        hits = []
+        seen = set()
+        for start, end, _g0, _groups in match_tuples:
+            for sent_start, sent_end, sent_text in sentences:
+                if sent_start <= start < sent_end:
+                    key = (sent_start, sent_end)
+                    if key not in seen:
+                        seen.add(key)
+                        hits.append((sent_start, sent_end, sent_text))
+                    break
+        return hits
 
     def _extract_insights(self, findings):
         insights = []

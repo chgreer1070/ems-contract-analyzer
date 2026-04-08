@@ -16,6 +16,7 @@ class AgentResult:
     confidence: float = 0.0
     execution_time_ms: float = 0.0
     metadata: dict = field(default_factory=dict)
+    citations: list = field(default_factory=list)
 
     def to_dict(self):
         return {
@@ -28,11 +29,18 @@ class AgentResult:
             "confidence": self.confidence,
             "execution_time_ms": self.execution_time_ms,
             "metadata": self.metadata,
+            "citations": self.citations,
         }
 
 
 class BaseAgent:
-    """Abstract base class for all specialized analysis agents."""
+    """Abstract base class for all specialized analysis agents.
+
+    Subclasses implement ``_perform_analysis(text, context) -> dict``.
+    Citations are passed by having the subclass append dicts to
+    ``findings["_citations"]``; the base class extracts that key out of
+    findings into ``AgentResult.citations`` so the return value stays clean.
+    """
 
     name = "BaseAgent"
     specialty = "General"
@@ -41,6 +49,20 @@ class BaseAgent:
         """Run this agent's analysis and return an AgentResult."""
         start = time.time()
         findings = self._perform_analysis(text, context or {})
+        if not isinstance(findings, dict):
+            findings = {}
+
+        # Extract citations piggybacked in findings (thread-safe: local scope)
+        citations = findings.pop("_citations", []) or []
+
+        # Attach agent name to every citation, assign stable ids
+        prepared_citations = []
+        for i, cite in enumerate(citations):
+            entry = dict(cite)  # copy
+            entry.setdefault("agent", self.name)
+            entry.setdefault("id", f"{self.name}-{i}")
+            prepared_citations.append(entry)
+
         insights = self._extract_insights(findings)
         warnings = self._identify_warnings(findings)
         assumptions = self._state_assumptions(findings)
@@ -56,6 +78,7 @@ class BaseAgent:
             assumptions=assumptions,
             confidence=confidence,
             execution_time_ms=round(elapsed, 2),
+            citations=prepared_citations,
         )
 
     def _perform_analysis(self, text, context):

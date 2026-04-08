@@ -1,9 +1,11 @@
 import json
 import os
+import re
 import unittest
 
 from analyzer import ContractAnalyzer
 from orchestrator import ContractOrchestrator
+from agents import patterns
 from agents.base_agent import BaseAgent, AgentResult
 from agents.clause_agent import ClauseDetectionAgent
 from agents.risk_agent import RiskAssessmentAgent
@@ -13,6 +15,7 @@ from agents.temporal_agent import TemporalAnalysisAgent
 from agents.party_agent import PartyIdentificationAgent
 from agents.cross_validator import CrossValidationAgent
 from agents.executive_reviewer import ExecutiveReviewAgent
+from agents.match_cache import MatchCache
 from app import app
 
 
@@ -311,6 +314,212 @@ class TestFlaskApp(unittest.TestCase):
     def test_orchestrated_no_input(self):
         resp = self.client.post("/analyze/orchestrated")
         self.assertEqual(resp.status_code, 400)
+
+
+class TestPatternRegistry(unittest.TestCase):
+    """Improvement #2 — shared pattern registry is the single source of truth."""
+
+    def test_patterns_single_source(self):
+        # analyzer.ContractAnalyzer's class attrs must point at the patterns module,
+        # not at local duplicates.
+        self.assertIs(ContractAnalyzer.CLAUSE_PATTERNS, patterns.CLAUSE_PATTERNS_RAW)
+        self.assertIs(ContractAnalyzer.RISK_INDICATORS, patterns.RISK_INDICATORS_RAW)
+        self.assertIs(ContractAnalyzer.OBLIGATION_PATTERNS, patterns.OBLIGATION_PATTERNS_RAW)
+        self.assertIs(ContractAnalyzer.FINANCIAL_PATTERNS, patterns.FINANCIAL_PATTERNS_RAW)
+
+    def test_pattern_id_all_compiled(self):
+        self.assertGreater(len(patterns.PATTERN_ID), 20)
+        for pid, pat in patterns.PATTERN_ID.items():
+            self.assertIsInstance(pat, re.Pattern, f"{pid} is not a compiled Pattern")
+
+
+class TestMatchCache(unittest.TestCase):
+    """Improvement #4 — shared regex match cache."""
+
+    def test_match_cache_populated(self):
+        cache = MatchCache(SAMPLE_TEXT)
+        cache.run_all(patterns.PATTERN_ID)
+        # Every pattern id should be present as a key (possibly with an empty list).
+        for pid in patterns.PATTERN_ID:
+            self.assertIn(pid, cache)
+
+    def test_line_for_offset(self):
+        text = "line one\nline two\nline three"
+        cache = MatchCache(text)
+        self.assertEqual(cache.line_for(0), 1)            # start of line 1
+        self.assertEqual(cache.line_for(9), 2)            # start of line 2
+        self.assertEqual(cache.line_for(len(text) - 1), 3)  # end of line 3
+
+    def test_agents_use_cache_when_provided(self):
+        cache = MatchCache(SAMPLE_TEXT)
+        cache.run_all(patterns.PATTERN_ID)
+        agent = ClauseDetectionAgent()
+        result = agent.analyze(SAMPLE_TEXT, context={"match_cache": cache})
+        self.assertGreater(len(result.findings["found"]), 0)
+
+
+class TestOrchestratorResilience(unittest.TestCase):
+    """Improvement #1 — resilient orchestration."""
+
+    def test_orchestrator_survives_agent_exception(self):
+        orch = ContractOrchestrator()
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("simulated failure")
+
+        # Monkeypatch a single agent's analyze method.
+        original = orch.initial_agents[0].analyze
+        orch.initial_agents[0].analyze = boom
+        try:
+            result = orch.analyze(SAMPLE_TEXT)
+        finally:
+            orch.initial_agents[0].analyze = original
+
+        self.assertIn("orchestration", result)
+        failures = result["orchestration"]["trace"]["failures"]
+        self.assertGreaterEqual(len(failures), 1)
+        failed_names = {f["agent"] for f in failures}
+        self.assertIn("ClauseDetectionAgent", failed_names)
+        # The top-level response should still have all the standard keys.
+        for key in ("summary", "risk_score", "clauses", "risks"):
+            self.assertIn(key, result)
+        # The failed agent's card should be flagged in agent_reports.
+        report = result["orchestration"]["agent_reports"]["ClauseDetectionAgent"]
+        self.assertTrue(report.get("failed"))
+
+    def test_orchestrator_agent_timeout(self):
+        import time
+
+        orch = ContractOrchestrator(agent_timeout=0.2, total_timeout=30)
+
+        def slow(*args, **kwargs):
+            time.sleep(1.5)
+            return AgentResult(agent_name="x", specialty="x", findings={})
+
+        orch.initial_agents[0].analyze = slow
+        result = orch.analyze(SAMPLE_TEXT)
+        failures = result["orchestration"]["trace"]["failures"]
+        self.assertTrue(any("timeout" in f["error"].lower() for f in failures))
+
+    def test_orchestrator_truncates_huge_input(self):
+        orch = ContractOrchestrator(max_text_chars=2000)
+        huge_text = SAMPLE_TEXT + ("\nfiller line " * 5000)
+        self.assertGreater(len(huge_text), 2000)
+        result = orch.analyze(huge_text)
+        notes = result["orchestration"]["trace"].get("notes", [])
+        self.assertTrue(any("truncated" in n.lower() for n in notes))
+
+
+class TestCitationTracking(unittest.TestCase):
+    """Improvement #3 — source citation tracking."""
+
+    def test_risk_agent_citations_have_spans(self):
+        agent = RiskAssessmentAgent()
+        result = agent.analyze(SAMPLE_TEXT)
+        self.assertGreater(len(result.citations), 0)
+        for cite in result.citations:
+            self.assertIn("start", cite)
+            self.assertIn("end", cite)
+            self.assertGreaterEqual(cite["start"], 0)
+            self.assertGreater(cite["end"], cite["start"])
+            self.assertLessEqual(cite["end"], len(SAMPLE_TEXT))
+
+    def test_citation_text_matches_source(self):
+        agent = ClauseDetectionAgent()
+        result = agent.analyze(SAMPLE_TEXT)
+        for cite in result.citations[:5]:
+            s, e = cite["start"], cite["end"]
+            self.assertEqual(SAMPLE_TEXT[s:e], SAMPLE_TEXT[s:e])  # sanity on bounds
+            snippet = SAMPLE_TEXT[s:e].lower()[:20]
+            self.assertIn(snippet, SAMPLE_TEXT.lower())
+
+    def test_orchestrator_exposes_all_citations(self):
+        orch = ContractOrchestrator()
+        result = orch.analyze(SAMPLE_TEXT)
+        all_citations = result["orchestration"]["all_citations"]
+        self.assertIsInstance(all_citations, list)
+        self.assertGreater(len(all_citations), 0)
+        for cite in all_citations:
+            self.assertIn("agent", cite)
+        for name, report in result["orchestration"]["agent_reports"].items():
+            self.assertIn("citations", report)
+
+
+class TestExplainableDecisions(unittest.TestCase):
+    """Improvement #5 — explainable executive decisions."""
+
+    def _mk_result(self, name, specialty, findings):
+        return AgentResult(
+            agent_name=name, specialty=specialty, findings=findings,
+            warnings=[], confidence=0.8,
+        )
+
+    def test_executive_rationale_mentions_missing_critical(self):
+        reviewer = ExecutiveReviewAgent()
+        clause_result = self._mk_result(
+            "ClauseDetectionAgent", "Clause",
+            {
+                "found": [],
+                "missing": ["Indemnification"],
+                "missing_critical": ["Indemnification"],
+                "completeness_pct": 30,
+            },
+        )
+        result = reviewer.analyze(SAMPLE_TEXT, context={
+            "agent_results": {"ClauseDetectionAgent": clause_result},
+            "cross_validation": {"overall_consistency": 70},
+        })
+        rationale = result.findings["decision_rationale"]
+        self.assertTrue(any("Indemnification" in r for r in rationale))
+
+    def test_executive_rationale_explains_reject(self):
+        reviewer = ExecutiveReviewAgent()
+        risk_result = self._mk_result(
+            "RiskAssessmentAgent", "Risk",
+            {
+                "risks": {
+                    "high": [{"description": "Unlimited liability exposure"}],
+                    "medium": [],
+                    "low": [],
+                },
+                "risk_score": {"score": 85, "label": "Critical Risk"},
+                "dimension_scores": {},
+                "total_indicators": 1,
+            },
+        )
+        result = reviewer.analyze(SAMPLE_TEXT, context={
+            "agent_results": {"RiskAssessmentAgent": risk_result},
+            "cross_validation": {"overall_consistency": 60},
+        })
+        self.assertEqual(result.findings["overall_assessment"]["decision"], "reject")
+        rationale = result.findings["decision_rationale"]
+        self.assertTrue(any("exceeds reject threshold" in r for r in rationale))
+
+    def test_executive_decision_keys_present(self):
+        reviewer = ExecutiveReviewAgent()
+        result = reviewer.analyze(SAMPLE_TEXT, context={
+            "agent_results": {},
+            "cross_validation": {"overall_consistency": 80},
+        })
+        findings = result.findings
+        self.assertIn("weighted_score", findings)
+        self.assertIn("decision_rationale", findings)
+        self.assertIn("panel_scores", findings)
+        for dim, entry in findings["panel_scores"].items():
+            self.assertIn("weight", entry)
+            self.assertIn("triggers", entry)
+
+    def test_executive_rationale_mentions_failed_agents(self):
+        reviewer = ExecutiveReviewAgent()
+        result = reviewer.analyze(SAMPLE_TEXT, context={
+            "agent_results": {},
+            "cross_validation": {"overall_consistency": 60},
+            "failures": [
+                {"agent": "RiskAssessmentAgent", "error": "timeout", "phase": "Initial"},
+            ],
+        })
+        rationale = result.findings["decision_rationale"]
+        self.assertTrue(any("RiskAssessmentAgent" in r for r in rationale))
 
 
 if __name__ == "__main__":
