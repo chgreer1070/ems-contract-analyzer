@@ -1,0 +1,10 @@
+uploads/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.venv/
+*.egg-info/
+.env
+.dockerignore
+Dockerfile

@@ -1,3 +1,4 @@
+import io
 import re
 import os
 
@@ -504,6 +505,102 @@ class ContractAnalyzer:
         {"trigger_type": "clause_conflict", "trigger_match": "eo_forecast_mismatch", "suggestion": "Align E&O liability with forecast commitment levels -- forecast variance tolerance should determine inventory risk allocation", "priority": "high"},
     ]
 
+    # Map clause names to template filenames
+    CLAUSE_TEMPLATE_FILES = {
+        "Termination": "termination.txt",
+        "Indemnification": "indemnification.txt",
+        "Confidentiality": "confidentiality.txt",
+        "Limitation of Liability": "limitation_of_liability.txt",
+        "Payment Terms": "payment_terms.txt",
+        "Intellectual Property": "intellectual_property.txt",
+        "Governing Law": "governing_law.txt",
+        "Force Majeure": "force_majeure.txt",
+        "Non-Compete": "non_compete.txt",
+        "Warranty": "warranty.txt",
+        "Dispute Resolution": "dispute_resolution.txt",
+        "Assignment": "assignment.txt",
+        "Quality Standards": "quality_standards.txt",
+        "Component Sourcing": "component_sourcing.txt",
+        "Inventory/E&O Liability": "inventory_eo_liability.txt",
+        "Forecast & Demand": "forecast_demand.txt",
+        "NPI/ECO Process": "npi_eco_process.txt",
+        "Tooling & Equipment": "tooling_equipment.txt",
+        "Regulatory Compliance": "regulatory_compliance.txt",
+        "Supply Chain Risk": "supply_chain_risk.txt",
+    }
+
+    def __init__(self):
+        self._clause_templates = self._load_clause_templates()
+        # Precompute template bigrams for _compare_clause_to_template
+        self._template_bigrams = {}
+        for name, tmpl in self._clause_templates.items():
+            words = re.findall(r'\w+', tmpl.lower())
+            self._template_bigrams[name] = (
+                {(words[i], words[i+1]) for i in range(len(words) - 1)} if len(words) >= 2 else set()
+            )
+        # Precompile abbreviation regex for _split_sentences
+        self._abbr_pattern = re.compile(
+            r'\b(' + '|'.join(re.escape(a) for a in self.ABBREVIATIONS) + r')\.'
+        )
+
+    def _load_clause_templates(self):
+        """Load standard clause template texts from clause_templates/ directory."""
+        templates = {}
+        templates_dir = os.path.join(os.path.dirname(__file__), "clause_templates")
+        if not os.path.isdir(templates_dir):
+            return templates
+        for clause_name, filename in self.CLAUSE_TEMPLATE_FILES.items():
+            filepath = os.path.join(templates_dir, filename)
+            if os.path.isfile(filepath):
+                with open(filepath, "r", encoding="utf-8") as f:
+                    templates[clause_name] = f.read().strip()
+        return templates
+
+    @staticmethod
+    def _jaccard_shingles(text_a, text_b, n=5):
+        """Compute Jaccard similarity over n-gram word shingles."""
+        def shingles(text, n):
+            words = re.findall(r'\w+', text.lower())
+            if len(words) < n:
+                return {tuple(words)} if words else set()
+            return {tuple(words[i:i+n]) for i in range(len(words) - n + 1)}
+        sa = shingles(text_a, n)
+        sb = shingles(text_b, n)
+        if not sa and not sb:
+            return 1.0
+        if not sa or not sb:
+            return 0.0
+        intersection = sa & sb
+        union = sa | sb
+        return len(intersection) / len(union)
+
+    def _compare_clause_to_template(self, clause_name, clause_text, template_text):
+        """Compare a clause's text against a standard template."""
+        similarity = self._jaccard_shingles(clause_text, template_text)
+        # Use precomputed template bigrams when available
+        template_bg = self._template_bigrams.get(clause_name)
+        if template_bg is None:
+            words = re.findall(r'\w+', template_text.lower())
+            template_bg = {(words[i], words[i+1]) for i in range(len(words) - 1)} if len(words) >= 2 else set()
+        clause_words = re.findall(r'\w+', clause_text.lower())
+        clause_bg = {(clause_words[i], clause_words[i+1]) for i in range(len(clause_words) - 1)} if len(clause_words) >= 2 else set()
+        missing = template_bg - clause_bg
+        extra = clause_bg - template_bg
+        missing_phrases = [" ".join(bg) for bg in sorted(missing)][:5]
+        extra_phrases = [" ".join(bg) for bg in sorted(extra)][:5]
+        if similarity >= 0.4:
+            verdict = "standard"
+        elif similarity >= 0.15:
+            verdict = "non-standard"
+        else:
+            verdict = "unusual"
+        return {
+            "similarity": round(similarity, 3),
+            "missing_phrases": missing_phrases,
+            "extra_phrases": extra_phrases,
+            "verdict": verdict,
+        }
+
     def extract_text(self, filepath):
         """Extract text from .txt, .pdf, or .docx files."""
         ext = os.path.splitext(filepath)[1].lower()
@@ -543,7 +640,8 @@ class ContractAnalyzer:
         obligations = self._extract_obligations(text)
         dates = self._extract_dates(text)
         financials = self._extract_financials(text)
-        parties = self._extract_parties(text)
+        parties_detailed = self._extract_parties_detailed(text)
+        parties = [p["name"] for p in parties_detailed][:6]
 
         # New analysis features
         definitions = self._extract_definitions(text)
@@ -551,7 +649,7 @@ class ContractAnalyzer:
         found_names = [c["name"] for c in clauses["found"]]
         missing_warnings = self._check_missing_clauses(contract_type["type"], found_names)
         clause_relations = self._analyze_clause_relationships(text, clauses["found"])
-        party_balance = self._analyze_party_balance(text, parties)
+        party_balance = self._analyze_party_balance(text, parties, parties_detailed)
 
         # Enhanced risk score
         score = self._compute_risk_score(risks, missing_warnings, clause_relations)
@@ -573,6 +671,7 @@ class ContractAnalyzer:
             "key_dates": dates,
             "financial_terms": financials,
             "parties": parties,
+            "parties_detailed": parties_detailed,
             "word_count": len(text.split()),
             "section_count": len(clauses["found"]),
             # New fields
@@ -589,8 +688,7 @@ class ContractAnalyzer:
         placeholder = "\x07"  # BEL character, unlikely in contract text
         protected = text
         # Protect abbreviation dots
-        abbr_pattern = r'\b(' + '|'.join(re.escape(a) for a in self.ABBREVIATIONS) + r')\.'
-        protected = re.sub(abbr_pattern, lambda m: m.group(1) + placeholder, protected)
+        protected = self._abbr_pattern.sub(lambda m: m.group(1) + placeholder, protected)
         # Protect single-letter abbreviations like U.S.A.
         protected = re.sub(r'(?<=[A-Z])\.(?=[A-Z])', placeholder, protected)
         # Protect decimal numbers and section references like "4.2"
@@ -612,11 +710,18 @@ class ContractAnalyzer:
                         if clean not in matching_sentences:
                             matching_sentences.append(clean)
             if matching_sentences:
-                found.append({
+                clause_entry = {
                     "name": clause_name,
                     "present": True,
                     "excerpts": matching_sentences[:3],
-                })
+                }
+                # Template comparison if template exists
+                if clause_name in self._clause_templates:
+                    clause_text = " ".join(matching_sentences[:3])
+                    clause_entry["template_comparison"] = self._compare_clause_to_template(
+                        clause_name, clause_text, self._clause_templates[clause_name]
+                    )
+                found.append(clause_entry)
         missing = [
             name for name in self.CLAUSE_PATTERNS
             if name not in [c["name"] for c in found]
@@ -626,23 +731,26 @@ class ContractAnalyzer:
     def _assess_risks(self, text):
         """Score and categorize risk indicators found in the text."""
         risks = {"high": [], "medium": [], "low": []}
+        seen_descriptions = set()
         for severity, patterns in self.RISK_INDICATORS.items():
             for entry in patterns:
                 pattern, description = entry[0], entry[1]
                 category = entry[2] if len(entry) > 2 else "operational"
                 matches = re.finditer(pattern, text, re.IGNORECASE)
                 for match in matches:
+                    key = (severity, description)
+                    if key in seen_descriptions:
+                        continue
+                    seen_descriptions.add(key)
                     start = max(0, match.start() - 50)
                     end = min(len(text), match.end() + 100)
                     context = text[start:end].strip()
-                    risk_entry = {
+                    risks[severity].append({
                         "description": description,
                         "context": context,
                         "matched": match.group(),
                         "category": category,
-                    }
-                    if risk_entry["description"] not in [r["description"] for r in risks[severity]]:
-                        risks[severity].append(risk_entry)
+                    })
         return risks
 
     def _extract_obligations(self, text):
@@ -681,21 +789,119 @@ class ContractAnalyzer:
                     financials.append({"type": label, "value": value})
         return financials[:25]
 
-    def _extract_parties(self, text):
-        """Attempt to identify the contracting parties."""
+    ROLE_KEYWORDS = [
+        "OEM", "Manufacturer", "Buyer", "Seller", "Licensor", "Licensee",
+        "Customer", "Vendor", "Contractor", "Client", "Company", "Employer",
+        "Employee", "Landlord", "Tenant", "Lessor", "Lessee", "Borrower",
+        "Lender", "Disclosing Party", "Receiving Party", "Provider",
+        "Consultant", "Principal", "Agent", "Franchisor", "Franchisee",
+        "Party A", "Party B", "First Party", "Second Party",
+    ]
+
+    CORPORATE_SUFFIXES = r"(?:Inc\.|LLC|LLP|Corp\.|Ltd\.|LP|GmbH|SA|NV|Pty|PLC|Co\.|S\.A\.|N\.V\.|Pty Ltd)"
+
+    def _extract_parties_detailed(self, text):
+        """Extract parties with roles, aliases, and jurisdiction info."""
         parties = []
-        party_patterns = [
-            r"(?:between|by\s+and\s+between)\s+([A-Z][A-Za-z\s,.'&]+?)(?:\s*\(.*?\))?\s+(?:and|&)\s+([A-Z][A-Za-z\s,.'&]+?)(?:\s*\(.*?\))?(?:\s*[.,;])",
-            r"(?:\"([^\"]{2,60})\"|'([^']{2,60})')\s*\((?:hereinafter\s+)?(?:referred\s+to\s+as\s+)?[\"']?(Party|Company|Client|Contractor|Vendor|Seller|Buyer|Licensor|Licensee|Manufacturer|OEM)",
-        ]
-        for pattern in party_patterns:
-            for match in re.finditer(pattern, text):
+        seen_names_lower = set()
+        first_2000 = text[:2000]
+        role_set = set(self.ROLE_KEYWORDS)
+
+        # Pass 1: Find "Name Corp., a Jurisdiction entity ("Role")" blocks
+        # This pattern captures: EntityName, a jurisdiction-type ("RoleAlias")
+        entity_pattern = (
+            r'([A-Z][A-Za-z0-9\s,.\x27&-]{2,80}?'
+            r'(?:' + self.CORPORATE_SUFFIXES + r'))'
+            r'(?:\s*,\s*a\s+([A-Za-z\s]+?)'
+            r'(?:corporation|company|limited\s+liability\s+company|partnership|entity))?'
+            r'\s*\(\s*(?:hereinafter\s+)?(?:referred\s+to\s+as\s+)?'
+            r'\x22([^\x22]{1,40})\x22\s*\)'
+        )
+        for match in re.finditer(entity_pattern, first_2000):
+            name = match.group(1).strip().rstrip(",. ")
+            jurisdiction = match.group(2).strip() if match.group(2) else None
+            alias = match.group(3).strip()
+            if name and len(name) > 1 and len(name) < 100 and name.lower() not in seen_names_lower:
+                seen_names_lower.add(name.lower())
+                role = alias if alias in role_set else None
+                parties.append({
+                    "name": name, "role": role,
+                    "aliases": [alias] if alias else [],
+                    "jurisdiction": jurisdiction,
+                })
+
+        # Pass 2: "between X and Y" without parenthetical aliases
+        if len(parties) < 2:
+            preamble_pattern = (
+                r'(?:between|by\s+and\s+between)\s+'
+                r'([A-Z][A-Za-z0-9\s,.\x27&-]+?)(?:\s*\(.*?\))?'
+                r'\s+(?:and|&)\s+'
+                r'([A-Z][A-Za-z0-9\s,.\x27&-]+?)(?:\s*\(.*?\))?'
+                r'(?:\s*[.,;])'
+            )
+            for match in re.finditer(preamble_pattern, first_2000):
+                for group in match.groups():
+                    if not group or not group.strip():
+                        continue
+                    name = group.strip().rstrip(",.")
+                    # Strip jurisdiction suffix
+                    jurisdiction = None
+                    jur_match = re.search(
+                        r',\s*a\s+([A-Za-z\s]+?)(?:corporation|company|limited\s+liability|partnership|entity)',
+                        name
+                    )
+                    if jur_match:
+                        jurisdiction = jur_match.group(1).strip()
+                        name = name[:jur_match.start()].strip().rstrip(",.")
+                    if name and 1 < len(name) < 100 and name.lower() not in seen_names_lower:
+                        seen_names_lower.add(name.lower())
+                        parties.append({
+                            "name": name, "role": None,
+                            "aliases": [], "jurisdiction": jurisdiction,
+                        })
+
+        # Pass 3: Bind roles — only if not already bound from Pass 1
+        all_aliases = set()
+        for p in parties:
+            all_aliases.update(a.lower() for a in p["aliases"])
+        for p in parties:
+            if p["role"]:
+                continue  # Already has a role from Pass 1
+            for name_match in re.finditer(re.escape(p["name"]), first_2000):
+                # Only look at the first parenthetical right after the name
+                window = text[name_match.end():name_match.end() + 100]
+                am = re.search(
+                    r'\(\s*(?:hereinafter\s+)?(?:referred\s+to\s+as\s+)?(?:the\s+)?\x22([^\x22]{1,40})\x22\s*\)',
+                    window,
+                )
+                if am:
+                    alias = am.group(1).strip()
+                    if alias.lower() not in all_aliases:
+                        p["aliases"].append(alias)
+                        all_aliases.add(alias.lower())
+                    if alias in role_set and not p["role"]:
+                        p["role"] = alias
+                break
+
+        # Pass 4: Fallback — quoted names with role descriptors
+        if not parties:
+            fallback_pattern = (
+                r'(?:\x22([^\x22]{2,60})\x22|\x27([^\x27]{2,60})\x27)\s*'
+                r'\((?:hereinafter\s+)?(?:referred\s+to\s+as\s+)?[\x22\x27]?'
+                r'(?:' + '|'.join(re.escape(r) for r in self.ROLE_KEYWORDS) + r')'
+            )
+            for match in re.finditer(fallback_pattern, text):
                 for group in match.groups():
                     if group and group.strip() and len(group.strip()) > 1:
-                        clean = group.strip().rstrip(",.")
-                        if clean not in parties and len(clean) < 100:
-                            parties.append(clean)
-        return parties[:4]
+                        name = group.strip().rstrip(",.")
+                        if name.lower() not in seen_names_lower and len(name) < 100:
+                            seen_names_lower.add(name.lower())
+                            parties.append({
+                                "name": name, "role": None,
+                                "aliases": [], "jurisdiction": None,
+                            })
+
+        return parties[:6]
 
     def _extract_definitions(self, text):
         """Extract defined terms from the contract text."""
@@ -892,7 +1098,7 @@ class ContractAnalyzer:
             "ambiguities": unique_ambiguities,
         }
 
-    def _analyze_party_balance(self, text, parties):
+    def _analyze_party_balance(self, text, parties, parties_detailed=None):
         """Analyze the balance of obligations, protections, and powers between parties."""
         if len(parties) < 2:
             return {
@@ -903,29 +1109,34 @@ class ContractAnalyzer:
                 "asymmetries": [],
             }
 
-        # Extract aliases from parenthetical patterns near party names
-        role_map = {
-            "Client": "stronger", "Company": "stronger", "Employer": "stronger",
-            "Landlord": "stronger", "Seller": "stronger", "Licensor": "stronger",
-            "Lender": "stronger", "OEM": "stronger",
-            "Contractor": "weaker", "Employee": "weaker", "Tenant": "weaker",
-            "Buyer": "weaker", "Licensee": "weaker", "Borrower": "weaker",
-            "Manufacturer": "weaker", "Vendor": "weaker", "Provider": "weaker",
-        }
-
         party_info = []
-        for party in parties[:2]:
-            aliases = []
-            role = "Unknown"
-            # Look for parenthetical alias near party name
-            alias_pattern = re.escape(party) + r'[^.]*?\("([^"]{2,30})"\)'
-            alias_match = re.search(alias_pattern, text)
-            if alias_match:
-                alias = alias_match.group(1)
-                aliases.append(alias)
-                if alias in role_map:
-                    role = alias
-            party_info.append({"name": party, "aliases": aliases, "role": role})
+        if parties_detailed and len(parties_detailed) >= 2:
+            for pd in parties_detailed[:2]:
+                party_info.append({
+                    "name": pd["name"],
+                    "aliases": pd.get("aliases", []),
+                    "role": pd.get("role") or "Unknown",
+                })
+        else:
+            role_map = {
+                "Client": "stronger", "Company": "stronger", "Employer": "stronger",
+                "Landlord": "stronger", "Seller": "stronger", "Licensor": "stronger",
+                "Lender": "stronger", "OEM": "stronger",
+                "Contractor": "weaker", "Employee": "weaker", "Tenant": "weaker",
+                "Buyer": "weaker", "Licensee": "weaker", "Borrower": "weaker",
+                "Manufacturer": "weaker", "Vendor": "weaker", "Provider": "weaker",
+            }
+            for party in parties[:2]:
+                aliases = []
+                role = "Unknown"
+                alias_pattern = re.escape(party) + r'[^.]*?\("([^"]{2,30})"\)'
+                alias_match = re.search(alias_pattern, text)
+                if alias_match:
+                    alias = alias_match.group(1)
+                    aliases.append(alias)
+                    if alias in role_map:
+                        role = alias
+                party_info.append({"name": party, "aliases": aliases, "role": role})
 
         # Define directional analysis patterns
         obligation_patterns = [
@@ -1224,3 +1435,196 @@ class ContractAnalyzer:
         priority_order = {"high": 0, "medium": 1, "low": 2}
         suggestions.sort(key=lambda s: priority_order.get(s["priority"], 3))
         return suggestions[:15]
+
+    def build_pdf_report(self, result):
+        """Generate a PDF report from analysis results, return bytes."""
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.units import inch
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+        )
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=0.75 * inch, bottomMargin=0.75 * inch)
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle("ReportTitle", parent=styles["Title"], fontSize=18, spaceAfter=6)
+        h2_style = ParagraphStyle("H2", parent=styles["Heading2"], fontSize=13, spaceBefore=14, spaceAfter=6,
+                                  textColor=HexColor("#1e3a5f"))
+        body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=9, leading=12)
+        small_style = ParagraphStyle("Small", parent=styles["Normal"], fontSize=8, leading=10,
+                                     textColor=HexColor("#555555"))
+
+        elements = []
+
+        # Title
+        ct = result.get("contract_type", {})
+        type_label = ct.get("type", "General") if ct.get("type") != "General" else ""
+        title = "Contract Analysis Report"
+        if type_label:
+            title += f" — {type_label}"
+        elements.append(Paragraph(title, title_style))
+        elements.append(HRFlowable(width="100%", thickness=1, color=HexColor("#cccccc")))
+        elements.append(Spacer(1, 8))
+
+        # Summary
+        elements.append(Paragraph(result.get("summary", ""), body_style))
+        elements.append(Spacer(1, 6))
+
+        # Risk Score
+        rs = result.get("risk_score", {})
+        elements.append(Paragraph(f"<b>Risk Score:</b> {rs.get('score', 0)}/100 — {rs.get('label', 'N/A')}", body_style))
+        bd = rs.get("breakdown", {})
+        if bd:
+            elements.append(Paragraph(
+                f"Base: {bd.get('base_risk_score', 0)} | Missing clauses: +{bd.get('missing_clause_penalty', 0)} | "
+                f"Conflicts: +{bd.get('clause_conflict_penalty', 0)} | Dependencies: +{bd.get('dependency_penalty', 0)}",
+                small_style,
+            ))
+        elements.append(Spacer(1, 6))
+
+        # Parties
+        parties = result.get("parties_detailed", [])
+        if parties:
+            elements.append(Paragraph("Parties", h2_style))
+            for p in parties:
+                role_str = f" ({p['role']})" if p.get("role") else ""
+                jur_str = f" [{p['jurisdiction']}]" if p.get("jurisdiction") else ""
+                elements.append(Paragraph(f"• {p['name']}{role_str}{jur_str}", body_style))
+            elements.append(Spacer(1, 6))
+
+        # Clauses Found
+        clauses = result.get("clauses", {})
+        if clauses.get("found"):
+            elements.append(Paragraph("Clauses Found", h2_style))
+            for c in clauses["found"]:
+                elements.append(Paragraph(f"✓ {c['name']}", body_style))
+            elements.append(Spacer(1, 4))
+        if clauses.get("missing"):
+            elements.append(Paragraph(f"Missing: {', '.join(clauses['missing'])}", small_style))
+            elements.append(Spacer(1, 6))
+
+        # Missing Clause Warnings
+        warnings = result.get("missing_clause_warnings", [])
+        if warnings:
+            elements.append(Paragraph("Missing Clause Warnings", h2_style))
+            for w in warnings:
+                elements.append(Paragraph(
+                    f"[{w['severity'].upper()}] {w['clause']} — {w['reason']}", body_style
+                ))
+            elements.append(Spacer(1, 6))
+
+        # Risks
+        risks = result.get("risks", {})
+        all_risks = []
+        for sev in ("high", "medium", "low"):
+            for r in risks.get(sev, []):
+                all_risks.append((sev, r))
+        if all_risks:
+            elements.append(Paragraph("Risk Indicators", h2_style))
+            for sev, r in all_risks:
+                elements.append(Paragraph(
+                    f"[{sev.upper()}] {r['description']}", body_style
+                ))
+            elements.append(Spacer(1, 6))
+
+        # Negotiation Suggestions
+        suggestions = result.get("negotiation_suggestions", [])
+        if suggestions:
+            elements.append(Paragraph("Negotiation Suggestions", h2_style))
+            for s in suggestions:
+                elements.append(Paragraph(
+                    f"[{s['priority'].upper()}] {s['suggestion']}", body_style
+                ))
+            elements.append(Spacer(1, 6))
+
+        # Financial Terms
+        financials = result.get("financial_terms", [])
+        if financials:
+            elements.append(Paragraph("Financial Terms", h2_style))
+            for f in financials:
+                elements.append(Paragraph(f"• {f['type']}: {f['value']}", body_style))
+            elements.append(Spacer(1, 6))
+
+        # Definitions
+        definitions = result.get("definitions", [])
+        if definitions:
+            elements.append(Paragraph("Definitions", h2_style))
+            for d in definitions:
+                elements.append(Paragraph(
+                    f"<b>{d['term']}</b>: {d['definition'][:200]}", body_style
+                ))
+
+        doc.build(elements)
+        return buf.getvalue()
+
+    def compare_contracts(self, text_a, text_b):
+        """Compare two contracts and return structured diff."""
+        import difflib
+
+        result_a = self.analyze(text_a)
+        result_b = self.analyze(text_b)
+
+        # Clause diff
+        found_a = {c["name"]: c for c in result_a["clauses"]["found"]}
+        found_b = {c["name"]: c for c in result_b["clauses"]["found"]}
+        all_clause_names = sorted(set(list(found_a.keys()) + list(found_b.keys())))
+
+        clause_diff = {}
+        for name in all_clause_names:
+            in_a = name in found_a
+            in_b = name in found_b
+            similarity = None
+            if in_a and in_b:
+                text_ca = " ".join(found_a[name].get("excerpts", []))
+                text_cb = " ".join(found_b[name].get("excerpts", []))
+                similarity = round(self._jaccard_shingles(text_ca, text_cb), 3)
+            clause_diff[name] = {"in_a": in_a, "in_b": in_b, "similarity": similarity}
+
+        # Risk delta
+        score_a = result_a["risk_score"]["score"]
+        score_b = result_b["risk_score"]["score"]
+        risk_delta = {"a": score_a, "b": score_b, "delta": score_b - score_a}
+
+        # Parties diff
+        parties_a = set(result_a.get("parties", []))
+        parties_b = set(result_b.get("parties", []))
+        parties_diff = {
+            "only_in_a": sorted(parties_a - parties_b),
+            "only_in_b": sorted(parties_b - parties_a),
+            "common": sorted(parties_a & parties_b),
+        }
+
+        # Contract type comparison
+        type_a = result_a.get("contract_type", {}).get("type", "General")
+        type_b = result_b.get("contract_type", {}).get("type", "General")
+
+        # Text diff (unified, capped)
+        lines_a = text_a.splitlines(keepends=True)
+        lines_b = text_b.splitlines(keepends=True)
+        diff_lines = list(difflib.unified_diff(lines_a, lines_b, fromfile="Contract A", tofile="Contract B", n=1))
+        text_diff = "".join(diff_lines[:500])
+
+        # Summary counts
+        only_a = sum(1 for v in clause_diff.values() if v["in_a"] and not v["in_b"])
+        only_b = sum(1 for v in clause_diff.values() if v["in_b"] and not v["in_a"])
+        both = sum(1 for v in clause_diff.values() if v["in_a"] and v["in_b"])
+
+        return {
+            "summary": {
+                "clauses_only_in_a": only_a,
+                "clauses_only_in_b": only_b,
+                "clauses_in_both": both,
+                "contract_type_a": type_a,
+                "contract_type_b": type_b,
+                "types_match": type_a == type_b,
+                "risk_score_a": score_a,
+                "risk_score_b": score_b,
+            },
+            "clause_diff": clause_diff,
+            "risk_delta": risk_delta,
+            "parties_diff": parties_diff,
+            "text_diff": text_diff,
+        }

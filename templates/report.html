@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Contract Analysis Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
+        h1 { font-size: 1.5rem; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; }
+        h2 { font-size: 1.1rem; color: #1e3a5f; margin-top: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25rem; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; }
+        .badge-high, .badge-critical { background: #fee2e2; color: #dc2626; }
+        .badge-medium, .badge-important { background: #fef3c7; color: #d97706; }
+        .badge-low, .badge-recommended { background: #dbeafe; color: #2563eb; }
+        .summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+        .risk-score { font-size: 1.5rem; font-weight: 700; }
+        .risk-low { color: #16a34a; } .risk-moderate { color: #d97706; } .risk-high, .risk-critical { color: #dc2626; }
+        ul { padding-left: 1.5rem; }
+        li { margin-bottom: 0.3rem; font-size: 0.9rem; }
+        .meta { color: #64748b; font-size: 0.8rem; }
+        @media print { body { padding: 1rem; } }
+    </style>
+</head>
+<body>
+    <h1>Contract Analysis Report{% if data.contract_type and data.contract_type.type != 'General' %} &mdash; {{ data.contract_type.type }}{% endif %}</h1>
+
+    <div class="summary">
+        <p>{{ data.summary }}</p>
+        {% set rs = data.risk_score %}
+        <p><span class="risk-score risk-{{ rs.label|lower|replace(' ', '-') }}">{{ rs.score }}/100</span> &mdash; {{ rs.label }}</p>
+        {% if rs.breakdown %}
+        <p class="meta">Base: {{ rs.breakdown.base_risk_score }} | Missing clauses: +{{ rs.breakdown.missing_clause_penalty }} | Conflicts: +{{ rs.breakdown.clause_conflict_penalty }} | Dependencies: +{{ rs.breakdown.dependency_penalty }}</p>
+        {% endif %}
+    </div>
+
+    {% if data.parties_detailed %}
+    <h2>Parties</h2>
+    <ul>
+    {% for p in data.parties_detailed %}
+        <li><strong>{{ p.name }}</strong>{% if p.role %} ({{ p.role }}){% endif %}{% if p.jurisdiction %} <span class="meta">[{{ p.jurisdiction }}]</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if data.clauses and data.clauses.found %}
+    <h2>Clauses Found ({{ data.clauses.found|length }})</h2>
+    <ul>
+    {% for c in data.clauses.found %}
+        <li>{{ c.name }}</li>
+    {% endfor %}
+    </ul>
+    {% if data.clauses.missing %}
+    <p class="meta">Missing: {{ data.clauses.missing|join(', ') }}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if data.missing_clause_warnings %}
+    <h2>Missing Clause Warnings</h2>
+    <ul>
+    {% for w in data.missing_clause_warnings %}
+        <li><span class="badge badge-{{ w.severity }}">{{ w.severity }}</span> {{ w.clause }} &mdash; {{ w.reason }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% set all_risks = (data.risks.high + data.risks.medium + data.risks.low) if data.risks else [] %}
+    {% if all_risks %}
+    <h2>Risk Indicators ({{ all_risks|length }})</h2>
+    <ul>
+    {% for r in data.risks.high %}
+        <li><span class="badge badge-high">HIGH</span> {{ r.description }}</li>
+    {% endfor %}
+    {% for r in data.risks.medium %}
+        <li><span class="badge badge-medium">MEDIUM</span> {{ r.description }}</li>
+    {% endfor %}
+    {% for r in data.risks.low %}
+        <li><span class="badge badge-low">LOW</span> {{ r.description }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if data.negotiation_suggestions %}
+    <h2>Negotiation Suggestions</h2>
+    <ul>
+    {% for s in data.negotiation_suggestions %}
+        <li><span class="badge badge-{{ s.priority }}">{{ s.priority }}</span> {{ s.suggestion }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if data.financial_terms %}
+    <h2>Financial Terms</h2>
+    <ul>
+    {% for f in data.financial_terms %}
+        <li>{{ f.type }}: {{ f.value }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if data.definitions %}
+    <h2>Definitions</h2>
+    <ul>
+    {% for d in data.definitions %}
+        <li><strong>{{ d.term }}</strong>: {{ d.definition[:200] }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    <p class="meta" style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 0.5rem;">Word count: {{ data.word_count }} | Sections: {{ data.section_count }}</p>
+</body>
+</html>

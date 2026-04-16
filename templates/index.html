@@ -622,10 +622,79 @@
             margin-top: 0.15rem;
         }
 
+        .btn-export {
+            padding: 0.65rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            background: var(--surface-alt);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .btn-export:hover { border-color: var(--primary); }
+
+        .export-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-bottom: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 10;
+            min-width: 140px;
+        }
+        .export-dropdown.open .export-menu { display: block; }
+
+        .export-menu button {
+            display: block;
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+        }
+        .export-menu button:hover { background: var(--surface-alt); }
+
+        .template-badge {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .template-badge.standard { background: rgba(34,197,94,0.15); color: var(--success); }
+        .template-badge.non-standard { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .template-badge.unusual { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+        .compare-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .compare-grid textarea { min-height: 150px; }
+        .compare-results { display: none; }
+        .diff-item { padding: 0.5rem; margin-bottom: 0.25rem; border-radius: 6px; font-size: 0.85rem; }
+        .diff-item.both { background: rgba(34,197,94,0.08); }
+        .diff-item.only-a { background: rgba(239,68,68,0.08); }
+        .diff-item.only-b { background: rgba(59,130,246,0.08); }
+
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
             .definition-row { grid-template-columns: 1fr; gap: 0.25rem; }
+            .compare-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -636,6 +705,12 @@
     </div>
 
     <div class="container">
+        <div class="tabs" style="margin-bottom:1rem;">
+            <button class="tab active" id="mode-analyze" data-mode="analyze">Analyze</button>
+            <button class="tab" id="mode-compare" data-mode="compare">Compare</button>
+        </div>
+
+        <div id="analyze-mode">
         <div class="input-section">
             <h2>Submit a contract for analysis</h2>
             <div class="tabs">
@@ -657,10 +732,20 @@
                 <input type="file" id="file-input" accept=".txt,.pdf,.docx">
             </div>
 
-            <button class="btn btn-primary" id="analyze-btn">
-                <span>Analyze Contract</span>
-                <div class="spinner" id="spinner"></div>
-            </button>
+            <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                <button class="btn btn-primary" id="analyze-btn">
+                    <span>Analyze Contract</span>
+                    <div class="spinner" id="spinner"></div>
+                </button>
+                <div class="export-dropdown" id="export-dropdown" style="display:none;position:relative;">
+                    <button class="btn btn-export" id="export-btn" type="button">Download Report &#9662;</button>
+                    <div class="export-menu" id="export-menu">
+                        <button type="button" data-format="pdf">PDF Report</button>
+                        <button type="button" data-format="html">HTML Report</button>
+                        <button type="button" data-format="json">JSON Data</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="error-msg" id="error-msg"></div>
@@ -800,10 +885,75 @@
                 <div class="section-body" id="definitions-body"></div>
             </div>
         </div>
+    </div><!-- end analyze-mode -->
+
+    <div id="compare-mode" style="display:none;">
+        <div class="compare-section">
+            <h2 style="font-size:1rem;margin-bottom:1rem;color:var(--text-muted);font-weight:500;">Compare two contracts side-by-side</h2>
+            <div class="compare-grid">
+                <div>
+                    <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:0.5rem;">Contract A</label>
+                    <textarea id="compare-text-a" placeholder="Paste first contract text..."></textarea>
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:0.5rem;">Contract B</label>
+                    <textarea id="compare-text-b" placeholder="Paste second contract text..."></textarea>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="compare-btn" style="margin-top:0;">
+                <span>Compare Contracts</span>
+                <div class="spinner" id="compare-spinner"></div>
+            </button>
+        </div>
+        <div class="error-msg" id="compare-error"></div>
+        <div class="compare-results" id="compare-results">
+            <div class="summary-card">
+                <h3 style="margin-bottom:0.5rem;font-size:0.95rem;">Comparison Summary</h3>
+                <p id="compare-summary"></p>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card"><div class="value" id="cmp-risk-a">--</div><div class="label">Risk A</div></div>
+                <div class="stat-card"><div class="value" id="cmp-risk-b">--</div><div class="label">Risk B</div></div>
+                <div class="stat-card"><div class="value" id="cmp-shared">--</div><div class="label">Shared Clauses</div></div>
+                <div class="stat-card"><div class="value" id="cmp-delta">--</div><div class="label">Risk Delta</div></div>
+            </div>
+            <div class="section open">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Clause Comparison</h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="compare-clauses-body"></div>
+            </div>
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Parties Comparison</h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="compare-parties-body"></div>
+            </div>
+        </div>
     </div>
+    </div><!-- end container -->
 
 <script>
-const tabs = document.querySelectorAll('.tab');
+// Mode switching (Analyze vs Compare)
+const modeAnalyze = document.getElementById('mode-analyze');
+const modeCompare = document.getElementById('mode-compare');
+const analyzeMode = document.getElementById('analyze-mode');
+const compareMode = document.getElementById('compare-mode');
+
+[modeAnalyze, modeCompare].forEach(btn => {
+    btn.addEventListener('click', () => {
+        modeAnalyze.classList.remove('active');
+        modeCompare.classList.remove('active');
+        btn.classList.add('active');
+        analyzeMode.style.display = btn.dataset.mode === 'analyze' ? 'block' : 'none';
+        compareMode.style.display = btn.dataset.mode === 'compare' ? 'block' : 'none';
+    });
+});
+
+// Input tabs (Paste / Upload)
+const inputTabs = document.querySelectorAll('.input-section .tab');
 const tabContents = document.querySelectorAll('.tab-content');
 const analyzeBtn = document.getElementById('analyze-btn');
 const spinner = document.getElementById('spinner');
@@ -815,9 +965,9 @@ const fileNameEl = document.getElementById('file-name');
 
 let selectedFile = null;
 
-tabs.forEach(tab => {
+inputTabs.forEach(tab => {
     tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
+        inputTabs.forEach(t => t.classList.remove('active'));
         tabContents.forEach(tc => tc.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
@@ -846,7 +996,8 @@ analyzeBtn.addEventListener('click', async () => {
     errorMsg.style.display = 'none';
     results.style.display = 'none';
 
-    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    const activeInputTab = document.querySelector('.input-section .tab.active');
+    const activeTab = activeInputTab ? activeInputTab.dataset.tab : 'paste';
     let body;
 
     if (activeTab === 'upload' && selectedFile) {
@@ -1027,8 +1178,13 @@ function renderResults(data) {
         data.clauses.found.length + ' found, ' + data.clauses.missing.length + ' missing';
 
     data.clauses.found.forEach(c => {
+        let templateBadge = '';
+        if (c.template_comparison) {
+            const tc = c.template_comparison;
+            templateBadge = `<span class="template-badge ${escapeHtml(tc.verdict)}">${escapeHtml(tc.verdict)} (${Math.round(tc.similarity * 100)}%)</span>`;
+        }
         clausesHtml += `<div class="clause-item">
-            <div class="clause-name"><span class="present">&#10003;</span> ${escapeHtml(c.name)}</div>
+            <div class="clause-name"><span class="present">&#10003;</span> ${escapeHtml(c.name)}${templateBadge}</div>
             ${c.excerpts.map(e => `<div class="clause-excerpt">${escapeHtml(e)}</div>`).join('')}
         </div>`;
     });
@@ -1230,7 +1386,142 @@ function renderResults(data) {
     }
 
     results.style.display = 'block';
+    document.getElementById('export-dropdown').style.display = 'inline-block';
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Export dropdown
+const exportBtn = document.getElementById('export-btn');
+const exportDropdown = document.getElementById('export-dropdown');
+
+exportBtn.addEventListener('click', () => {
+    exportDropdown.classList.toggle('open');
+});
+
+document.addEventListener('click', e => {
+    if (!exportDropdown.contains(e.target)) {
+        exportDropdown.classList.remove('open');
+    }
+});
+
+document.querySelectorAll('.export-menu button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        exportDropdown.classList.remove('open');
+        const fmt = btn.dataset.format;
+
+        const activeInputTab = document.querySelector('.input-section .tab.active');
+        const body = new FormData();
+
+        if (activeInputTab && activeInputTab.dataset.tab === 'upload' && selectedFile) {
+            body.append('contract', selectedFile);
+        } else {
+            const text = document.getElementById('contract-text').value.trim();
+            if (!text) { showError('No contract text to export.'); return; }
+            body.append('text', text);
+        }
+        body.append('format', fmt);
+
+        try {
+            const res = await fetch('/export', { method: 'POST', body });
+            if (!res.ok) {
+                const err = await res.json();
+                showError(err.error || 'Export failed.');
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const ext = fmt === 'json' ? 'json' : fmt === 'html' ? 'html' : 'pdf';
+            a.href = url;
+            a.download = 'contract_report.' + ext;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            showError('Export failed. Check server connection.');
+        }
+    });
+});
+
+// Compare functionality
+const compareBtn = document.getElementById('compare-btn');
+const compareSpinner = document.getElementById('compare-spinner');
+const compareError = document.getElementById('compare-error');
+const compareResults = document.getElementById('compare-results');
+
+compareBtn.addEventListener('click', async () => {
+    compareError.style.display = 'none';
+    compareResults.style.display = 'none';
+
+    const textA = document.getElementById('compare-text-a').value.trim();
+    const textB = document.getElementById('compare-text-b').value.trim();
+
+    if (!textA || !textB) {
+        compareError.textContent = 'Please paste text in both fields.';
+        compareError.style.display = 'block';
+        return;
+    }
+
+    compareBtn.disabled = true;
+    compareSpinner.style.display = 'inline-block';
+
+    try {
+        const body = new FormData();
+        body.append('text_a', textA);
+        body.append('text_b', textB);
+        const res = await fetch('/compare', { method: 'POST', body });
+        const data = await res.json();
+        if (!res.ok) {
+            compareError.textContent = data.error || 'Comparison failed.';
+            compareError.style.display = 'block';
+            return;
+        }
+        renderCompareResults(data);
+    } catch (err) {
+        compareError.textContent = 'Network error.';
+        compareError.style.display = 'block';
+    } finally {
+        compareBtn.disabled = false;
+        compareSpinner.style.display = 'none';
+    }
+});
+
+function renderCompareResults(data) {
+    const s = data.summary;
+    document.getElementById('compare-summary').textContent =
+        `Type A: ${s.contract_type_a} | Type B: ${s.contract_type_b} | ` +
+        `${s.clauses_in_both} shared clauses, ${s.clauses_only_in_a} only in A, ${s.clauses_only_in_b} only in B`;
+
+    document.getElementById('cmp-risk-a').textContent = data.risk_delta.a + '/100';
+    document.getElementById('cmp-risk-b').textContent = data.risk_delta.b + '/100';
+    document.getElementById('cmp-shared').textContent = s.clauses_in_both;
+    const delta = data.risk_delta.delta;
+    document.getElementById('cmp-delta').textContent = (delta >= 0 ? '+' : '') + delta;
+
+    // Clause diff
+    let clauseHtml = '';
+    for (const [name, diff] of Object.entries(data.clause_diff)) {
+        let cls = 'both';
+        let label = 'A & B';
+        if (diff.in_a && !diff.in_b) { cls = 'only-a'; label = 'A only'; }
+        else if (!diff.in_a && diff.in_b) { cls = 'only-b'; label = 'B only'; }
+        const simStr = diff.similarity !== null ? ` (${Math.round(diff.similarity * 100)}% similar)` : '';
+        clauseHtml += `<div class="diff-item ${cls}"><strong>${escapeHtml(name)}</strong> — ${label}${simStr}</div>`;
+    }
+    document.getElementById('compare-clauses-body').innerHTML = clauseHtml;
+
+    // Parties diff
+    const pd = data.parties_diff;
+    let partiesHtml = '';
+    if (pd.common.length) partiesHtml += `<div style="margin-bottom:0.5rem;"><strong>Common:</strong> ${pd.common.map(p => escapeHtml(p)).join(', ')}</div>`;
+    if (pd.only_in_a.length) partiesHtml += `<div style="margin-bottom:0.5rem;color:var(--danger);"><strong>Only in A:</strong> ${pd.only_in_a.map(p => escapeHtml(p)).join(', ')}</div>`;
+    if (pd.only_in_b.length) partiesHtml += `<div style="margin-bottom:0.5rem;color:var(--info);"><strong>Only in B:</strong> ${pd.only_in_b.map(p => escapeHtml(p)).join(', ')}</div>`;
+    if (!partiesHtml) partiesHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">No parties detected.</p>';
+    document.getElementById('compare-parties-body').innerHTML = partiesHtml;
+
+    compareResults.style.display = 'block';
+    compareResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 </script>
 </body>

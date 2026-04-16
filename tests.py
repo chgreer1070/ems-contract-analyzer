@@ -219,6 +219,50 @@ class TestContractAnalyzer(unittest.TestCase):
         result = self.analyzer.analyze(self.sample_text)
         self.assertEqual(result["section_count"], len(result["clauses"]["found"]))
 
+    def test_parties_detailed_present(self):
+        result = self.analyzer.analyze(self.sample_text)
+        self.assertIn("parties_detailed", result)
+        self.assertIsInstance(result["parties_detailed"], list)
+        self.assertGreater(len(result["parties_detailed"]), 0)
+
+    def test_party_detailed_structure(self):
+        result = self.analyzer.analyze(self.sample_text)
+        for p in result["parties_detailed"]:
+            self.assertIn("name", p)
+            self.assertIn("role", p)
+            self.assertIn("aliases", p)
+            self.assertIsInstance(p["aliases"], list)
+
+    def test_clause_template_comparison_present(self):
+        result = self.analyzer.analyze(self.sample_text)
+        has_comparison = any(
+            "template_comparison" in c for c in result["clauses"]["found"]
+        )
+        self.assertTrue(has_comparison, "At least one clause should have a template comparison")
+
+    def test_clause_template_similarity_range(self):
+        result = self.analyzer.analyze(self.sample_text)
+        for c in result["clauses"]["found"]:
+            if "template_comparison" in c:
+                sim = c["template_comparison"]["similarity"]
+                self.assertGreaterEqual(sim, 0.0)
+                self.assertLessEqual(sim, 1.0)
+
+    def test_clause_template_verdict_values(self):
+        result = self.analyzer.analyze(self.sample_text)
+        for c in result["clauses"]["found"]:
+            if "template_comparison" in c:
+                self.assertIn(c["template_comparison"]["verdict"],
+                              {"standard", "non-standard", "unusual"})
+
+    def test_jaccard_identical_texts(self):
+        sim = ContractAnalyzer._jaccard_shingles("hello world foo bar baz", "hello world foo bar baz")
+        self.assertEqual(sim, 1.0)
+
+    def test_jaccard_different_texts(self):
+        sim = ContractAnalyzer._jaccard_shingles("alpha beta gamma delta epsilon", "one two three four five")
+        self.assertEqual(sim, 0.0)
+
 
 class TestEMSContract(unittest.TestCase):
     def setUp(self):
@@ -259,6 +303,12 @@ class TestEMSContract(unittest.TestCase):
         result = self.analyzer.analyze(self.ems_text)
         suggestions = result["negotiation_suggestions"]
         self.assertGreater(len(suggestions), 0, "Should generate EMS-relevant suggestions")
+
+    def test_ems_party_role_detection(self):
+        result = self.analyzer.analyze(self.ems_text)
+        roles = [p["role"] for p in result["parties_detailed"] if p["role"]]
+        has_role = any(r in ("OEM", "Manufacturer") for r in roles)
+        self.assertTrue(has_role, f"Should detect OEM/Manufacturer roles, got: {roles}")
 
 
 class TestFlaskApp(unittest.TestCase):
@@ -314,6 +364,63 @@ class TestFlaskApp(unittest.TestCase):
         self.assertIn("party_balance", data)
         self.assertIn("negotiation_suggestions", data)
         self.assertIn("definitions", data)
+
+    def test_export_pdf_returns_pdf(self):
+        sample_path = os.path.join(os.path.dirname(__file__), "sample_contract.txt")
+        with open(sample_path, "r") as f:
+            text = f.read()
+        resp = self.client.post("/export", data={"text": text, "format": "pdf"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/pdf", resp.content_type)
+        self.assertTrue(resp.data[:5].startswith(b"%PDF"))
+
+    def test_export_json_returns_json(self):
+        sample_path = os.path.join(os.path.dirname(__file__), "sample_contract.txt")
+        with open(sample_path, "r") as f:
+            text = f.read()
+        resp = self.client.post("/export", data={"text": text, "format": "json"})
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertIn("summary", data)
+        self.assertIn("risk_score", data)
+
+    def test_export_html_returns_html(self):
+        sample_path = os.path.join(os.path.dirname(__file__), "sample_contract.txt")
+        with open(sample_path, "r") as f:
+            text = f.read()
+        resp = self.client.post("/export", data={"text": text, "format": "html"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/html", resp.content_type)
+        self.assertIn(b"Contract Analysis Report", resp.data)
+
+    def test_export_invalid_format(self):
+        resp = self.client.post("/export", data={"text": "test", "format": "xml"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_compare_same_contract(self):
+        sample_path = os.path.join(os.path.dirname(__file__), "sample_contract.txt")
+        with open(sample_path, "r") as f:
+            text = f.read()
+        resp = self.client.post("/compare", data={"text_a": text, "text_b": text})
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertIn("clause_diff", data)
+        self.assertEqual(data["risk_delta"]["delta"], 0)
+
+    def test_compare_different_contracts(self):
+        with open(os.path.join(os.path.dirname(__file__), "sample_contract.txt"), "r") as f:
+            text_a = f.read()
+        with open(os.path.join(os.path.dirname(__file__), "sample_ems_contract.txt"), "r") as f:
+            text_b = f.read()
+        resp = self.client.post("/compare", data={"text_a": text_a, "text_b": text_b})
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertIn("clause_diff", data)
+        self.assertIn("summary", data)
+
+    def test_compare_missing_input(self):
+        resp = self.client.post("/compare", data={"text_a": "test"})
+        self.assertEqual(resp.status_code, 400)
 
 
 if __name__ == "__main__":
