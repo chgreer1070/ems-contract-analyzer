@@ -2,6 +2,7 @@ import re
 import os
 
 from agents import patterns as _patterns
+from action_plan import build_action_plan
 
 
 class ContractAnalyzer:
@@ -57,6 +58,7 @@ class ContractAnalyzer:
         parties = self._extract_parties(text)
         summary = self._generate_summary(text, clauses, risks)
         score = self._compute_risk_score(risks)
+        action_plan = build_action_plan(clauses, risks, financials, dates, obligations)
 
         return {
             "summary": summary,
@@ -67,6 +69,7 @@ class ContractAnalyzer:
             "key_dates": dates,
             "financial_terms": financials,
             "parties": parties,
+            "action_plan": action_plan,
             "word_count": len(text.split()),
             "section_count": len(clauses),
         }

@@ -10,6 +10,7 @@ A web application for analyzing contracts. Upload or paste contract text to get 
 - **Obligation Tracking** - Extracts duties and requirements from the contract language
 - **Key Date Identification** - Locates effective dates, deadlines, and renewal dates
 - **Party Identification** - Attempts to identify the contracting parties
+- **Negotiation Playbook** - Produces prioritized, actionable redline recommendations based on detected risks and missing clauses
 - **File Support** - Accepts `.txt`, `.pdf`, and `.docx` file uploads, or direct text paste
 
 ## Setup

@@ -34,7 +34,7 @@ class TestContractAnalyzer(unittest.TestCase):
         result = self.analyzer.analyze(self.sample_text)
         expected_keys = {
             "summary", "risk_score", "clauses", "risks", "obligations",
-            "key_dates", "financial_terms", "parties", "word_count", "section_count",
+            "key_dates", "financial_terms", "parties", "action_plan", "word_count", "section_count",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 
@@ -78,6 +78,15 @@ class TestContractAnalyzer(unittest.TestCase):
     def test_word_count(self):
         result = self.analyzer.analyze(self.sample_text)
         self.assertGreater(result["word_count"], 100)
+
+    def test_action_plan_prioritized(self):
+        result = self.analyzer.analyze(self.sample_text)
+        self.assertIsInstance(result["action_plan"], list)
+        if result["action_plan"]:
+            self.assertIn(
+                result["action_plan"][0]["priority"],
+                ["critical", "high", "medium", "low"],
+            )
 
     def test_extract_text_txt(self):
         text = self.analyzer.extract_text(SAMPLE_PATH)
@@ -226,7 +235,7 @@ class TestOrchestrator(unittest.TestCase):
         result = orch.analyze(SAMPLE_TEXT)
         # Backward-compatible keys
         for key in ["summary", "risk_score", "clauses", "risks", "obligations",
-                     "key_dates", "financial_terms", "parties", "word_count", "section_count"]:
+                     "key_dates", "financial_terms", "parties", "action_plan", "word_count", "section_count"]:
             self.assertIn(key, result, f"Missing key: {key}")
 
     def test_orchestration_metadata_present(self):

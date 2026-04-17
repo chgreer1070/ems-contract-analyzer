@@ -30,6 +30,7 @@ from agents.party_agent import PartyIdentificationAgent
 from agents.cross_validator import CrossValidationAgent
 from agents.executive_reviewer import ExecutiveReviewAgent
 from agents.match_cache import MatchCache
+from action_plan import build_action_plan
 
 
 class ContractOrchestrator:
@@ -385,6 +386,14 @@ class ContractOrchestrator:
                 "trace": trace,
             },
         }
+
+        response["action_plan"] = build_action_plan(
+            response["clauses"],
+            response["risks"],
+            response["financial_terms"],
+            response["key_dates"],
+            response["obligations"],
+        )
 
         # Add enhanced data from specialized agents
         response["prohibitions"] = obligation_f.get("prohibitions", [])

@@ -374,6 +374,32 @@
             border-bottom: 1px solid var(--border);
             font-size: 0.85rem;
         }
+        .action-item {
+            padding: 0.9rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.84rem;
+        }
+        .action-item:last-child { border-bottom: none; }
+        .action-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .priority-pill {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            padding: 0.15rem 0.4rem;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+        .priority-critical { background: var(--danger); color: white; }
+        .priority-high { background: var(--warning); color: black; }
+        .priority-medium { background: var(--info); color: black; }
+        .priority-low { background: var(--success); color: black; }
+        .action-why { color: var(--text-muted); margin-top: 0.3rem; }
+        .action-how { margin-top: 0.25rem; }
 
         .obligation-item:last-child, .date-item:last-child, .financial-item:last-child {
             border-bottom: none;
@@ -844,6 +870,14 @@
                 <div class="section-body" id="risks-body"></div>
             </div>
 
+            <div class="section open" id="action-plan-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>Negotiation Playbook <span class="count" id="action-plan-count"></span></h3>
+                    <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="action-plan-body"></div>
+            </div>
+
             <div class="section" id="obligations-section">
                 <div class="section-header" onclick="toggleSection(this)">
                     <h3>Obligations & Duties <span class="count" id="obligation-count"></span></h3>
@@ -1086,6 +1120,25 @@ function renderResults(data) {
         </div>`;
     });
     document.getElementById('risks-body').innerHTML = risksHtml;
+
+    // Action plan
+    const actionItems = data.action_plan || [];
+    document.getElementById('action-plan-count').textContent = actionItems.length + ' actions';
+    if (actionItems.length === 0) {
+        document.getElementById('action-plan-body').innerHTML =
+            '<p style="color:var(--text-muted);font-size:0.85rem;">No immediate remediation actions suggested.</p>';
+    } else {
+        document.getElementById('action-plan-body').innerHTML = actionItems.map(a => `
+            <div class="action-item">
+                <div class="action-title">
+                    <span class="priority-pill priority-${escapeHtml(a.priority)}">${escapeHtml(a.priority)}</span>
+                    ${escapeHtml(a.title)}
+                </div>
+                <div class="action-why">${escapeHtml(a.why)}</div>
+                <div class="action-how"><strong>Suggested redline:</strong> ${escapeHtml(a.how)}</div>
+            </div>
+        `).join('');
+    }
 
     // Obligations
     const oblSection = document.getElementById('obligations-section');
