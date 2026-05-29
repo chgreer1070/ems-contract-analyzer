@@ -10,7 +10,7 @@ Contract Review Application — a web-based tool for analyzing legal contracts w
 
 - **Backend:** Python 3, Flask 3.0.0
 - **Frontend:** Vanilla HTML/CSS/JavaScript (single-page app in `templates/index.html`)
-- **Document parsing:** PyPDF2 (PDF), python-docx (DOCX)
+- **Document parsing:** pypdf (PDF), python-docx (DOCX)
 - **Testing:** unittest (Python standard library)
 - **No database** — fully stateless
 
@@ -21,7 +21,7 @@ app.py                  # Flask routes (GET /, POST /analyze)
 analyzer.py             # ContractAnalyzer class — core analysis engine
 tests.py                # Unit tests (38 tests across 4 test classes)
 templates/index.html    # Frontend UI (dark theme, single file)
-requirements.txt        # Pinned Python dependencies
+requirements.txt        # Python dependencies (minimum versions)
 sample_contract.txt     # Service agreement test fixture
 sample_ems_contract.txt # EMS manufacturing agreement test fixture
 uploads/                # Temporary file upload storage
@@ -33,7 +33,8 @@ uploads/                # Temporary file upload storage
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the app (serves on http://localhost:5000, debug mode)
+# Run the app (serves on http://localhost:5000)
+# Debug mode off by default; enable with: FLASK_DEBUG=true python app.py
 python app.py
 
 # Run tests
