@@ -520,7 +520,7 @@ class ContractAnalyzer:
             return f.read()
 
     def _read_pdf(self, filepath):
-        from PyPDF2 import PdfReader
+        from pypdf import PdfReader
 
         reader = PdfReader(filepath)
         text_parts = []

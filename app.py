@@ -1,5 +1,8 @@
 import os
+
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
+
 from analyzer import ContractAnalyzer
 
 app = Flask(__name__)
@@ -30,7 +33,7 @@ def analyze():
             return jsonify({"error": "No file selected"}), 400
         if not allowed_file(file.filename):
             return jsonify({"error": "File type not allowed. Use .txt, .pdf, or .docx"}), 400
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(file.filename))
         file.save(filepath)
         text = analyzer.extract_text(filepath)
         os.remove(filepath)
@@ -49,4 +52,4 @@ def analyze():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true', port=5000)
