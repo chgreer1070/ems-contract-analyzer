@@ -21,7 +21,7 @@ app.py                  # Flask routes (GET /, POST /analyze)
 analyzer.py             # ContractAnalyzer class — core analysis engine
 tests.py                # Unit tests (38 tests across 4 test classes)
 templates/index.html    # Frontend UI (dark theme, single file)
-requirements.txt        # Python dependencies (minimum versions)
+requirements.txt        # Pinned Python dependencies
 sample_contract.txt     # Service agreement test fixture
 sample_ems_contract.txt # EMS manufacturing agreement test fixture
 uploads/                # Temporary file upload storage
