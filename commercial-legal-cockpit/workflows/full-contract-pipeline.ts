@@ -4,13 +4,13 @@ import { claimJob, getJob } from "@/lib/jobRuntime";
 import { processJob } from "@/lib/jobProcessor";
 import { query } from "@/lib/db";
 
-export const PIPELINE_VERSION = "contracttwin-pipeline-2026-08-07.v2";
+export const PIPELINE_VERSION = "contracttwin-pipeline-2026-08-07.v3";
 
 type PipelineInput={documentId:string;matterId:string;sourceFingerprint:string;requestedBy:string;requestedByName:string};
 
 async function createStage(input:PipelineInput,jobType:JobType,suffix:string,priority:number){
   "use step";
-  return enqueueJob({matterId:input.matterId,documentId:["EXTRACT","OCR","ANALYZE","TERM_EXTRACT"].includes(jobType)?input.documentId:null,jobType,idempotencyKey:`${PIPELINE_VERSION}:${input.sourceFingerprint}:${suffix}`,createdBy:input.requestedBy,input:{requestedBy:input.requestedBy,requestedByName:input.requestedByName,pipelineVersion:PIPELINE_VERSION},priority,maxAttempts:3});
+  return enqueueJob({matterId:input.matterId,documentId:["EXTRACT","OCR","ANALYZE","TERM_EXTRACT"].includes(jobType)?input.documentId:null,jobType,idempotencyKey:`${PIPELINE_VERSION}:${input.matterId}:${input.documentId}:${input.sourceFingerprint}:${suffix}`,createdBy:input.requestedBy,input:{requestedBy:input.requestedBy,requestedByName:input.requestedByName,pipelineVersion:PIPELINE_VERSION},priority,maxAttempts:3});
 }
 
 async function processStageStep(jobId:string,workerId:string){
@@ -55,35 +55,17 @@ async function runStage(jobId:string,workerId:string){
 export async function fullContractPipeline(input:PipelineInput){
   "use workflow";
   const worker=`pipeline:${input.documentId}`;
-
-  const extraction=await createStage(input,"EXTRACT","extract",10);
-  await runStage(extraction.id,worker);
-
+  const extraction=await createStage(input,"EXTRACT","extract",10);await runStage(extraction.id,worker);
   const extractionState=await documentExtractionState(input.documentId);
   if(extractionState.extraction_status==="OCR_REQUIRED"){
-    const ocrJobId=await findOcrJob(input.documentId);
-    if(!ocrJobId)throw new Error("Extraction requires OCR but no OCR job was created.");
-    await runStage(ocrJobId,worker);
-    const afterOcr=await documentExtractionState(input.documentId);
+    const ocrJobId=await findOcrJob(input.documentId);if(!ocrJobId)throw new Error("Extraction requires OCR but no OCR job was created.");
+    await runStage(ocrJobId,worker);const afterOcr=await documentExtractionState(input.documentId);
     if(afterOcr.extraction_status!=="EXTRACTED")throw new Error(`OCR completed without producing an EXTRACTED source state (${afterOcr.extraction_status}).`);
-  }else if(extractionState.extraction_status!=="EXTRACTED"){
-    throw new Error(`Source extraction did not reach EXTRACTED state (${extractionState.extraction_status}).`);
-  }
-
-  const risk=await createStage(input,"ANALYZE","risk",30);
-  await runStage(risk.id,worker);
-
-  const terms=await createStage(input,"TERM_EXTRACT","terms",40);
-  await runStage(terms.id,worker);
-
-  const dependencyJobId=await findDependencyJob(input.matterId,input.requestedBy);
-  if(dependencyJobId)await runStage(dependencyJobId,worker);
-
-  const precedence=await createStage(input,"PRECEDENCE","precedence",50);
-  await runStage(precedence.id,worker);
-
-  const snapshot=await createStage(input,"EXECUTIVE_SUMMARY","snapshot",60);
-  const snapshotResult=await runStage(snapshot.id,worker);
-
+  }else if(extractionState.extraction_status!=="EXTRACTED")throw new Error(`Source extraction did not reach EXTRACTED state (${extractionState.extraction_status}).`);
+  const risk=await createStage(input,"ANALYZE","risk",30);await runStage(risk.id,worker);
+  const terms=await createStage(input,"TERM_EXTRACT","terms",40);await runStage(terms.id,worker);
+  const dependencyJobId=await findDependencyJob(input.matterId,input.requestedBy);if(dependencyJobId)await runStage(dependencyJobId,worker);
+  const precedence=await createStage(input,"PRECEDENCE","precedence",50);await runStage(precedence.id,worker);
+  const snapshot=await createStage(input,"EXECUTIVE_SUMMARY","snapshot",60);const snapshotResult=await runStage(snapshot.id,worker);
   return {pipelineVersion:PIPELINE_VERSION,documentId:input.documentId,matterId:input.matterId,status:"SUCCEEDED",snapshot:snapshotResult.output};
 }
