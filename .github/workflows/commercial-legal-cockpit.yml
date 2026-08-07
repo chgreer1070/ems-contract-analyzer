@@ -55,6 +55,8 @@ jobs:
         run: npm run db:migrate
       - name: Verify migrations are idempotent
         run: npm run db:migrate
+      - name: Prove database control invariants
+        run: npm run test:db-controls
       - name: Check frozen legal corpus
         run: npm run test:corpus
       - name: Check deterministic economics
@@ -69,3 +71,11 @@ jobs:
           ALLOW_DEMO_ACCESS: 'true'
           LEGAL_RELIANCE_ENABLED: 'false'
         run: npm run build
+      - name: Capture generated dependency lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commercial-legal-cockpit-package-lock-${{ github.run_id }}
+          path: commercial-legal-cockpit/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
