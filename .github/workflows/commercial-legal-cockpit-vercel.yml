@@ -1,0 +1,69 @@
+name: Commercial Legal Cockpit - Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - build/ems-commercial-legal-cockpit
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/commercial-legal-cockpit-vercel.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Vercel preview / production
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Vercel deployment configuration
+        id: configured
+        shell: bash
+        run: |
+          if [[ -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Vercel deployment is configured."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Vercel deploy skipped until VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID secrets are configured."
+          fi
+      - name: Install pinned Vercel CLI
+        if: steps.configured.outputs.enabled == 'true'
+        run: npm install --global vercel@58.0.0
+      - name: Pull preview environment
+        if: steps.configured.outputs.enabled == 'true' && github.ref != 'refs/heads/main'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+      - name: Build preview
+        if: steps.configured.outputs.enabled == 'true' && github.ref != 'refs/heads/main'
+        run: vercel build --token="$VERCEL_TOKEN"
+      - name: Deploy preview
+        if: steps.configured.outputs.enabled == 'true' && github.ref != 'refs/heads/main'
+        run: vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+      - name: Pull production environment
+        if: steps.configured.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build production
+        if: steps.configured.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy production
+        if: steps.configured.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
