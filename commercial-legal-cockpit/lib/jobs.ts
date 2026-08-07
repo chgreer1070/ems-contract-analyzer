@@ -23,13 +23,14 @@ export async function enqueueJob(args: {
   createdBy: string;
   input?: Record<string, unknown>;
   priority?: number;
+  maxAttempts?: number;
 }) {
   const result = await query<ProcessingJob>(
-    `insert into processing_jobs (matter_id, document_id, job_type, idempotency_key, created_by, input, priority)
-     values ($1,$2,$3,$4,$5,$6::jsonb,$7)
+    `insert into processing_jobs (matter_id, document_id, job_type, idempotency_key, created_by, input, priority, max_attempts)
+     values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
      on conflict (idempotency_key) do update set idempotency_key = excluded.idempotency_key
      returning id, matter_id, document_id, job_type, status, attempts, max_attempts, input, output, external_operation_url`,
-    [args.matterId ?? null, args.documentId ?? null, args.jobType, args.idempotencyKey, args.createdBy, JSON.stringify(args.input ?? {}), args.priority ?? 100]
+    [args.matterId ?? null, args.documentId ?? null, args.jobType, args.idempotencyKey, args.createdBy, JSON.stringify(args.input ?? {}), args.priority ?? 100, args.maxAttempts ?? 3]
   );
   return result.rows[0];
 }
@@ -50,26 +51,35 @@ export async function claimNextJob(workerId: string, allowedTypes?: JobType[]) {
     );
     const job = result.rows[0];
     if (!job) return null;
+    const consumesAttempt = job.status === "QUEUED";
     await client.query(
       `update processing_jobs
-          set status='RUNNING', attempts=attempts+1, locked_by=$2, locked_at=now(), started_at=coalesce(started_at,now())
+          set status='RUNNING', attempts=attempts + $3, locked_by=$2, locked_at=now(), started_at=coalesce(started_at,now())
         where id=$1`,
-      [job.id, workerId]
+      [job.id, workerId, consumesAttempt ? 1 : 0]
     );
-    return { ...job, status: "RUNNING" as const, attempts: job.attempts + 1 };
+    return { ...job, status: "RUNNING" as const, attempts: job.attempts + (consumesAttempt ? 1 : 0) };
   });
 }
 
-export async function waitExternal(jobId: string, operationUrl: string, output: Record<string, unknown> = {}) {
+export async function requeueJob(jobId: string, output: Record<string, unknown> = {}, delaySeconds = 2) {
+  await query(
+    `update processing_jobs set status='QUEUED', output=$2::jsonb, locked_by=null, locked_at=null,
+      next_attempt_at=now() + make_interval(secs => $3) where id=$1`,
+    [jobId, JSON.stringify(output), Math.max(0, delaySeconds)]
+  );
+}
+
+export async function waitExternal(jobId: string, operationUrl: string, output: Record<string, unknown> = {}, delaySeconds = 5) {
   await query(
     `update processing_jobs set status='WAITING_EXTERNAL', external_operation_url=$2, output=$3::jsonb,
-      locked_by=null, locked_at=null, next_attempt_at=now() + interval '5 seconds' where id=$1`,
-    [jobId, operationUrl, JSON.stringify(output)]
+      locked_by=null, locked_at=null, next_attempt_at=now() + make_interval(secs => $4) where id=$1`,
+    [jobId, operationUrl, JSON.stringify(output), Math.max(1, delaySeconds)]
   );
 }
 
 export async function completeJob(jobId: string, output: Record<string, unknown> = {}) {
-  await query(`update processing_jobs set status='SUCCEEDED', output=$2::jsonb, finished_at=now(), locked_by=null, locked_at=null where id=$1`, [jobId, JSON.stringify(output)]);
+  await query(`update processing_jobs set status='SUCCEEDED', output=$2::jsonb, error_message=null, finished_at=now(), locked_by=null, locked_at=null where id=$1`, [jobId, JSON.stringify(output)]);
 }
 
 export async function failJob(job: ProcessingJob, error: unknown) {
@@ -86,6 +96,6 @@ export async function failJob(job: ProcessingJob, error: unknown) {
 }
 
 export async function listMatterJobs(matterId: string) {
-  const result = await query(`select id, document_id, job_type, status, attempts, max_attempts, error_message, created_at, started_at, finished_at from processing_jobs where matter_id=$1 order by created_at desc limit 100`, [matterId]);
+  const result = await query(`select id, document_id, job_type, status, attempts, max_attempts, error_message, output, created_at, started_at, finished_at from processing_jobs where matter_id=$1 order by created_at desc limit 100`, [matterId]);
   return result.rows;
 }
