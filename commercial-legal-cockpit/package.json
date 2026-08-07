@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:economics": "node scripts/economics-check.mjs",
+    "test:corpus": "node scripts/corpus-check.mjs",
     "db:check": "node scripts/schema-check.mjs"
   },
   "dependencies": {
