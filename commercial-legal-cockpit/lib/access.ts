@@ -87,7 +87,7 @@ export async function requireMatterAccess(request: Request, matterId: string, ed
   const globalLegalAccess = !matter.restricted && ROLE_RANK[principal.role] >= ROLE_RANK.LAWYER;
   if (!isOwner && !isMember && !globalLegalAccess) throw new AccessError("Matter access denied.", 403);
 
-  if (edit && matter.member_access === "VIEW" && !isOwner && principal.role !== "ADMIN") {
+  if (edit && matter.member_access === "VIEW" && !isOwner) {
     throw new AccessError("Matter edit access denied.", 403);
   }
   return principal;
