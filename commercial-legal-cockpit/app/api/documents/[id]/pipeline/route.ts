@@ -2,6 +2,7 @@ import { start } from "workflow/api";
 import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
 import { databaseConfigured, query } from "@/lib/db";
 import { assertLegalRelianceReady } from "@/lib/readiness";
+import { enforceRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { fullContractPipeline, PIPELINE_VERSION } from "@/workflows/full-contract-pipeline";
 
 export async function POST(request:Request,context:{params:Promise<{id:string}>}){
@@ -13,9 +14,10 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
     const principal=await requireMatterAccess(request,doc.matter_id,true);
     if(principal.demo)return Response.json({ok:false,error:"Durable source-document pipelines are disabled in demo mode."},{status:503});
     if(doc.deletion_status!=="ACTIVE")return Response.json({ok:false,error:`Source processing is blocked while deletion state is ${doc.deletion_status}.`},{status:409});
+    await enforceRateLimit(principal,"contract-pipeline",20,3600);
     await assertLegalRelianceReady();
     const fingerprint=(doc.server_sha256||doc.sha256||id).toLowerCase();
     const run=await start(fullContractPipeline,[{documentId:id,matterId:doc.matter_id,sourceFingerprint:fingerprint,requestedBy:principal.userId,requestedByName:principal.name}]);
     return Response.json({ok:true,runId:run.runId,pipelineVersion:PIPELINE_VERSION,documentId:id,matterId:doc.matter_id,humanReviewRequired:true,legalRelianceEnabled:process.env.LEGAL_RELIANCE_ENABLED==="true"});
-  }catch(error){const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:error instanceof Error?error.message:"Unable to start contract pipeline."},{status:500});}
+  }catch(error){const rate=rateLimitResponse(error);if(rate)return rate;const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:error instanceof Error?error.message:"Unable to start contract pipeline."},{status:500});}
 }
