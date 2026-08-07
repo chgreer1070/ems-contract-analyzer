@@ -7,13 +7,14 @@ export async function GET(request:Request, context:{ params:Promise<{ id:string 
     if (!databaseConfigured()) return Response.json({ ok:false, error:"Document access requires DATABASE_URL." }, { status:503 });
     if (!process.env.BLOB_READ_WRITE_TOKEN) return Response.json({ ok:false, error:"Private Blob storage is not configured." }, { status:503 });
     const { id } = await context.params;
-    const result = await query<{ matter_id:string; blob_pathname:string; filename:string; mime_type:string }>(
-      "select matter_id,blob_pathname,filename,mime_type from documents where id=$1 limit 1",
+    const result = await query<{ matter_id:string; blob_pathname:string; filename:string; mime_type:string; deletion_status:string }>(
+      "select matter_id,blob_pathname,filename,mime_type,deletion_status from documents where id=$1 limit 1",
       [id]
     );
     const doc = result.rows[0];
     if (!doc) return Response.json({ ok:false, error:"Document not found." }, { status:404 });
     await requireMatterAccess(request, doc.matter_id, false);
+    if(doc.deletion_status==="PURGED")return Response.json({ok:false,error:"The source object has been purged under records-management controls. Audit metadata is retained."},{status:410});
 
     const blob = await get(doc.blob_pathname, {
       access:"private",
