@@ -1,4 +1,5 @@
 import { getFrozenCorpus, evaluateValidationCase, summarizeValidation, VALIDATION_GATE_VERSION, type CaseResult, type ValidationCase } from "@/lib/validation";
+import { PROMPT_VERSION } from "@/lib/analysisEngine";
 import { query } from "@/lib/db";
 
 async function initializeRun(startedBy:string,modelName:string){
@@ -7,7 +8,7 @@ async function initializeRun(startedBy:string,modelName:string){
   for(const c of corpus.cases){
     await query(`insert into validation_cases(id,category,title,source_text,expected_families,prohibited_families,active) values($1,$2,$3,$4,$5::jsonb,$6::jsonb,true) on conflict(id) do update set category=excluded.category,title=excluded.title,source_text=excluded.source_text,expected_families=excluded.expected_families,prohibited_families=excluded.prohibited_families,active=true`,[c.id,c.category,c.title,c.text,JSON.stringify(c.expectedFamilies),JSON.stringify(c.prohibitedFamilies)]);
   }
-  const run=await query<{id:string}>(`insert into validation_runs(run_label,model_name,prompt_version,corpus_version,status,total_cases,started_by) values($1,$2,$3,$4,'RUNNING',$5,$6) returning id`,[`Production legal validation ${new Date().toISOString()}`,modelName,VALIDATION_GATE_VERSION,corpus.version,corpus.cases.length,startedBy]);
+  const run=await query<{id:string}>(`insert into validation_runs(run_label,model_name,prompt_version,corpus_version,status,total_cases,started_by,summary) values($1,$2,$3,$4,'RUNNING',$5,$6,$7::jsonb) returning id`,[`Production legal validation ${new Date().toISOString()}`,modelName,PROMPT_VERSION,corpus.version,corpus.cases.length,startedBy,JSON.stringify({gateVersion:VALIDATION_GATE_VERSION})]);
   return {runId:run.rows[0].id,cases:corpus.cases};
 }
 
@@ -32,5 +33,5 @@ export async function legalValidationWorkflow(startedBy:string){
   const results:CaseResult[]=[];
   for(const testCase of initialized.cases)results.push(await evaluateCaseStep(initialized.runId,testCase));
   const summary=await finalizeRun(initialized.runId,results);
-  return {runId:initialized.runId,modelName,corpusVersion:getFrozenCorpus().version,summary};
+  return {runId:initialized.runId,modelName,promptVersion:PROMPT_VERSION,corpusVersion:getFrozenCorpus().version,gateVersion:VALIDATION_GATE_VERSION,summary};
 }
