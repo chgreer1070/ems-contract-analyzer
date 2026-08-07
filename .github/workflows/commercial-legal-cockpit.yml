@@ -35,10 +35,14 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check database controls
         run: npm run db:check
+      - name: Check frozen legal corpus
+        run: npm run test:corpus
       - name: Check deterministic economics
         run: npm run test:economics
       - name: TypeScript
         run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
       - name: Production build
         env:
           AUTH_REQUIRED: 'false'
