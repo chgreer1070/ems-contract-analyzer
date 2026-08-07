@@ -40,9 +40,12 @@ create table if not exists purge_requests (
   approved_by text,
   approved_at timestamptz,
   executed_by text,
-  executed_at timestamptz,
-  unique(document_id) where (status in ('PENDING','APPROVED'))
+  executed_at timestamptz
 );
+
+create unique index if not exists uq_open_purge_request_per_document
+  on purge_requests(document_id)
+  where status in ('PENDING','APPROVED');
 
 create or replace function prevent_purge_on_hold() returns trigger as $$
 begin
