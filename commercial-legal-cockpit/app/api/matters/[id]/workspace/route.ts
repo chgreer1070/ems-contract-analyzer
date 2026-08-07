@@ -1,0 +1,26 @@
+import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
+import { databaseConfigured, query } from "@/lib/db";
+
+export async function GET(request:Request,context:{params:Promise<{id:string}>}){
+  try{
+    if(!databaseConfigured())return Response.json({ok:false,error:"Matter workspace requires DATABASE_URL."},{status:503});
+    const {id}=await context.params;const principal=await requireMatterAccess(request,id,false);
+    if(principal.demo)return Response.json({ok:false,error:"Persistent matter workspace is disabled in demo mode."},{status:503});
+    const [matter,documents,terms,dependencies,relations,versions,findings,economics,decisions,snapshots,jobs,audit]=await Promise.all([
+      query<any>(`select m.id,m.matter_number,c.name customer,m.agreement_title,m.region,m.annual_revenue,m.stage,m.risk_level,m.next_action,m.owner_user_id,m.restricted,m.status,m.created_at,m.updated_at from matters m join customers c on c.id=m.customer_id where m.id=$1 limit 1`,[id]),
+      query<any>(`select id,filename,document_type,version_label,mime_type,size_bytes,integrity_status,extraction_status,extraction_method,page_count,source_status,sha256,server_sha256,uploaded_at from documents where matter_id=$1 order by uploaded_at desc`,[id]),
+      query<any>(`select t.id,t.document_id,d.filename,t.clause_family,t.section_label,t.term_type,t.party,t.counterparty,t.normalized_statement,t.trigger_event,t.operational_owner,t.confidence,t.review_status,t.exact_text,dc.page_number,dc.chunk_index from contract_terms t join documents d on d.id=t.document_id left join document_chunks dc on dc.id=t.chunk_id where t.matter_id=$1 and t.review_status<>'SUPERSEDED' order by d.uploaded_at,coalesce(dc.page_number,0),dc.chunk_index,t.created_at`,[id]),
+      query<any>(`select id,source_term_id,target_term_id,dependency_type,rationale,confidence,review_status from term_dependencies where matter_id=$1 order by created_at`,[id]),
+      query<any>(`select r.id,r.source_document_id,sd.filename source_document,r.target_document_id,td.filename target_document,r.relation_type,r.source_locator,r.rationale,r.confidence,r.review_status from document_relations r join documents sd on sd.id=r.source_document_id join documents td on td.id=r.target_document_id where r.matter_id=$1 order by r.created_at`,[id]),
+      query<any>(`select av.id,av.version_number,av.label,av.status,av.effective_date,av.created_at,json_agg(json_build_object('documentId',d.id,'filename',d.filename,'documentType',d.document_type,'displayOrder',avd.display_order) order by avd.display_order) filter(where d.id is not null) documents from agreement_versions av left join agreement_version_documents avd on avd.agreement_version_id=av.id left join documents d on d.id=avd.document_id where av.matter_id=$1 group by av.id order by av.version_number desc`,[id]),
+      query<any>(`select id,document_id,clause_family,issue,risk_level,rationale,operational_consequence,source_excerpt,source_locator,primary_position,fallback_position,no_go_position,approval_required,financial_variables,uncertainty,review_status,model_name,prompt_version,standard_status,standard_version,created_at,reviewed_at,review_note from findings where matter_id=$1 and review_status<>'SUPERSEDED' order by case risk_level when 'Critical' then 4 when 'High' then 3 when 'Medium' then 2 else 1 end desc,created_at desc`,[id]),
+      query<any>(`select id,inputs,outputs,formula_version,created_at from economics_runs where matter_id=$1 order by created_at desc limit 20`,[id]),
+      query<any>(`select id,finding_id,decision_type,rationale,conditions,decision_status,required_approver_role,requested_by,decided_by,requested_at,decided_at from decisions where matter_id=$1 order by requested_at desc`,[id]),
+      query<any>(`select id,agreement_version_id,snapshot_version,top_risks,quantified_exposure,dependencies,negotiation_actions,executive_decisions,next_steps,source_state_hash,generated_at from executive_snapshots where matter_id=$1 order by snapshot_version desc limit 20`,[id]),
+      query<any>(`select id,document_id,job_type,status,attempts,max_attempts,error_message,output,created_at,started_at,finished_at from processing_jobs where matter_id=$1 order by created_at desc limit 100`,[id]),
+      query<any>(`select id,event_time,actor_user_id,actor_name,action,entity_type,entity_id,metadata from audit_events where matter_id=$1 order by event_time desc limit 200`,[id])
+    ]);
+    if(!matter.rows[0])return Response.json({ok:false,error:"Matter not found."},{status:404});
+    return Response.json({ok:true,principal:{name:principal.name,role:principal.role},matter:matter.rows[0],documents:documents.rows.map((d:any)=>({...d,size_bytes:Number(d.size_bytes)})),terms:terms.rows,dependencies:dependencies.rows,documentRelations:relations.rows,agreementVersions:versions.rows,findings:findings.rows,economicsRuns:economics.rows,decisions:decisions.rows,snapshots:snapshots.rows,jobs:jobs.rows,audit:audit.rows});
+  }catch(error){const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:error instanceof Error?error.message:"Unable to load matter workspace."},{status:500});}
+}
