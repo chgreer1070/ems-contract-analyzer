@@ -4,24 +4,31 @@ import { databaseConfigured, query } from "@/lib/db";
 
 const LEVELS = new Set(["VIEW","EDIT","APPROVE"]);
 
-async function requireMembershipAdmin(request: Request, matterId: string) {
+async function membershipAdminState(request: Request, matterId: string) {
   const principal = await requireMatterAccess(request,matterId,true);
-  if(principal.demo) return principal;
+  if(principal.demo) return {principal,canAdmin:false};
   const result=await query<{owner_user_id:string}>("select owner_user_id from matters where id=$1",[matterId]);
   if(!result.rows[0]) throw new Error("Matter not found.");
-  if(principal.role!=="ADMIN"&&result.rows[0].owner_user_id!==principal.userId) return null;
-  return principal;
+  return {principal,canAdmin:principal.role==="ADMIN"||result.rows[0].owner_user_id===principal.userId};
+}
+
+async function requireMembershipAdmin(request: Request, matterId: string) {
+  const state=await membershipAdminState(request,matterId);
+  return state.canAdmin?state.principal:null;
 }
 
 export async function GET(request: Request, context:{params:Promise<{id:string}>}) {
   try {
-    if(!databaseConfigured()) return Response.json({ok:true,mode:"demo",members:[],directory:[]});
+    if(!databaseConfigured()) return Response.json({ok:true,mode:"demo",members:[],directory:[],canAdmin:false});
     const {id}=await context.params;
     const principal=await requireMatterAccess(request,id,false);
-    if(principal.demo) return Response.json({ok:true,mode:"demo",members:[],directory:[]});
+    if(principal.demo) return Response.json({ok:true,mode:"demo",members:[],directory:[],canAdmin:false});
+    const owner=await query<{owner_user_id:string}>("select owner_user_id from matters where id=$1",[id]);
+    if(!owner.rows[0])return Response.json({ok:false,error:"Matter not found."},{status:404});
+    const canAdmin=principal.role==="ADMIN"||owner.rows[0].owner_user_id===principal.userId;
     const members=await query(`select mm.user_id,u.name,u.email,mm.access_level,mm.granted_by,mm.granted_at from matter_members mm left join "user" u on u.id=mm.user_id where mm.matter_id=$1 order by coalesce(u.name,u.email,mm.user_id)`,[id]);
-    const directory=await query(`select u.id user_id,u.name,u.email,coalesce(r.role,'VIEWER') role from "user" u left join app_user_roles r on r.user_id=u.id and r.active=true order by u.name nulls last,u.email`);
-    return Response.json({ok:true,mode:"database",members:members.rows,directory:directory.rows});
+    const directory=canAdmin?await query(`select u.id user_id,u.name,u.email,coalesce(r.role,'VIEWER') role from "user" u left join app_user_roles r on r.user_id=u.id and r.active=true order by u.name nulls last,u.email`):{rows:[]};
+    return Response.json({ok:true,mode:"database",members:members.rows,directory:directory.rows,canAdmin});
   } catch(error){const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:"Unable to load matter members."},{status:500});}
 }
 
