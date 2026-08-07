@@ -10,7 +10,9 @@
     "test:economics": "node scripts/economics-check.mjs",
     "test:corpus": "node scripts/corpus-check.mjs",
     "db:check": "node scripts/schema-check.mjs",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate:auth": "node scripts/auth-migrate.mjs",
+    "db:migrate:app": "node scripts/migrate.mjs",
+    "db:migrate": "npm run db:migrate:auth && npm run db:migrate:app"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
