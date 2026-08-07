@@ -24,8 +24,41 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify database controls
+        run: npm run db:check
+      - name: Verify frozen legal corpus
+        run: npm run test:corpus
+      - name: Verify deterministic economics
+        run: npm run test:economics
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production build
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+        run: npm run build
+
   deploy:
     name: Vercel preview / production
+    needs: preflight
     runs-on: ubuntu-latest
     defaults:
       run:
