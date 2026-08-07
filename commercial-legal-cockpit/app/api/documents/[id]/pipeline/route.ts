@@ -8,10 +8,11 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
   try{
     if(!databaseConfigured())return Response.json({ok:false,error:"Contract processing requires DATABASE_URL."},{status:503});
     const {id}=await context.params;
-    const result=await query<{id:string;matter_id:string;filename:string;sha256:string|null;server_sha256:string|null}>("select id,matter_id,filename,sha256,server_sha256 from documents where id=$1 limit 1",[id]);
+    const result=await query<{id:string;matter_id:string;filename:string;sha256:string|null;server_sha256:string|null;deletion_status:string}>("select id,matter_id,filename,sha256,server_sha256,deletion_status from documents where id=$1 limit 1",[id]);
     const doc=result.rows[0];if(!doc)return Response.json({ok:false,error:"Document not found."},{status:404});
     const principal=await requireMatterAccess(request,doc.matter_id,true);
     if(principal.demo)return Response.json({ok:false,error:"Durable source-document pipelines are disabled in demo mode."},{status:503});
+    if(doc.deletion_status!=="ACTIVE")return Response.json({ok:false,error:`Source processing is blocked while deletion state is ${doc.deletion_status}.`},{status:409});
     await assertLegalRelianceReady();
     const fingerprint=(doc.server_sha256||doc.sha256||id).toLowerCase();
     const run=await start(fullContractPipeline,[{documentId:id,matterId:doc.matter_id,sourceFingerprint:fingerprint,requestedBy:principal.userId,requestedByName:principal.name}]);
