@@ -2,7 +2,7 @@ export async function GET() {
   return Response.json({
     ok: true,
     service: "ems-commercial-legal-cockpit",
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    version: "0.2.0",
     timestamp: new Date().toISOString()
   });
 }

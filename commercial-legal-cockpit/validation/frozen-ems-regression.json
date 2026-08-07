@@ -1,0 +1,63 @@
+{
+  "suite": "EMS Commercial Legal Frozen Regression Corpus v0.1",
+  "syntheticOnly": true,
+  "purpose": "Regression cases for source-grounded issue spotting. These are not approved negotiation standards.",
+  "cases": [
+    {
+      "id": "eo-ncnr-001",
+      "text": "Supplier may purchase material against Customer's twelve-week forecast. Customer may reduce or cancel forecasts at any time. Supplier shall be solely responsible for all excess, obsolete, non-cancelable and non-returnable material.",
+      "expectedFamilies": ["forecasting_demand", "excess_obsolete_inventory"],
+      "mustFlag": ["inventory", "forecast"],
+      "mustNotConclude": ["customer is obligated to purchase the inventory"]
+    },
+    {
+      "id": "termination-001",
+      "text": "Customer may terminate this Agreement for convenience on thirty days' notice. On termination Customer will pay only for conforming finished goods delivered before the termination effective date.",
+      "expectedFamilies": ["termination"],
+      "mustFlag": ["termination", "committed material"],
+      "mustNotConclude": ["raw material is reimbursed"]
+    },
+    {
+      "id": "payment-001",
+      "text": "Payment terms are Net 90 from receipt of a correct invoice.",
+      "expectedFamilies": ["payment_terms"],
+      "mustFlag": ["working capital"],
+      "mustNotConclude": ["annual financing cost"]
+    },
+    {
+      "id": "liability-001",
+      "text": "Supplier's liability shall be unlimited. The exclusion of consequential damages does not apply to Customer's lost profits, lost revenue, recall costs or loss of business.",
+      "expectedFamilies": ["liability_cap"],
+      "mustFlag": ["uncapped", "consequential"],
+      "mustNotConclude": ["insurance covers the exposure"]
+    },
+    {
+      "id": "warranty-001",
+      "text": "Supplier warrants that Products will meet all Customer requirements and intended use for sixty months after shipment, including defects arising from Customer design specifications.",
+      "expectedFamilies": ["warranty"],
+      "mustFlag": ["duration", "design"],
+      "mustNotConclude": ["supplier caused the design defect"]
+    },
+    {
+      "id": "pricing-001",
+      "text": "Prices are firm and fixed for the term and will not be adjusted for tariff increases, foreign exchange movement, commodity increases, labor cost changes or changes in law.",
+      "expectedFamilies": ["pricing_repricing"],
+      "mustFlag": ["external cost", "margin"],
+      "mustNotConclude": ["a price increase is permitted"]
+    },
+    {
+      "id": "precedence-001",
+      "text": "The MSA states payment is Net 45. This SOW states payment is Net 90 and provides that the SOW controls over conflicting terms in the MSA.",
+      "expectedFamilies": ["payment_terms"],
+      "mustFlag": ["precedence", "conflict"],
+      "mustNotConclude": ["Net 45 controls"]
+    },
+    {
+      "id": "safe-no-finding-001",
+      "text": "The parties will meet quarterly to review operational performance. Meeting minutes are informational and do not amend this Agreement unless signed by authorized representatives of both parties.",
+      "expectedFamilies": [],
+      "mustFlag": [],
+      "mustNotConclude": ["quarterly meeting creates a purchase obligation", "minutes amend the contract"]
+    }
+  ]
+}

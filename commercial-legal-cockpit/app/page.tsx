@@ -1,5 +1,5 @@
-import Cockpit from "@/components/Cockpit";
+import CockpitV2 from "@/components/CockpitV2";
 
-export default function Home() {
-  return <Cockpit />;
+export default function Page() {
+  return <CockpitV2 />;
 }

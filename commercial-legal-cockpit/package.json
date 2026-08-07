@@ -1,24 +1,31 @@
 {
   "name": "ems-commercial-legal-cockpit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:economics": "node scripts/economics-check.mjs"
+    "test:economics": "node scripts/economics-check.mjs",
+    "db:check": "node scripts/schema-check.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "2.6.1",
+    "better-auth": "1.6.25",
+    "mammoth": "1.12.0",
     "next": "16.2.11",
+    "pg": "8.22.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "unpdf": "1.6.2"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.8.0"
+    "@types/node": "24.0.0",
+    "@types/pg": "8.20.0",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "typescript": "5.8.3"
   },
   "engines": {
     "node": ">=20.9.0"
