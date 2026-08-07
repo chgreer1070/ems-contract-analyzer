@@ -1,0 +1,50 @@
+name: Commercial Legal Cockpit - CodeQL
+
+on:
+  push:
+    branches:
+      - build/ems-commercial-legal-cockpit
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/commercial-legal-cockpit-codeql.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+  schedule:
+    - cron: '17 9 * * 1'
+
+permissions:
+  security-events: write
+  packages: read
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL JavaScript / TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          source-root: commercial-legal-cockpit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        working-directory: commercial-legal-cockpit
+        run: npm install --no-audit --no-fund
+      - name: Build application
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+        run: npm run build
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
