@@ -6,7 +6,8 @@ const sql = fs.readdirSync(dir).filter((f)=>f.endsWith(".sql")).sort().map((f)=>
 const required = [
   "app_user_roles","customers","matters","matter_members","documents","document_chunks","findings","negotiation_standards",
   "decisions","economics_runs","audit_events","agreement_versions","agreement_version_documents","document_relations","contract_terms",
-  "term_dependencies","processing_jobs","analysis_runs","validation_cases","validation_runs","validation_results","executive_snapshots"
+  "term_dependencies","processing_jobs","analysis_runs","validation_cases","validation_runs","validation_results","executive_snapshots",
+  "legal_hold_events","purge_requests"
 ];
 const missing = required.filter((name) => !new RegExp(`create table if not exists\\s+${name}\\b`, "i").test(sql));
 const controls = [
@@ -18,7 +19,12 @@ const controls = [
   [/exact_text_sha256/i,"atomic term source hash"],
   [/idempotency_key text not null unique/i,"durable job idempotency"],
   [/document_relations/i,"document precedence graph"],
-  [/validation_results/i,"case-level validation evidence"]
+  [/validation_results/i,"case-level validation evidence"],
+  [/confidentiality_level/i,"matter confidentiality classification"],
+  [/privilege_status/i,"privilege classification"],
+  [/legal_hold boolean/i,"legal hold state"],
+  [/prevent_purge_on_hold/i,"database-enforced hold protection"],
+  [/uq_open_purge_request_per_document/i,"one open purge request per source"]
 ].filter(([pattern]) => !pattern.test(sql)).map(([,label]) => label);
 if (missing.length || controls.length) {
   console.error("Schema check failed", { missingTables:missing, missingControls:controls });
