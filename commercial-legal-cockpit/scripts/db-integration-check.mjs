@@ -15,7 +15,7 @@ try{
     const doc=(await client.query(`insert into documents(matter_id,filename,document_type,mime_type,size_bytes,blob_url,blob_pathname,uploaded_by,legal_hold) values($1,'test.txt','OTHER','text/plain',4,'https://example.invalid/test','ci/test','ci-user',false) returning id`,[matter.id])).rows[0];
     await expectFailure("sp_hold",()=>client.query("update documents set deletion_status='PURGED' where id=$1",[doc.id]),error=>String(error.message).toLowerCase().includes("legal hold"));
 
-    const audit=(await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values('ci-user','CI User','CI_TEST',$1,'matter',$1,'{}'::jsonb) returning id`,[matter.id])).rows[0];
+    const audit=(await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values('ci-user','CI User','CI_TEST',$1,'matter',$2,'{}'::jsonb) returning id`,[matter.id,String(matter.id)])).rows[0];
     await expectFailure("sp_audit",()=>client.query("update audit_events set actor_name='tampered' where id=$1",[audit.id]),error=>String(error.message).toLowerCase().includes("append-only"));
 
     await client.query(`insert into negotiation_standards(clause_family,title,standard_position,active,version,effective_date,created_by) values('ci_test_family','CI Standard 1','Position 1',true,'1','2026-01-01','ci-user')`);
