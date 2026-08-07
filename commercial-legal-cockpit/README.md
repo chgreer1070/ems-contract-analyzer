@@ -1,39 +1,119 @@
-# EMS Commercial Legal Cockpit
+# ContractTwin / EMS Commercial Legal Cockpit
 
-Production-oriented Next.js application for source-grounded EMS contract review, commercial risk triage, deterministic contract economics, negotiation governance, and executive decision support.
+Production-oriented legal engineering application that treats EMS contracts as commercial-operational systems. It converts an authorized agreement source set into source-grounded legal/operational objects, dependency and precedence graphs, deterministic economics, governed negotiation positions, human-reviewed findings, approval decisions, frozen executive snapshots, and an immutable audit record.
 
-## Current architecture
+> **Repository boundary:** this GitHub repository is currently public. Keep it code/synthetic-data only. Do not commit confidential contracts, company negotiation standards, credentials, customer data, privileged analysis, or internal production configuration. Move production development to an approved private repository before adding proprietary content.
 
-- **UI:** Next.js 16 / React 19 / TypeScript.
-- **Identity:** Better Auth with Microsoft Entra ID.
-- **Authorization:** server-side roles plus matter ownership/membership; restricted matters require explicit access.
-- **Legal state:** PostgreSQL.
-- **Source documents:** private Vercel Blob storage.
-- **Integrity:** client SHA-256 captured before upload and recomputed server-side before extraction.
-- **Extraction:** page-preserving PDF text via `unpdf`, raw DOCX text via `mammoth`, and TXT extraction. Scanned/oversized documents fail to an explicit OCR/worker state rather than being silently truncated.
-- **Analysis:** OpenAI Responses API structured output or deterministic demo triage. Model-generated source excerpts are verified against supplied source text before findings are persisted.
-- **Negotiation policy:** separate approved standards table. The model does not create company primary/fallback/no-go positions or approval authority.
-- **Financial logic:** deterministic, versioned contract-economics functions.
-- **Human review:** AI findings are `UNREVIEWED` until a lawyer validates/rejects them; decisions remain separate approval records.
-- **Audit:** append-only database event history.
+## Product surfaces
 
-## Modes
+- `/` — production-backed executive portfolio cockpit; synthetic demo data only when the server explicitly returns demo mode.
+- `/matters/:id` — counsel matter workspace: source set, secure upload, records governance, durable processing, atomic contract twin, precedence, findings, economics, decisions, agreement versions, snapshots, and audit.
+- `/matters/:id/executive-summary` — frozen print-ready executive decision brief tied to a source-state hash.
+- `/admin` — legal engineering control plane: readiness, frozen validation, negotiation standards, user roles, and controlled source-purge administration.
 
-### Demo / preview
+## Architecture
 
-`AUTH_REQUIRED=false` and `ALLOW_DEMO_ACCESS=true` keeps the product usable with synthetic data. Real private document workflows remain disabled unless PostgreSQL, identity and Blob are configured.
+### Application and identity
 
-### Production
+- Next.js 16 / React 19 / TypeScript.
+- Better Auth using Microsoft Entra ID as the production identity provider.
+- PostgreSQL-backed Better Auth schema plus ContractTwin application schema.
+- Server-enforced `VIEWER`, `LAWYER`, `APPROVER`, and `ADMIN` roles.
+- Restricted matters require explicit matter membership; role alone does not bypass a restricted matter except Admin.
+- One-time first-Admin bootstrap is restricted to `BOOTSTRAP_ADMIN_EMAIL`, only when zero active Admins exist, and must be removed after use.
 
-Set `AUTH_REQUIRED=true` and configure the complete environment. Production authentication fails closed if required SSO configuration is missing.
+### Source documents and evidence chain
 
-`LEGAL_RELIANCE_ENABLED=false` must remain the default during validation. When switched to `true`, structured AI failure does **not** fall back to keyword rules.
+- Private Vercel Blob object storage.
+- SHA-256 is computed in the browser before upload and independently recomputed server-side before extraction.
+- Source blobs are never rewritten by analysis.
+- PDF text extraction preserves page provenance where machine-readable.
+- DOCX and TXT are normalized into hashed source chunks.
+- Scanned PDFs and XLSX/Office layout extraction are delegated to Azure Document Intelligence Layout; polling is durable and source provenance is retained.
+- Purged source objects return HTTP 410 while database tombstone/audit metadata remains.
+
+### Durable processing
+
+Vercel Workflow DevKit persists long-running contract processing across function timeouts and deployments. A full document pipeline performs:
+
+1. source integrity verification;
+2. text/layout extraction or asynchronous OCR;
+3. source-grounded clause-risk analysis;
+4. atomic contract-term extraction;
+5. term-dependency graph analysis;
+6. matter-wide document precedence/lineage analysis; and
+7. frozen executive snapshot generation.
+
+Each stage has database idempotency keys, retry state, and durable continuation. External OCR polling does not consume failure retries merely because the external service is still processing.
+
+### ContractTwin graph
+
+PostgreSQL stores first-class objects for:
+
+- agreement package versions and their document membership;
+- document relationships (`AMENDS`, `SUPERSEDES`, `CONTROLS`, `CONFLICTS_WITH`, etc.);
+- atomic contract terms (`OBLIGATION`, `RIGHT`, `CONDITION`, `REMEDY`, `ALLOCATION`, etc.);
+- term dependencies (`TRIGGERS`, `LIMITS`, `PRICES`, `ALLOCATES_RISK`, etc.);
+- findings, economics, decisions, processing jobs, analysis-run provenance, validation evidence, and executive snapshots.
+
+AI-generated graph objects remain `UNREVIEWED` until counsel validates or rejects them. Counsel may directly record a validated document relationship with a stated legal rationale.
+
+### AI boundary
+
+- OpenAI Responses API uses strict structured outputs.
+- Source excerpts must be verbatim contiguous text present in the supplied source; ungrounded model output is discarded.
+- The model identifies contract facts, legal/operational consequences, uncertainty, and potential financial variables.
+- **The model does not invent company negotiation policy.** Primary position, fallback, no-go, and approval authority come from separately governed negotiation standards.
+- If no approved standard exists, production output says it is missing; illustrative demo positions cannot masquerade as approved policy.
+
+### Economics
+
+Financial consequences are calculated by deterministic versioned software rather than model arithmetic. Current modeled categories include payment-term working capital, stranded inventory/NCNR, termination recovery, warranty reserve, liability-cap gap, gross profit, and modeled burden as a percentage of gross profit.
+
+### Human authority
+
+AI analysis, lawyer validation, approved company standards, and executive authority remain separate states. ContractTwin does not autonomously approve terms, modify source agreements, send redlines, or make binding commitments.
+
+## Legal-reliance gate
+
+`LEGAL_RELIANCE_ENABLED=true` is **not** enough to make the application production-ready. When that switch is enabled, the runtime checks all of the following before the durable contract pipeline may start:
+
+- production authentication is required and Microsoft Entra is configured;
+- PostgreSQL is configured;
+- private Blob storage is configured;
+- OpenAI is configured;
+- Azure Document Intelligence is configured;
+- the latest validation run matches the **current model + current analysis prompt + current frozen corpus** and passes the required metrics; and
+- all required EMS clause-family negotiation standards are active.
+
+Current validation thresholds are 95%+ expected-family recall, 100% grounding, zero unsafe prohibited conclusions, and zero exact-quote failures. The frozen corpus contains synthetic cases only and is versioned independently of production source data.
+
+## Records governance
+
+Matters support confidentiality and privilege classification, legal holds, retention category/date, and hold history. Destruction is intentionally separate from ordinary application deletion:
+
+1. lawyer creates a purge request with a records-management reason;
+2. a different Admin approves or rejects it;
+3. execution remains disabled unless `ALLOW_SOURCE_PURGE=true`;
+4. execution is blocked by any matter/document legal hold;
+5. execution is blocked until a retention end date exists and has expired; and
+6. private Blob deletion occurs only after all gates pass, while the document tombstone and audit history remain.
+
+Retention periods are not invented by the application and must come from the approved corporate records policy.
+
+## Database setup
+
+```bash
+npm run db:migrate
+```
+
+This command first uses Better Auth's programmatic migration API for its installed-version auth schema, then applies ContractTwin migrations transactionally with migration SHA-256 checksums and a PostgreSQL advisory lock. An applied migration that later changes is refused; schema changes require a new migration.
+
+CI also applies all migrations to a disposable PostgreSQL 17 instance, reruns them for idempotency, and proves key database invariants including legal-hold purge blocking, append-only audit history, and one active standard per clause family.
 
 ## Environment
 
-Copy `.env.example` and configure approved secrets outside source control.
-
-Required for production legal work:
+Copy `.env.example`; never commit populated secrets. Production requires approved values for:
 
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
@@ -44,47 +124,53 @@ Required for production legal work:
 - `BLOB_READ_WRITE_TOKEN`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
+- `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`
+- `AZURE_DOCUMENT_INTELLIGENCE_KEY`
 
-## Database setup
+One-time bootstrap: `BOOTSTRAP_ADMIN_EMAIL`.
 
-1. Create an approved PostgreSQL database.
-2. Configure Better Auth's PostgreSQL tables using the Better Auth CLI or its approved migration workflow.
-3. Apply `db/migrations/001_app.sql` for ContractTwin application tables.
-4. Run `npm run db:check`.
-5. Create initial `app_user_roles` records for authorized users.
-6. Do **not** activate illustrative standards in `db/seeds/illustrative-standards.sql` as company policy. They are deliberately inserted inactive.
+Safety switches default off:
 
-## Core APIs
+- `LEGAL_RELIANCE_ENABLED=false`
+- `ALLOW_SOURCE_PURGE=false`
 
-- `GET /api/health` — uptime only; no configuration details.
-- `GET /api/readiness` — authenticated control/readiness status.
-- `GET|POST /api/matters` — authorization-scoped matter register.
-- `GET /api/matters/:id/documents` — source register.
-- `POST /api/documents/upload` — authenticated client-upload token exchange.
-- `POST /api/documents/:id/extract` — server hash verification + extraction/chunking.
-- `POST /api/documents/:id/analyze` — source-chunk analysis with page/chunk provenance.
-- `GET /api/documents/:id/content` — authenticated private source streaming.
-- `POST /api/analyze` — manual text issue spotting.
-- `PATCH /api/findings/:id/review` — lawyer validation/rejection.
-- `POST /api/economics` — deterministic scenario engine; persists runs when matter-scoped.
-- `GET|POST /api/decisions` and `PATCH /api/decisions/:id` — request vs. authorized disposition.
-- `GET|POST /api/standards` and `PATCH /api/standards/:id/activate` — controlled negotiation standards.
-- `GET /api/audit?matterId=...` — append-only matter history.
+## CI and deployment
 
-## Vercel
+`.github/workflows/commercial-legal-cockpit.yml` performs:
 
-Use this repository with project Root Directory:
+- dependency installation;
+- static schema-control check;
+- Better Auth + ContractTwin migrations against PostgreSQL;
+- migration idempotency check;
+- database legal-control invariant tests;
+- frozen corpus structure validation;
+- deterministic economics tests;
+- TypeScript typecheck;
+- production dependency vulnerability audit; and
+- full Next.js production build.
 
-`commercial-legal-cockpit`
+`.github/workflows/commercial-legal-cockpit-codeql.yml` provides independent JavaScript/TypeScript CodeQL analysis.
 
-Recommended deployment model:
+`.github/workflows/commercial-legal-cockpit-vercel.yml` contains a separate release preflight before Vercel preview/production deployment. It remains inert until these repository secrets are configured:
 
-- feature branch -> Preview
-- `main` -> Production
-- private Blob store
-- Marketplace PostgreSQL integration
-- encrypted environment variables
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
 
-## Validation gates before real legal reliance
+Vercel project root directory must be `commercial-legal-cockpit`.
 
-See `PRODUCTION_READINESS.md` and `validation/frozen-ems-regression.json`. The application is not considered approved for privileged/confidential production use until identity, matter authorization, source retention, security, privacy, privilege, records management, AI validation, economics validation, recovery testing, and approval-matrix governance are formally accepted.
+## Production activation sequence
+
+1. Move/replicate the application into an approved **private** GitHub repository.
+2. Provision production PostgreSQL, private Blob storage, Microsoft Entra app registration, Azure Document Intelligence, approved OpenAI credentials, and a Vercel project.
+3. Configure environment variables/secrets and deployment protection.
+4. Run `npm run db:migrate` against the approved database.
+5. Sign in with the configured bootstrap identity and perform the one-time Admin bootstrap; then remove `BOOTSTRAP_ADMIN_EMAIL`.
+6. Configure user roles and restricted-matter membership rules.
+7. Load formally approved negotiation standards; new standards are inactive until separately activated by Admin.
+8. Run the frozen legal validation suite against the configured production model/prompt/corpus and review failures.
+9. Complete security/privacy/privilege/records-management review and recovery testing.
+10. Only after the readiness API is green should `LEGAL_RELIANCE_ENABLED=true` be considered.
+11. Keep `ALLOW_SOURCE_PURGE=false` unless records-management leadership separately authorizes purge operations.
+
+See `PRODUCTION_READINESS.md` for the acceptance checklist.
