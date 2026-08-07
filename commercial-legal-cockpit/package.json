@@ -1,6 +1,6 @@
 {
   "name": "ems-commercial-legal-cockpit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,8 @@
     "pg": "8.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "unpdf": "1.6.2"
+    "unpdf": "1.6.2",
+    "workflow": "4.6.2"
   },
   "devDependencies": {
     "@types/node": "24.0.0",
