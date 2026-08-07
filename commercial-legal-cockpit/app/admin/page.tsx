@@ -1,2 +1,3 @@
 import AdminConsole from "@/components/AdminConsole";
-export default function AdminPage(){return <AdminConsole/>;}
+import AdminOperations from "@/components/AdminOperations";
+export default function AdminPage(){return <><AdminConsole/><AdminOperations/></>;}
