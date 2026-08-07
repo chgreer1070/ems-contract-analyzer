@@ -62,10 +62,10 @@ export async function claimNextJob(workerId: string, allowedTypes?: JobType[]) {
   });
 }
 
-export async function requeueJob(jobId: string, output: Record<string, unknown> = {}, delaySeconds = 2) {
+export async function continueJob(jobId: string, output: Record<string, unknown> = {}, delaySeconds = 1) {
   await query(
-    `update processing_jobs set status='QUEUED', output=$2::jsonb, locked_by=null, locked_at=null,
-      next_attempt_at=now() + make_interval(secs => $3) where id=$1`,
+    `update processing_jobs set status='WAITING_EXTERNAL', output=$2::jsonb, external_operation_url=null,
+      locked_by=null, locked_at=null, next_attempt_at=now() + make_interval(secs => $3) where id=$1`,
     [jobId, JSON.stringify(output), Math.max(0, delaySeconds)]
   );
 }
