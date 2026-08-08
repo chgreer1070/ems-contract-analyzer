@@ -16,6 +16,10 @@ on:
   schedule:
     - cron: '17 9 * * 1'
 
+concurrency:
+  group: commercial-legal-cockpit-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   security-events: write
   packages: read
@@ -35,9 +39,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install application dependencies
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked application dependencies
         working-directory: commercial-legal-cockpit
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Build application
         working-directory: commercial-legal-cockpit
         env:
