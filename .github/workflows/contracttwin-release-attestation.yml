@@ -1,0 +1,154 @@
+name: ContractTwin Release Attestation
+
+on:
+  push:
+    branches:
+      - build/ems-commercial-legal-cockpit
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/contracttwin-release-attestation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: contracttwin-release-attestation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  security-events: write
+  actions: read
+
+jobs:
+  validate:
+    name: Full release validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: contracttwin
+          POSTGRES_PASSWORD: contracttwin_ci
+          POSTGRES_DB: contracttwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U contracttwin -d contracttwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://contracttwin:contracttwin_ci@localhost:5432/contracttwin
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Static legal-control schema check
+        run: npm run db:check
+      - name: Apply Better Auth and ContractTwin migrations
+        run: npm run db:migrate
+      - name: Prove migration idempotency
+        run: npm run db:migrate
+      - name: Prove database legal-control invariants
+        run: npm run test:db-controls
+      - name: Validate frozen synthetic EMS corpus
+        run: npm run test:corpus
+      - name: Validate deterministic economics
+        run: npm run test:economics
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production Next.js / Workflow build
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+
+  codeql:
+    name: CodeQL security analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        working-directory: commercial-legal-cockpit
+        run: npm ci --no-audit --no-fund
+      - name: Build analyzed application
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+  attest:
+    name: Commit release attestation
+    needs: [validate, codeql]
+    if: success() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/ems-commercial-legal-cockpit
+          fetch-depth: 0
+      - name: Verify branch still points to tested source
+        shell: bash
+        run: |
+          current="$(git rev-parse HEAD)"
+          if [[ "$current" != "${{ github.sha }}" ]]; then
+            echo "Branch advanced from tested SHA ${{ github.sha }} to $current; refusing stale attestation."
+            exit 1
+          fi
+      - name: Write attestation
+        shell: bash
+        run: |
+          cat > contracttwin-release-attestation.json <<EOF
+          {
+            "application": "ContractTwin / EMS Commercial Legal Cockpit",
+            "sourceSha": "${{ github.sha }}",
+            "workflowRunId": "${{ github.run_id }}",
+            "attestedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "lockedDependencies": true,
+            "postgresMigrationApplied": true,
+            "migrationIdempotencyPassed": true,
+            "databaseLegalControlsPassed": true,
+            "frozenCorpusStructurePassed": true,
+            "deterministicEconomicsPassed": true,
+            "typescriptPassed": true,
+            "productionDependencyAuditPassed": true,
+            "productionBuildPassed": true,
+            "codeqlPassed": true,
+            "legalRelianceEnabledDuringBuild": false,
+            "sourcePurgeEnabledDuringBuild": false,
+            "productionActivationStillRequiresExternalApprovedInfrastructureAndPolicy": true
+          }
+          EOF
+      - name: Commit attestation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add contracttwin-release-attestation.json
+          git commit -m 'ci: attest ContractTwin release candidate ${{ github.sha }}'
+          git push origin HEAD:build/ems-commercial-legal-cockpit
