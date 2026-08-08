@@ -1,3 +1,5 @@
+export const ECONOMICS_FORMULA_VERSION = "ems-contract-economics-2026-08-07.v1";
+
 export type EconomicsInput = {
   annualRevenue: number;
   grossMarginPct: number;
