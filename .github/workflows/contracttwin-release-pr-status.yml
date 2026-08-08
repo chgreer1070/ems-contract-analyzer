@@ -1,0 +1,42 @@
+name: ContractTwin Release PR Status
+
+on:
+  workflow_run:
+    workflows:
+      - ContractTwin Release Attestation
+    types:
+      - completed
+
+permissions:
+  actions: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  report:
+    if: github.event.workflow_run.head_branch == 'build/ems-commercial-legal-cockpit'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Build release result
+        shell: bash
+        run: |
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs" --jq '[.jobs[] | {name,conclusion,failedSteps:[.steps[] | select(.conclusion=="failure") | .name]}]')"
+          cat > /tmp/body.md <<EOF
+          ## ContractTwin release gate
+
+          - **Conclusion:** `${{ github.event.workflow_run.conclusion }}`
+          - **Tested SHA:** `${{ github.event.workflow_run.head_sha }}`
+          - **Workflow run:** `${RUN_ID}`
+
+          ### Jobs
+          \`\`\`json
+          ${jobs}
+          \`\`\`
+
+          A success conclusion means the locked dependency build, PostgreSQL migrations and invariants, frozen corpus structure, deterministic economics, TypeScript, production dependency audit, production Next.js/Workflow build, and CodeQL completed for the tested SHA. It does not mean external production infrastructure or company policy approvals have been configured.
+          EOF
+      - name: Comment on draft PR
+        run: gh pr comment 9 --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md
