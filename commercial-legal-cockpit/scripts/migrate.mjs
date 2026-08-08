@@ -2,14 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import pg from "pg";
+import {assertTrustedMigrationTarget,verifiedDatabaseConnectionConfig} from "./database-connection-config.mjs";
 
 const { Client }=pg;
 if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required.");
-const client=new Client({connectionString:process.env.DATABASE_URL,application_name:"contracttwin-migrator"});
+const client=new Client(verifiedDatabaseConnectionConfig(process.env.DATABASE_URL,"contracttwin-migrator",{requireVerifiedTls:process.env.APP_ENV==="production"}));
 const migrationDir=path.join(process.cwd(),"db","migrations");
 const files=fs.readdirSync(migrationDir).filter(f=>/^\d+.*\.sql$/.test(f)).sort();
 await client.connect();
 try{
+  await assertTrustedMigrationTarget(client);
   await client.query(`create table if not exists schema_migrations(filename text primary key,sha256 text not null,applied_at timestamptz not null default now())`);
   await client.query(`select pg_advisory_lock(hashtext('contracttwin-schema-migrations'))`);
   const applied=await client.query("select filename,sha256 from schema_migrations");
@@ -26,6 +28,7 @@ try{
     try{await client.query(sql);await client.query("insert into schema_migrations(filename,sha256) values($1,$2)",[filename,sha]);await client.query("COMMIT");}
     catch(error){await client.query("ROLLBACK");throw error;}
   }
+  await assertTrustedMigrationTarget(client);
   console.log(`Migration complete: ${files.length} migration files verified.`);
 }finally{
   try{await client.query(`select pg_advisory_unlock(hashtext('contracttwin-schema-migrations'))`);}catch{}

@@ -6,25 +6,40 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test:economics": "node scripts/economics-check.mjs",
     "test:corpus": "node scripts/corpus-check.mjs",
-    "test:db-controls": "node scripts/db-integration-check.mjs",
+    "test:access": "node scripts/access-control-check.mjs",
+    "test:persistence-boundaries": "node scripts/persistence-boundary-check.mjs",
+    "test:validation-controls": "node scripts/validation-readiness-check.mjs",
+    "test:security-boundaries": "node scripts/security-boundary-check.mjs",
+    "test:lifecycle-controls": "node scripts/lifecycle-controls-check.mjs",
+    "test:counsel-capability": "node scripts/counsel-capability-check.mjs",
+    "test:error-boundaries": "node scripts/error-boundary-check.mjs",
+    "test:workflow-pins": "node scripts/workflow-action-pin-check.mjs",
+    "test:runtime-db-principal": "node scripts/runtime-database-principal-integration-check.mjs",
+    "test:controls": "npm run test:access && npm run test:persistence-boundaries && npm run test:validation-controls && npm run test:security-boundaries && npm run test:lifecycle-controls && npm run test:counsel-capability && npm run test:error-boundaries && npm run test:workflow-pins",
+    "test:db-controls": "node scripts/db-control-acceptance-check.mjs",
     "db:check": "node scripts/schema-check.mjs",
     "db:migrate:auth": "node scripts/auth-migrate.mjs",
     "db:migrate:app": "node scripts/migrate.mjs",
-    "db:migrate": "npm run db:migrate:auth && npm run db:migrate:app"
+    "db:migrate": "npm run db:migrate:auth && npm run db:migrate:app",
+    "db:provision-ci-runtime": "node scripts/provision-ci-runtime-role.mjs",
+    "db:verify-migration-transport": "node scripts/verify-database-transport.mjs DATABASE_URL",
+    "db:verify-runtime-transport": "node scripts/verify-database-transport.mjs RUNTIME_DATABASE_URL",
+    "db:verify-target": "node scripts/verify-target-schema.mjs",
+    "db:verify-runtime-principal": "node scripts/runtime-database-principal.mjs"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
     "better-auth": "1.6.25",
     "mammoth": "1.12.0",
-    "next": "16.2.11",
+    "next": "16.3.0",
     "pg": "8.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "unpdf": "1.6.2",
-    "workflow": "4.6.2"
+    "workflow": "4.8.1"
   },
   "devDependencies": {
     "@types/node": "24.0.0",
@@ -32,6 +47,10 @@
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
     "typescript": "5.8.3"
+  },
+  "overrides": {
+    "nanoid": "5.1.16",
+    "undici": "7.29.0"
   },
   "engines": {
     "node": ">=20.9.0"

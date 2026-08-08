@@ -1,4 +1,5 @@
-export const DEPENDENCY_PROMPT_VERSION = "term-dependency-2026-08-07.v1";
+export { DEPENDENCY_PROMPT_VERSION, DEPENDENCY_SCHEMA_VERSION } from "@/lib/engineVersions";
+import { DEPENDENCY_PROMPT_VERSION } from "@/lib/engineVersions";
 
 export type DependencyCandidate = {
   sourceTermId:string;
@@ -25,5 +26,8 @@ export async function inferDependencies(terms:Array<{id:string;clauseFamily:stri
   if(!response.ok) throw new Error(`OpenAI dependency analysis failed: ${response.status}`);
   const text=outputText(await response.json()); if(!text) throw new Error("No dependency output returned.");
   const raw=(JSON.parse(text) as {dependencies?:DependencyCandidate[]}).dependencies??[];
-  return raw.filter(d=>d.sourceTermId!==d.targetTermId&&allowed.has(d.sourceTermId)&&allowed.has(d.targetTermId)).map(d=>({...d,confidence:Math.max(0,Math.min(1,Number(d.confidence)||0))}));
+  const valid=raw.filter(d=>d.sourceTermId!==d.targetTermId&&allowed.has(d.sourceTermId)&&allowed.has(d.targetTermId)).map(d=>({...d,confidence:Math.max(0,Math.min(1,Number(d.confidence)||0))}));
+  const seen=new Set<string>();const dependencies=valid.filter(d=>{const key=`${d.sourceTermId}|${d.targetTermId}|${d.dependencyType}`;if(seen.has(key))return false;seen.add(key);return true;});
+  const invalidCount=raw.length-valid.length;const duplicateCount=valid.length-dependencies.length;
+  return {dependencies,rawCount:raw.length,invalidCount,duplicateCount,rejectedCount:invalidCount+duplicateCount};
 }

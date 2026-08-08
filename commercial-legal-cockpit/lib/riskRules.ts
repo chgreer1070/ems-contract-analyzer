@@ -23,8 +23,13 @@ const rules: Rule[] = [
 ];
 
 function excerpt(text: string, matchIndex: number, length = 360) {
-  const start = Math.max(0, matchIndex - 100);
-  return text.slice(start, Math.min(text.length, start + length)).trim();
+  let start = Math.max(0, matchIndex - 100);
+  while (start > 0 && !/\s/.test(text[start - 1])) start -= 1;
+
+  let end = Math.min(text.length, start + length);
+  while (end < text.length && end > start && !/\s/.test(text[end])) end -= 1;
+
+  return text.slice(start, end).trim();
 }
 
 export function runRuleTriage(text: string): RiskResult[] {

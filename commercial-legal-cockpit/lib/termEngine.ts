@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { sourceContainsExcerpt } from "@/lib/analysisEngine";
 
-export const TERM_PROMPT_VERSION = "contract-term-extraction-2026-08-07.v1";
-export const TERM_SCHEMA_VERSION = "contract-term.v1";
+export { TERM_PROMPT_VERSION, TERM_SCHEMA_VERSION } from "@/lib/engineVersions";
+import { TERM_PROMPT_VERSION, TERM_SCHEMA_VERSION } from "@/lib/engineVersions";
 
 const clauseFamilies = [
   "forecasting_demand","purchase_orders","pricing_repricing","raw_materials","long_lead_ncnr","consigned_inventory",

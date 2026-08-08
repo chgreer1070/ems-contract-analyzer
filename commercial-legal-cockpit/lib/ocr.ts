@@ -15,7 +15,21 @@ export function azureOcrConfigured() {
 function endpoint() {
   const value = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT?.replace(/\/$/, "");
   if (!value) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT is not configured.");
-  return value;
+  let parsed: URL;
+  try { parsed = new URL(value); } catch { throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT must be a valid HTTPS URL."); }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT must be a credential-free HTTPS origin or base path.");
+  return parsed.toString().replace(/\/$/, "");
+}
+
+export function trustedOcrOperationUrl(operationLocation:string){
+  let configured:URL;let candidate:URL;
+  try{configured=new URL(endpoint());candidate=new URL(operationLocation);}catch{throw new Error("Azure OCR returned an invalid operation URL.");}
+  const basePath=configured.pathname.replace(/\/$/,"");
+  const prefix=`${basePath}/documentintelligence/documentModels/${MODEL_ID}/analyzeResults/`;
+  const resultId=candidate.pathname.startsWith(prefix)?candidate.pathname.slice(prefix.length):"";
+  if(candidate.protocol!=="https:"||candidate.origin!==configured.origin||candidate.username||candidate.password||candidate.hash||!resultId||resultId.includes("/")||!/^[A-Za-z0-9-]+$/.test(resultId))throw new Error("Azure OCR returned an unexpected operation URL.");
+  if(candidate.searchParams.get("api-version")!==API_VERSION)throw new Error("Azure OCR operation URL uses an unexpected API version.");
+  return candidate.toString();
 }
 
 function apiKey() {
@@ -41,13 +55,12 @@ export async function submitAzureOcr(bytes: ArrayBuffer): Promise<string> {
   }
   const operationLocation = response.headers.get("operation-location");
   if (!operationLocation) throw new Error("Azure OCR did not return Operation-Location.");
-  if (!operationLocation.startsWith(endpoint())) throw new Error("Azure OCR returned an unexpected operation host.");
-  return operationLocation;
+  return trustedOcrOperationUrl(operationLocation);
 }
 
 export async function pollAzureOcr(operationLocation: string): Promise<OcrPollResult> {
-  if (!operationLocation.startsWith(endpoint())) throw new Error("Refusing to poll an untrusted OCR operation URL.");
-  const response = await fetch(operationLocation, {
+  const trustedLocation=trustedOcrOperationUrl(operationLocation);
+  const response = await fetch(trustedLocation, {
     headers: { "Ocp-Apim-Subscription-Key": apiKey() },
     cache: "no-store"
   });
@@ -56,7 +69,7 @@ export async function pollAzureOcr(operationLocation: string): Promise<OcrPollRe
   const status = String(payload?.status ?? "").toLowerCase();
   if (status === "running" || status === "notstarted") return { status: "running" };
   if (status !== "succeeded") {
-    return { status: "failed", error: payload?.error?.message || `Azure OCR status: ${status || "unknown"}` };
+    return { status: "failed", error: "Azure OCR reported a failed operation." };
   }
 
   const pages: any[] = payload?.analyzeResult?.pages ?? [];

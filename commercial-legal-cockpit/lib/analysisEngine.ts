@@ -1,6 +1,7 @@
 import { runRuleTriage, type RiskResult } from "@/lib/riskRules";
 
-export const PROMPT_VERSION = "ems-legal-triage-2026-08-07.v4";
+export { PROMPT_VERSION } from "@/lib/engineVersions";
+import { PROMPT_VERSION } from "@/lib/engineVersions";
 export const legalRelianceEnabled = process.env.LEGAL_RELIANCE_ENABLED === "true";
 
 const clauseFamilies = [
@@ -89,7 +90,16 @@ function normalizeRules(findings:RiskResult[]):CoreFinding[] {
   }));
 }
 
-export async function analyzeContractText(source:string):Promise<AnalysisResult> {
+export async function analyzeContractText(source:string, options:{ allowAi?:boolean } = {}):Promise<AnalysisResult> {
+  if (options.allowAi === false) {
+    return {
+      mode:"rules",
+      findings:normalizeRules(runRuleTriage(source)),
+      modelName:"deterministic-rules",
+      rejectedUngroundedFindings:0,
+      warning:"Illustrative deterministic triage only. No model or approved negotiation policy was consulted."
+    };
+  }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     if (legalRelianceEnabled) throw new Error("AI analysis is required when LEGAL_RELIANCE_ENABLED=true.");
@@ -127,7 +137,7 @@ export async function analyzeContractText(source:string):Promise<AnalysisResult>
     return { mode:"ai", findings:verified, modelName:model, rejectedUngroundedFindings:Math.max(0,raw.length-verified.length) };
   } catch (error) {
     if (legalRelianceEnabled) throw error;
-    return { mode:"rules-fallback", findings:normalizeRules(runRuleTriage(source)), modelName:"deterministic-rules-fallback", rejectedUngroundedFindings:0, warning:error instanceof Error ? error.message : "AI analysis unavailable; deterministic triage used." };
+    return { mode:"rules-fallback", findings:normalizeRules(runRuleTriage(source)), modelName:"deterministic-rules-fallback", rejectedUngroundedFindings:0, warning:"AI analysis was unavailable; illustrative deterministic triage was used instead." };
   }
 }
 

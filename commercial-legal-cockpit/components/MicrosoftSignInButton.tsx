@@ -11,7 +11,10 @@ export function MicrosoftSignInButton() {
     setBusy(true);
     setError("");
     try {
-      const result = await authClient.signIn.social({ provider: "microsoft", callbackURL: "/" });
+      const requestedReturn=new URLSearchParams(window.location.search).get("returnTo");
+      const candidate=requestedReturn?new URL(requestedReturn,window.location.origin):null;
+      const callbackURL=requestedReturn?.startsWith("/")&&!requestedReturn.startsWith("//")&&candidate?.origin===window.location.origin?`${candidate.pathname}${candidate.search}${candidate.hash}`:"/";
+      const result = await authClient.signIn.social({ provider: "microsoft", callbackURL });
       if (result?.error) setError(result.error.message || "Microsoft sign-in failed.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Microsoft sign-in failed.");

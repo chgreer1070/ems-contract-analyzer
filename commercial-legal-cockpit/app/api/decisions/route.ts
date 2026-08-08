@@ -1,8 +1,7 @@
 import { accessErrorResponse, getPrincipal, requireMatterAccess } from "@/lib/access";
-import { writeAuditEvent } from "@/lib/audit";
 import { databaseConfigured, query } from "@/lib/db";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
-const TYPES = new Set(["ACCEPT", "NEGOTIATE", "ESCALATE", "REJECT", "APPROVE_EXCEPTION"]);
 
 export async function GET(request: Request) {
   try {
@@ -12,12 +11,17 @@ export async function GET(request: Request) {
     const result = await query<{
       id: string; matter_id: string; matter_number: string; customer: string; decision_type: string; rationale: string;
       conditions: string | null; decision_status: string; required_approver_role: string | null; requested_at: string;
+      agreement_version_id:string|null;version_number:number|null;version_label:string|null;condition_count:number;pending_condition_count:number;
     }>(
       `select d.id, d.matter_id, m.matter_number, c.name as customer, d.decision_type, d.rationale,
-              d.conditions, d.decision_status, d.required_approver_role, d.requested_at
+              d.conditions, d.decision_status, d.required_approver_role, d.requested_at,
+              d.agreement_version_id,av.version_number,av.label version_label,
+              (select count(*)::int from decision_conditions dc where dc.decision_id=d.id) condition_count,
+              (select count(*)::int from decision_conditions dc where dc.decision_id=d.id and dc.condition_status='PENDING') pending_condition_count
          from decisions d
          join matters m on m.id = d.matter_id
          join customers c on c.id = m.customer_id
+         left join agreement_versions av on av.id=d.agreement_version_id
         where $1 = 'ADMIN'
            or m.owner_user_id = $2
            or exists (select 1 from matter_members mm where mm.matter_id = m.id and mm.user_id = $2)
@@ -26,63 +30,24 @@ export async function GET(request: Request) {
         limit 250`,
       [principal.role, principal.userId]
     );
-    return Response.json({ ok: true, mode: "database", decisions: result.rows });
+    return Response.json({ ok: true, mode: "database", decisions: result.rows.map(row=>principal.role==="VIEWER"?{...row,conditions:null}:row) });
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok: false, error: "Unable to load decisions." }, { status: 500 });
+    return internalErrorResponse(error,"Decisions could not be loaded.");
   }
 }
 
 export async function POST(request: Request) {
   try {
     if (!databaseConfigured()) return Response.json({ ok: false, error: "Decision workflow requires DATABASE_URL." }, { status: 503 });
-    const body = await request.json() as {
-      matterId?: string; findingId?: string; decisionType?: string; rationale?: string; conditions?: string; requiredApproverRole?: string;
-    };
+    const body = await request.json() as { matterId?: string };
     if (!body.matterId) return Response.json({ ok: false, error: "matterId is required." }, { status: 400 });
-    const principal = await requireMatterAccess(request, body.matterId, true);
-    if (principal.demo) return Response.json({ ok: false, error: "Decision persistence is disabled in demo mode." }, { status: 503 });
-
-    const decisionType = String(body.decisionType ?? "").toUpperCase();
-    if (!TYPES.has(decisionType)) return Response.json({ ok: false, error: "Invalid decision type." }, { status: 400 });
-    const rationale = String(body.rationale ?? "").trim();
-    if (rationale.length < 10) return Response.json({ ok: false, error: "Decision rationale is required." }, { status: 400 });
-
-    if (body.findingId) {
-      const finding = await query<{ id: string }>("select id from findings where id = $1 and matter_id = $2", [body.findingId, body.matterId]);
-      if (!finding.rows[0]) return Response.json({ ok: false, error: "Finding does not belong to this matter." }, { status: 400 });
-    }
-
-    const result = await query<{ id: string }>(
-      `insert into decisions
-        (matter_id,finding_id,decision_type,rationale,conditions,requested_by,required_approver_role)
-       values ($1,$2,$3,$4,$5,$6,$7)
-       returning id`,
-      [
-        body.matterId,
-        body.findingId ?? null,
-        decisionType,
-        rationale,
-        String(body.conditions ?? "").trim() || null,
-        principal.userId,
-        String(body.requiredApproverRole ?? "APPROVER").trim() || "APPROVER"
-      ]
-    );
-
-    await writeAuditEvent({
-      principal,
-      action: "DECISION_RECORDED",
-      matterId: body.matterId,
-      entityType: "decision",
-      entityId: result.rows[0].id,
-      metadata: { decisionType, status: "PENDING", findingId: body.findingId ?? null }
-    });
-
-    return Response.json({ ok: true, decisionId: result.rows[0].id }, { status: 201 });
+    await requireMatterAccess(request, body.matterId, true);
+    return Response.json({ok:false,error:"Decision creation uses the governed /api/decision-requests endpoint so finding validation and approval authority are derived atomically."},{status:409});
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok: false, error: "Unable to create decision request." }, { status: 500 });
+    return internalErrorResponse(error,"Decision request authorization could not be completed.");
   }
 }

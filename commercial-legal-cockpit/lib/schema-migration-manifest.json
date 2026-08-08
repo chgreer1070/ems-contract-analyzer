@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "migrations": [
+    { "filename": "001_app.sql", "sha256": "bd70d350653be6dafb85dc9e4303a45f3f7e5e439636839121965e21ce48e4fd" },
+    { "filename": "002_contract_twin_graph.sql", "sha256": "2e209948ff473b7d6223db89b113383c537487ee925b6f900d1c6b8d6b43a707" },
+    { "filename": "003_records_governance.sql", "sha256": "d2d95c6fb14430e5ca8bece9a1d841e30f78d4d5875a8456ecd801e015a405f2" },
+    { "filename": "004_graph_idempotency.sql", "sha256": "3925cbd360fa86b81fdf319f443278aae811720a660555e7d4f120ac630f963b" },
+    { "filename": "005_api_rate_limits.sql", "sha256": "4b0cf469c7afea415cc51851d74eb9e182cc1747611e0a3e3888dd7c18226493" },
+    { "filename": "006_source_and_run_hardening.sql", "sha256": "0fe9590bca0db17c8091fcd612cd70a1e5dbae7307fab47790046dc3846c3a91" },
+    { "filename": "007_version_scoped_lifecycle.sql", "sha256": "6f2093367d81d9193ef3ceef9fc1e1e25e5dc2fc9497f31c2aff4553275aaf4b" },
+    { "filename": "008_analysis_review_attestations.sql", "sha256": "0e265ef73cfb3e515af67ea92fda0458120ce25bce85f77ab70d06bae45bddee" },
+    { "filename": "009_executive_snapshot_receipts.sql", "sha256": "9f7d6e67a1d9f9bb73d2a13e8d3f84aa398f2a2479780615a5b285c4feb9ca3f" },
+    { "filename": "010_release_target_binding.sql", "sha256": "6e91ce24ddece5e58a25075a36b38b9b043b4af4026a258d1161e6198e21d8f0" }
+  ]
+}

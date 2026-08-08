@@ -1,11 +1,6 @@
 import { accessErrorResponse, getPrincipal, requireRole } from "@/lib/access";
 import { databaseConfigured, query, withTransaction } from "@/lib/db";
-import { writeAuditEvent } from "@/lib/audit";
-
-function toNumber(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-}
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function GET(request: Request) {
   try {
@@ -52,7 +47,7 @@ export async function GET(request: Request) {
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok: false, error: "Unable to load matters." }, { status: 500 });
+    return internalErrorResponse(error,"Matters could not be loaded.");
   }
 }
 
@@ -71,8 +66,16 @@ export async function POST(request: Request) {
     if (!customer || !agreement) {
       return Response.json({ ok: false, error: "Customer and agreement title are required." }, { status: 400 });
     }
+    if (customer.length > 200 || agreement.length > 300 || region.length > 100) {
+      return Response.json({ ok: false, error: "Customer, agreement title, or region exceeds the supported length." }, { status: 400 });
+    }
+    const revenue = Number(body.revenue ?? 0);
+    if (!Number.isFinite(revenue) || revenue < 0 || revenue > 1_000_000_000_000_000) {
+      return Response.json({ ok: false, error: "Annual revenue must be a non-negative number within the supported range." }, { status: 400 });
+    }
 
     const matter = await withTransaction(async (client) => {
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [`contracttwin-customer:${customer.toLocaleLowerCase("en-US")}`]);
       let customerId: string;
       const existing = await client.query<{ id: string }>(
         "select id from customers where lower(name) = lower($1) order by created_at asc limit 1",
@@ -88,7 +91,7 @@ export async function POST(request: Request) {
         customerId = inserted.rows[0].id;
       }
 
-      const matterNumber = `CT-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+      const matterNumber = `CT-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 12).toUpperCase()}`;
       const insertedMatter = await client.query<{
         id: string; matter_number: string; agreement_title: string; region: string; annual_revenue: string;
         stage: string; risk_level: "Low"|"Medium"|"High"|"Critical"; next_action: string; restricted: boolean; status: string;
@@ -97,7 +100,7 @@ export async function POST(request: Request) {
           (matter_number, customer_id, agreement_title, region, annual_revenue, owner_user_id, restricted)
          values ($1,$2,$3,$4,$5,$6,$7)
          returning id, matter_number, agreement_title, region, annual_revenue, stage, risk_level, next_action, restricted, status`,
-        [matterNumber, customerId, agreement, region, toNumber(body.revenue), principal.userId, restricted]
+        [matterNumber, customerId, agreement, region, revenue, principal.userId, restricted]
       );
       await client.query(
         `insert into matter_members(matter_id,user_id,access_level,granted_by)
@@ -105,16 +108,8 @@ export async function POST(request: Request) {
          on conflict (matter_id,user_id) do nothing`,
         [insertedMatter.rows[0].id, principal.userId]
       );
+      await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values($1,$2,'MATTER_CREATED',$3,'matter',$3,$4::jsonb)`,[principal.userId,principal.name,insertedMatter.rows[0].id,JSON.stringify({matterNumber,customer,restricted})]);
       return { ...insertedMatter.rows[0], customer };
-    });
-
-    await writeAuditEvent({
-      principal,
-      action: "MATTER_CREATED",
-      matterId: matter.id,
-      entityType: "matter",
-      entityId: matter.id,
-      metadata: { matterNumber: matter.matter_number, customer, restricted }
     });
 
     return Response.json({
@@ -137,6 +132,6 @@ export async function POST(request: Request) {
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok: false, error: "Unable to create matter." }, { status: 500 });
+    return internalErrorResponse(error,"The matter could not be created.");
   }
 }

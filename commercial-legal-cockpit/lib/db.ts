@@ -1,4 +1,5 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { verifiedDatabaseConnectionConfig } from "@/lib/databaseConnection";
 
 let pool: Pool | null = null;
 
@@ -12,11 +13,10 @@ export function getPool(): Pool {
   }
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      ...verifiedDatabaseConnectionConfig(process.env.DATABASE_URL,"ems-commercial-legal-cockpit"),
       max: 4,
       idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 5_000,
-      application_name: "ems-commercial-legal-cockpit"
+      connectionTimeoutMillis: 5_000
     });
   }
   return pool;

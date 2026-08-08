@@ -6,7 +6,8 @@ import "./cockpit-v2.css";
 
 export const metadata: Metadata = {
   title: "ContractTwin | EMS Commercial Legal Cockpit",
-  description: "Source-grounded executive commercial legal decision support for EMS contract portfolios."
+  description: "Source-grounded executive commercial legal decision support for EMS contract portfolios.",
+  icons: { icon: "/icon.svg" }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

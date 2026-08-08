@@ -1,6 +1,6 @@
 import { getPrincipal, accessErrorResponse } from "@/lib/access";
-import { writeAuditEvent } from "@/lib/audit";
-import { databaseConfigured, query, withTransaction } from "@/lib/db";
+import { databaseConfigured, withTransaction } from "@/lib/db";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function POST(request:Request){
   try{
@@ -17,11 +17,10 @@ export async function POST(request:Request){
       const admins=await client.query<{count:string}>("select count(*)::text count from app_user_roles where role='ADMIN' and active=true");
       if(Number(admins.rows[0].count)>0)return {created:false,reason:"An active Admin already exists."};
       await client.query(`insert into app_user_roles(user_id,role,active,granted_by,granted_at) values($1,'ADMIN',true,$1,now()) on conflict(user_id) do update set role='ADMIN',active=true,granted_by=excluded.granted_by,granted_at=now()`,[principal.userId]);
+      await client.query(`insert into audit_events(actor_user_id,actor_name,action,entity_type,entity_id,metadata) values($1,$2,'ROLE_CHANGED','app_user_role',$1,$3::jsonb)`,[principal.userId,principal.name,JSON.stringify({role:"ADMIN",bootstrap:true,email:principal.email})]);
       return {created:true};
     });
     if(!result.created)return Response.json({ok:false,error:result.reason},{status:409});
-    const adminPrincipal={...principal,role:"ADMIN" as const};
-    await writeAuditEvent({principal:adminPrincipal,action:"ROLE_CHANGED",entityType:"app_user_role",entityId:principal.userId,metadata:{role:"ADMIN",bootstrap:true,email:principal.email}});
     return Response.json({ok:true,role:"ADMIN",message:"First Admin bootstrap completed. Remove BOOTSTRAP_ADMIN_EMAIL from the production environment after confirming access."});
-  }catch(error){const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:error instanceof Error?error.message:"Admin bootstrap failed."},{status:500});}
+  }catch(error){const access=accessErrorResponse(error);if(access)return access;return internalErrorResponse(error,"Admin bootstrap could not be completed.");}
 }

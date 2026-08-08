@@ -1,6 +1,7 @@
 import { sourceContainsExcerpt } from "@/lib/analysisEngine";
 
-export const PRECEDENCE_PROMPT_VERSION = "document-precedence-2026-08-07.v1";
+export { PRECEDENCE_PROMPT_VERSION, PRECEDENCE_SCHEMA_VERSION } from "@/lib/engineVersions";
+import { PRECEDENCE_PROMPT_VERSION } from "@/lib/engineVersions";
 export type PrecedenceRelation = {
   sourceDocumentId:string;
   targetDocumentId:string;
@@ -30,8 +31,11 @@ export async function analyzePrecedence(documents:Array<{id:string;filename:stri
   if(!response.ok) throw new Error(`OpenAI precedence analysis failed: ${response.status}`);
   const text=outputText(await response.json());if(!text)throw new Error("No precedence output returned.");
   const raw=(JSON.parse(text) as {relations?:PrecedenceRelation[]}).relations??[];
-  return raw.filter(r=>{
+  const valid=raw.filter(r=>{
     const source=byId.get(r.sourceDocumentId);const target=byId.get(r.targetDocumentId);
     return Boolean(source&&target&&source.id!==target.id&&r.sourceExcerpt.length>=8&&sourceContainsExcerpt(source.text,r.sourceExcerpt));
   }).map(r=>({...r,confidence:Math.max(0,Math.min(1,Number(r.confidence)||0))}));
+  const seen=new Set<string>();const relations=valid.filter(r=>{const key=`${r.sourceDocumentId}|${r.targetDocumentId}|${r.relationType}`;if(seen.has(key))return false;seen.add(key);return true;});
+  const invalidCount=raw.length-valid.length;const duplicateCount=valid.length-relations.length;
+  return {relations,rawCount:raw.length,invalidCount,duplicateCount,rejectedCount:invalidCount+duplicateCount};
 }

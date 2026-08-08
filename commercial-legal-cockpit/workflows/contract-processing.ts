@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { sleep } from "workflow";
 import { claimJob, getJob } from "@/lib/jobRuntime";
 import { processJob } from "@/lib/jobProcessor";
@@ -12,15 +13,20 @@ async function processJobStep(jobId:string,workerId:string){
   return getJob(jobId);
 }
 
+async function createWorkerId(jobId:string){
+  "use step";
+  return `workflow:${jobId}:${randomUUID()}`;
+}
+
 export async function contractProcessingWorkflow(jobId:string){
   "use workflow";
-  const workerId=`workflow:${jobId}`;
+  const workerId=await createWorkerId(jobId);
   for(let cycle=0;cycle<5000;cycle++){
     const job=await processJobStep(jobId,workerId);
     if(!job)throw new Error(`Processing job ${jobId} was deleted or never existed.`);
     if(job.status==="SUCCEEDED")return {jobId,status:job.status,output:job.output};
     if(job.status==="FAILED"||job.status==="CANCELLED")return {jobId,status:job.status,output:job.output};
-    await sleep(job.status==="WAITING_EXTERNAL"?"5s":"1s");
+    await sleep(job.status==="WAITING_EXTERNAL"&&job.external_operation_url?"5s":"1s");
   }
   throw new Error(`Processing job ${jobId} exceeded workflow cycle safety limit.`);
 }

@@ -1,7 +1,7 @@
 import corpus from "@/validation/frozen-ems-regression.json";
 import { analyzeContractText, sourceContainsExcerpt } from "@/lib/analysisEngine";
 
-export const VALIDATION_GATE_VERSION = "legal-validation-gate-2026-08-07.v1";
+export const VALIDATION_GATE_VERSION = "legal-validation-gate-2026-08-08.v2";
 export const MIN_FAMILY_RECALL = 0.95;
 export const REQUIRED_GROUNDED_PRECISION = 1;
 
@@ -16,6 +16,7 @@ export type CaseResult = {
   mustFlagMissing:string[];
   unsafeConclusions:string[];
   findingCount:number;
+  rejectedUngroundedFindings:number;
   rawResult:unknown;
 };
 
@@ -33,22 +34,33 @@ export async function evaluateValidationCase(testCase:ValidationCase):Promise<Ca
   const mustFlagMissing=testCase.mustFlag.filter(term=>!analysisText.includes(norm(term)));
   const unsafeConclusions=testCase.mustNotConclude.filter(term=>analysisText.includes(norm(term)));
   const passed=missingFamilies.length===0&&prohibitedDetected.length===0&&grounded&&mustFlagMissing.length===0&&unsafeConclusions.length===0&&analysis.rejectedUngroundedFindings===0;
-  return {caseId:testCase.id,passed,detectedFamilies,missingFamilies,prohibitedDetected,grounded,mustFlagMissing,unsafeConclusions,findingCount:analysis.findings.length,rawResult:{mode:analysis.mode,modelName:analysis.modelName,rejectedUngroundedFindings:analysis.rejectedUngroundedFindings,findings:analysis.findings}};
+  return {caseId:testCase.id,passed,detectedFamilies,missingFamilies,prohibitedDetected,grounded,mustFlagMissing,unsafeConclusions,findingCount:analysis.findings.length,rejectedUngroundedFindings:analysis.rejectedUngroundedFindings,rawResult:{mode:analysis.mode,modelName:analysis.modelName,rejectedUngroundedFindings:analysis.rejectedUngroundedFindings,findings:analysis.findings}};
 }
 
 export function getFrozenCorpus(){return corpus;}
 
 export function summarizeValidation(results:CaseResult[]){
+  const totalCases=corpus.cases.length;
+  const expectedIds=new Set(corpus.cases.map(c=>c.id));
+  const resultByCaseId=new Map(results.filter(r=>expectedIds.has(r.caseId)).map(r=>[r.caseId,r]));
+  const passedCases=corpus.cases.filter(c=>resultByCaseId.get(c.id)?.passed===true).length;
+  const failedCases=totalCases-passedCases;
   const expectedCount=corpus.cases.reduce((s,c)=>s+c.expectedFamilies.length,0);
-  const foundExpected=results.reduce((s,r)=>s+(corpus.cases.find(c=>c.id===r.caseId)?.expectedFamilies.length??0)-r.missingFamilies.length,0);
-  const totalFindings=results.reduce((s,r)=>s+r.findingCount,0);
-  const groundedFindings=results.reduce((s,r)=>s+(r.grounded?r.findingCount:0),0);
+  const evaluatedResults=[...resultByCaseId.values()];
+  const foundExpected=corpus.cases.reduce((s,c)=>s+c.expectedFamilies.length-(resultByCaseId.get(c.id)?.missingFamilies.length??c.expectedFamilies.length),0);
+  const totalFindings=evaluatedResults.reduce((s,r)=>s+r.findingCount,0);
+  const groundedFindings=evaluatedResults.reduce((s,r)=>s+(r.grounded?r.findingCount:0),0);
   const familyRecall=expectedCount?foundExpected/expectedCount:1;
   const groundedPrecision=totalFindings?groundedFindings/totalFindings:1;
-  const unsafePolicyInventionCount=results.reduce((s,r)=>s+r.unsafeConclusions.length,0);
-  const exactQuoteFailureCount=results.filter(r=>!r.grounded).length;
-  const prohibitedFamilyCount=results.reduce((s,r)=>s+r.prohibitedDetected.length,0);
-  const mustFlagMissCount=results.reduce((s,r)=>s+r.mustFlagMissing.length,0);
-  const passed=familyRecall>=MIN_FAMILY_RECALL&&groundedPrecision===REQUIRED_GROUNDED_PRECISION&&unsafePolicyInventionCount===0&&exactQuoteFailureCount===0&&prohibitedFamilyCount===0&&mustFlagMissCount===0;
-  return {passed,totalCases:results.length,passedCases:results.filter(r=>r.passed).length,familyRecall,groundedPrecision,unsafePolicyInventionCount,exactQuoteFailureCount,prohibitedFamilyCount,mustFlagMissCount,gateVersion:VALIDATION_GATE_VERSION};
+  const unsafePolicyInventionCount=evaluatedResults.reduce((s,r)=>s+r.unsafeConclusions.length,0);
+  const exactQuoteFailureCount=evaluatedResults.filter(r=>!r.grounded).length;
+  const prohibitedFamilyCount=evaluatedResults.reduce((s,r)=>s+r.prohibitedDetected.length,0);
+  const mustFlagMissCount=evaluatedResults.reduce((s,r)=>s+r.mustFlagMissing.length,0);
+  const rejectedUngroundedFindingCount=evaluatedResults.reduce((s,r)=>s+r.rejectedUngroundedFindings,0);
+  const missingCaseCount=corpus.cases.filter(c=>!resultByCaseId.has(c.id)).length;
+  const unexpectedCaseCount=results.filter(r=>!expectedIds.has(r.caseId)).length;
+  const duplicateCaseCount=results.length-new Set(results.map(r=>r.caseId)).size;
+  const allCasesPassed=missingCaseCount===0&&unexpectedCaseCount===0&&duplicateCaseCount===0&&passedCases===totalCases;
+  const passed=allCasesPassed&&rejectedUngroundedFindingCount===0&&familyRecall>=MIN_FAMILY_RECALL&&groundedPrecision===REQUIRED_GROUNDED_PRECISION&&unsafePolicyInventionCount===0&&exactQuoteFailureCount===0&&prohibitedFamilyCount===0&&mustFlagMissCount===0;
+  return {passed,totalCases,passedCases,failedCases,allCasesPassed,missingCaseCount,unexpectedCaseCount,duplicateCaseCount,rejectedUngroundedFindingCount,familyRecall,groundedPrecision,unsafePolicyInventionCount,exactQuoteFailureCount,prohibitedFamilyCount,mustFlagMissCount,gateVersion:VALIDATION_GATE_VERSION};
 }

@@ -1,5 +1,6 @@
 import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
 import { databaseConfigured, query } from "@/lib/db";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function GET(request:Request, context:{ params:Promise<{ id:string }> }) {
   try {
@@ -11,10 +12,10 @@ export async function GET(request:Request, context:{ params:Promise<{ id:string 
     const result = await query<{
       id:string; filename:string; document_type:string; version_label:string|null; mime_type:string; size_bytes:string;
       sha256:string|null; integrity_status:string; extraction_status:string; extraction_method:string|null; page_count:number|null;
-      source_status:string; uploaded_at:string;
+      source_status:string; security_scan_status:string; deletion_status:string; uploaded_at:string;
     }>(
       `select id,filename,document_type,version_label,mime_type,size_bytes,sha256,integrity_status,
-              extraction_status,extraction_method,page_count,source_status,uploaded_at
+              extraction_status,extraction_method,page_count,source_status,security_scan_status,deletion_status,uploaded_at
          from documents where matter_id=$1 order by uploaded_at desc`,
       [id]
     );
@@ -22,6 +23,6 @@ export async function GET(request:Request, context:{ params:Promise<{ id:string 
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok:false, error:"Unable to load documents." }, { status:500 });
+    return internalErrorResponse(error,"Matter documents could not be loaded.");
   }
 }

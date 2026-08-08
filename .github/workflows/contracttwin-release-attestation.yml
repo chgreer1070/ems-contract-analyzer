@@ -14,9 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  security-events: write
-  actions: read
+  contents: read
 
 jobs:
   validate:
@@ -42,8 +40,8 @@ jobs:
       run:
         working-directory: commercial-legal-cockpit
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
@@ -56,8 +54,17 @@ jobs:
         run: npm run db:migrate
       - name: Prove migration idempotency
         run: npm run db:migrate
+      - name: Provision disposable restricted runtime role
+        id: ci-runtime
+        env:
+          CI_RUNTIME_ROLE_PROVISIONING: disposable-postgres-service
+        run: npm run db:provision-ci-runtime
       - name: Prove database legal-control invariants
+        env:
+          RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
         run: npm run test:db-controls
+      - name: Prove application control boundaries
+        run: npm run test:controls
       - name: Validate frozen synthetic EMS corpus
         run: npm run test:corpus
       - name: Validate deterministic economics
@@ -77,12 +84,17 @@ jobs:
   codeql:
     name: CodeQL security analysis
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:
           languages: javascript-typescript
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
@@ -98,7 +110,7 @@ jobs:
           LEGAL_RELIANCE_ENABLED: 'false'
           ALLOW_SOURCE_PURGE: 'false'
         run: npm run build
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:
           category: '/language:javascript-typescript'
 
@@ -107,8 +119,10 @@ jobs:
     needs: [validate, codeql]
     if: success() && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: build/ems-commercial-legal-cockpit
           fetch-depth: 0
@@ -133,6 +147,7 @@ jobs:
             "postgresMigrationApplied": true,
             "migrationIdempotencyPassed": true,
             "databaseLegalControlsPassed": true,
+            "applicationControlBoundariesPassed": true,
             "frozenCorpusStructurePassed": true,
             "deterministicEconomicsPassed": true,
             "typescriptPassed": true,

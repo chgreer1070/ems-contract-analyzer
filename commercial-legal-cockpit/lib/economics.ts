@@ -1,4 +1,4 @@
-export const ECONOMICS_FORMULA_VERSION = "ems-contract-economics-2026-08-07.v1";
+export { ECONOMICS_FORMULA_VERSION } from "@/lib/engineVersions";
 
 export type EconomicsInput = {
   annualRevenue: number;

@@ -1,5 +1,6 @@
 import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
 import { databaseConfigured, query } from "@/lib/db";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function GET(request:Request,context:{params:Promise<{id:string}>}){
   try{
@@ -12,5 +13,5 @@ export async function GET(request:Request,context:{params:Promise<{id:string}>})
       query<any>(`select av.id,av.version_number,av.label,av.status,av.effective_date,av.created_at,json_agg(json_build_object('documentId',d.id,'filename',d.filename,'documentType',d.document_type,'displayOrder',avd.display_order) order by avd.display_order) filter(where d.id is not null) documents from agreement_versions av left join agreement_version_documents avd on avd.agreement_version_id=av.id left join documents d on d.id=avd.document_id where av.matter_id=$1 group by av.id order by av.version_number desc`,[id])
     ]);
     return Response.json({ok:true,matterId:id,terms:terms.rows,dependencies:deps.rows,documentRelations:relations.rows,agreementVersions:versions.rows,humanReviewRequired:true});
-  }catch(error){const access=accessErrorResponse(error);if(access)return access;return Response.json({ok:false,error:error instanceof Error?error.message:"Unable to load graph."},{status:500});}
+  }catch(error){const access=accessErrorResponse(error);if(access)return access;return internalErrorResponse(error,"The agreement graph could not be loaded.");}
 }

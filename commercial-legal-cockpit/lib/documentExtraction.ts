@@ -20,7 +20,7 @@ export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Pro
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
     const result = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
-    return { method:"DOCX_RAW_TEXT",pageCount:null,chunks:chunkText(result.value,{pageNumber:null}),warnings:result.messages.map((message)=>message.message) };
+    return { method:"DOCX_RAW_TEXT",pageCount:null,chunks:chunkText(result.value,{pageNumber:null}),warnings:result.messages.length?["DOCX extraction completed with parser warnings; source text remains subject to human review."]:[] };
   }
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType === "application/vnd.ms-excel") {

@@ -11,8 +11,17 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  agentRules: false,
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingRoot: __dirname,
+  turbopack: { root: __dirname },
+  // The production workflow injects the exact approved Git SHA at build time.
+  // Next replaces this server reference with that literal, so a runtime env
+  // override cannot make a different prebuilt artifact attest to the SHA.
+  env: {
+    CONTRACTTWIN_RELEASE_SHA: process.env.CONTRACTTWIN_RELEASE_SHA ?? ""
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   }

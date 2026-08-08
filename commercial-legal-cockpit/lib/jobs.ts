@@ -1,6 +1,7 @@
 import { query, withTransaction } from "@/lib/db";
+import { safeOperationalFailure, safePersistedFailureForDisplay } from "@/lib/safeErrors";
 
-export type JobType = "OCR" | "EXTRACT" | "ANALYZE" | "TERM_EXTRACT" | "DEPENDENCY" | "PRECEDENCE" | "EXECUTIVE_SUMMARY" | "VALIDATION";
+export type JobType = "MALWARE_SCAN" | "OCR" | "EXTRACT" | "ANALYZE" | "TERM_EXTRACT" | "DEPENDENCY" | "PRECEDENCE" | "EXECUTIVE_SUMMARY" | "VALIDATION";
 export type JobStatus = "QUEUED" | "RUNNING" | "WAITING_EXTERNAL" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 export type ProcessingJob = {
   id: string;
@@ -28,7 +29,19 @@ export async function enqueueJob(args: {
   const result = await query<ProcessingJob>(
     `insert into processing_jobs (matter_id, document_id, job_type, idempotency_key, created_by, input, priority, max_attempts)
      values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
-     on conflict (idempotency_key) do update set idempotency_key = excluded.idempotency_key
+     on conflict (idempotency_key) do update set
+       status=case when processing_jobs.status in ('FAILED','CANCELLED') then 'QUEUED' else processing_jobs.status end,
+       attempts=case when processing_jobs.status in ('FAILED','CANCELLED') then 0 else processing_jobs.attempts end,
+       max_attempts=case when processing_jobs.status in ('FAILED','CANCELLED') then excluded.max_attempts else processing_jobs.max_attempts end,
+       input=case when processing_jobs.status in ('FAILED','CANCELLED') then excluded.input else processing_jobs.input end,
+       output=case when processing_jobs.status in ('FAILED','CANCELLED') then '{}'::jsonb else processing_jobs.output end,
+       external_operation_url=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.external_operation_url end,
+       error_message=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.error_message end,
+       next_attempt_at=case when processing_jobs.status in ('FAILED','CANCELLED') then now() else processing_jobs.next_attempt_at end,
+       finished_at=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.finished_at end,
+       started_at=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.started_at end,
+       locked_by=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.locked_by end,
+       locked_at=case when processing_jobs.status in ('FAILED','CANCELLED') then null else processing_jobs.locked_at end
      returning id, matter_id, document_id, job_type, status, attempts, max_attempts, input, output, external_operation_url`,
     [args.matterId ?? null, args.documentId ?? null, args.jobType, args.idempotencyKey, args.createdBy, JSON.stringify(args.input ?? {}), args.priority ?? 100, args.maxAttempts ?? 3]
   );
@@ -82,20 +95,28 @@ export async function completeJob(jobId: string, output: Record<string, unknown>
   await query(`update processing_jobs set status='SUCCEEDED', output=$2::jsonb, error_message=null, finished_at=now(), locked_by=null, locked_at=null where id=$1`, [jobId, JSON.stringify(output)]);
 }
 
-export async function failJob(job: ProcessingJob, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  const retry = job.attempts < job.max_attempts;
+export async function failJob(job: ProcessingJob, error: unknown, retryable = true) {
+  const retry = retryable && job.attempts < job.max_attempts;
+  const failure=safeOperationalFailure(
+    error,
+    retry
+      ? "A processing dependency was unavailable; a retry was scheduled."
+      : retryable
+        ? "A processing dependency remained unavailable after the retry limit."
+        : "A governed processing control rejected the job."
+  );
   await query(
     `update processing_jobs
         set status=$2, error_message=$3, locked_by=null, locked_at=null,
             next_attempt_at=case when $2='QUEUED' then now() + make_interval(secs => least(300, 5 * (2 ^ greatest(attempts-1,0)))) else next_attempt_at end,
             finished_at=case when $2='FAILED' then now() else null end
       where id=$1`,
-    [job.id, retry ? "QUEUED" : "FAILED", message.slice(0, 4000)]
+    [job.id, retry ? "QUEUED" : "FAILED", failure.message]
   );
+  return {status:retry ? "QUEUED" as const : "FAILED" as const,message:failure.message};
 }
 
 export async function listMatterJobs(matterId: string) {
   const result = await query(`select id, document_id, job_type, status, attempts, max_attempts, error_message, output, created_at, started_at, finished_at from processing_jobs where matter_id=$1 order by created_at desc limit 100`, [matterId]);
-  return result.rows;
+  return result.rows.map(row=>({...row,error_message:row.error_message?safePersistedFailureForDisplay(row.error_message):null}));
 }

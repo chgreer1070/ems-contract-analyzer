@@ -1,5 +1,6 @@
 import { accessErrorResponse, getPrincipal, requireMatterAccess } from "@/lib/access";
 import { databaseConfigured, query } from "@/lib/db";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function GET(request: Request) {
   try {
@@ -22,10 +23,10 @@ export async function GET(request: Request) {
           `select id,event_time,actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata
              from audit_events order by event_time desc limit 250`
         );
-    return Response.json({ ok:true, mode:"database", events:result.rows });
+    return Response.json({ ok:true, mode:"database", events:principal.role==="VIEWER"?result.rows.map((event:any)=>({...event,metadata:{redacted:true}})):result.rows });
   } catch (error) {
     const access = accessErrorResponse(error);
     if (access) return access;
-    return Response.json({ ok:false, error:"Unable to load audit history." }, { status:500 });
+    return internalErrorResponse(error,"Audit history could not be loaded.");
   }
 }
