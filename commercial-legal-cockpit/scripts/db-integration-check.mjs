@@ -25,7 +25,7 @@ try{
     await client.query(`insert into contract_terms(matter_id,document_id,clause_family,term_type,exact_text,exact_text_sha256,normalized_statement,confidence,review_status,created_by) values($1,$2,'payment_terms','OBLIGATION',$3,$4,'Customer must pay within 45 days.',1,'VALIDATED','ci-user')`,[matter.id,doc.id,quote,hash]);
     const duplicate=await client.query(`insert into contract_terms(matter_id,document_id,clause_family,term_type,exact_text,exact_text_sha256,normalized_statement,confidence,created_by) values($1,$2,'payment_terms','OBLIGATION',$3,$4,'Duplicate AI restatement.',.9,'ci-worker')`,[matter.id,doc.id,quote,hash]);
     if(duplicate.rowCount!==0)throw new Error("Repeated analysis duplicated an already reviewed contract term.");
-    const termCount=await client.query<{count:string}>(`select count(*)::text count from contract_terms where document_id=$1 and exact_text_sha256=$2`,[doc.id,hash]);
+    const termCount=await client.query(`select count(*)::text count from contract_terms where document_id=$1 and exact_text_sha256=$2`,[doc.id,hash]);
     if(Number(termCount.rows[0].count)!==1)throw new Error("Reviewed term idempotency invariant failed.");
 
     console.log("Database integration controls passed: auth schema, legal hold, append-only audit, active-standard uniqueness, reviewed graph idempotency.");
