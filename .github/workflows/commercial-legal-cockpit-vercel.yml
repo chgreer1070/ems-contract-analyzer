@@ -15,6 +15,10 @@ on:
       - 'commercial-legal-cockpit/**'
   workflow_dispatch:
 
+concurrency:
+  group: commercial-legal-cockpit-vercel-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -27,6 +31,22 @@ jobs:
   preflight:
     name: Release preflight
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: contracttwin
+          POSTGRES_PASSWORD: contracttwin_ci
+          POSTGRES_DB: contracttwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U contracttwin -d contracttwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://contracttwin:contracttwin_ci@localhost:5432/contracttwin
     defaults:
       run:
         working-directory: commercial-legal-cockpit
@@ -36,11 +56,17 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: commercial-legal-cockpit/package.json
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
       - name: Verify database controls
         run: npm run db:check
+      - name: Apply Better Auth and ContractTwin migrations
+        run: npm run db:migrate
+      - name: Verify migrations are idempotent
+        run: npm run db:migrate
+      - name: Prove database control invariants
+        run: npm run test:db-controls
       - name: Verify frozen legal corpus
         run: npm run test:corpus
       - name: Verify deterministic economics
@@ -68,6 +94,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
       - name: Check Vercel deployment configuration
         id: configured
         shell: bash
