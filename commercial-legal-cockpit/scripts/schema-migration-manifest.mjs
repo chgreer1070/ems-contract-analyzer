@@ -1,27 +1,44 @@
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import path from "node:path";
+import {MIGRATION_RECEIPT_ALGORITHM,loadCanonicalMigrationSources} from "./migration-source.mjs";
 
 const manifestUrl=new URL("../lib/schema-migration-manifest.json",import.meta.url);
+const MANIFEST_VERSION=2;
+export const MIGRATION_ADVISORY_LOCK_QUERY="select pg_catalog.pg_advisory_lock(pg_catalog.hashtext('contracttwin-schema-migrations'))";
+export const MIGRATION_ADVISORY_UNLOCK_QUERY="select pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('contracttwin-schema-migrations'))";
+
+function evaluateManifestStructure(manifest){
+  const errors=[];
+  if(!manifest||typeof manifest!=="object")return ["migration manifest is not an object"];
+  if(manifest.version!==MANIFEST_VERSION)errors.push(`migration manifest version must be ${MANIFEST_VERSION}`);
+  if(manifest.receiptAlgorithm!==MIGRATION_RECEIPT_ALGORITHM)errors.push("migration manifest receipt algorithm is not canonical LF v1");
+  if(!Array.isArray(manifest.migrations))return [...errors,"migration manifest does not contain a receipt array"];
+  if(manifest.migrations.length===0)errors.push("migration manifest must not be empty");
+  let previous="";
+  for(const [index,row] of manifest.migrations.entries()){
+    const filenameMatch=typeof row?.filename==="string"?row.filename.match(/^(\d{3})_[a-z0-9_]+\.sql$/u):null;
+    if(!row||typeof row!=="object"||!filenameMatch)errors.push(`migration manifest filename is invalid at position ${index+1}`);
+    else if(Number(filenameMatch[1])!==index+1)errors.push(`migration manifest sequence is not contiguous at position ${index+1}`);
+    if(!/^[0-9a-f]{64}$/u.test(row?.sha256||""))errors.push(`migration manifest SHA-256 is invalid at position ${index+1}`);
+    if(row?.filename&&row.filename<=previous)errors.push(`migration manifest is not strictly ordered at position ${index+1}`);
+    previous=row?.filename||previous;
+  }
+  return errors;
+}
 
 export async function loadSchemaMigrationManifest(){
-  return JSON.parse(await fs.readFile(manifestUrl,"utf8"));
+  const manifest=JSON.parse(await fs.readFile(manifestUrl,"utf8"));
+  const errors=evaluateManifestStructure(manifest);
+  if(errors.length)throw new Error(`Schema migration manifest is invalid: ${errors.join("; ")}`);
+  return manifest;
 }
 
 export async function calculateRepositoryMigrationReceipts(root=process.cwd()){
-  const migrationDir=path.join(root,"db","migrations");
-  const files=(await fs.readdir(migrationDir)).filter(file=>/^\d+.*\.sql$/u.test(file)).sort();
-  const rows=[];
-  for(const filename of files){
-    const sql=await fs.readFile(path.join(migrationDir,filename),"utf8");
-    rows.push({filename,sha256:crypto.createHash("sha256").update(sql,"utf8").digest("hex")});
-  }
-  return rows;
+  return (await loadCanonicalMigrationSources(root)).map(({filename,sha256})=>({filename,sha256}));
 }
 
 export function evaluateExactSchemaMigrationReceipts(rows,manifest){
-  const expected=manifest.migrations;
-  const errors=[];
+  const expected=Array.isArray(manifest?.migrations)?manifest.migrations:[];
+  const errors=evaluateManifestStructure(manifest);
   if(rows.length!==expected.length)errors.push(`migration receipt count ${rows.length} does not match ${expected.length}`);
   const length=Math.max(rows.length,expected.length);
   for(let index=0;index<length;index++){
@@ -31,13 +48,43 @@ export function evaluateExactSchemaMigrationReceipts(rows,manifest){
       errors.push(`migration receipt mismatch at position ${index+1}`);
     }
   }
-  return {ok:errors.length===0,errors,checkedCount:expected.length,manifestVersion:manifest.version};
+  return {ok:errors.length===0,errors,checkedCount:expected.length,manifestVersion:manifest?.version};
+}
+
+export function evaluateSchemaMigrationReceiptPrefix(rows,manifest){
+  const expected=Array.isArray(manifest?.migrations)?manifest.migrations:[];
+  const errors=evaluateManifestStructure(manifest);
+  if(rows.length>expected.length)errors.push(`migration receipt count ${rows.length} exceeds ${expected.length}`);
+  for(let index=0;index<rows.length;index++){
+    const actual=rows[index];
+    const required=expected[index];
+    if(!actual||!required||actual.filename!==required.filename||actual.sha256!==required.sha256){
+      errors.push(`migration receipt mismatch at position ${index+1}`);
+    }
+  }
+  return {ok:errors.length===0,errors,checkedCount:rows.length,manifestVersion:manifest?.version};
 }
 
 export function assertExactSchemaMigrationReceipts(rows,manifest,label="Target"){
   const result=evaluateExactSchemaMigrationReceipts(rows,manifest);
   if(!result.ok)throw new Error(`${label} migration receipts are not exact: ${result.errors.join("; ")}`);
   return result;
+}
+
+export function assertSchemaMigrationReceiptPrefix(rows,manifest,label="Target"){
+  const result=evaluateSchemaMigrationReceiptPrefix(rows,manifest);
+  if(!result.ok)throw new Error(`${label} migration receipts are not an exact manifest prefix: ${result.errors.join("; ")}`);
+  return result;
+}
+
+export async function assertDatabaseSchemaMigrationReceiptPrefix(client,manifest,label="Target"){
+  const historyRelation=await client.query("select pg_catalog.to_regclass('public.schema_migrations')::text as relation_name");
+  const historyExists=Boolean(historyRelation.rows[0]?.relation_name);
+  const rows=historyExists
+    ?(await client.query("select filename,sha256 from public.schema_migrations order by filename")).rows
+    :[];
+  assertSchemaMigrationReceiptPrefix(rows,manifest,label);
+  return {historyExists,rows};
 }
 
 export async function assertSchemaMigrationManifestMatchesRepository(root=process.cwd()){

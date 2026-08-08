@@ -1,7 +1,7 @@
 {
   "version": 2,
   "postgresMajor": 17,
-  "schemaDefinitionSha256": "e8bb1648a5c1d813032aa0a3da0e1a063372a46d09bd9ef6ddbf513b379ad0f9",
+  "schemaDefinitionSha256": "7d46ae984f2ef9b3b9b419a3004b5ac216868bd99b7d0447249e61ce189a0620",
   "columns": [
     { "table": "executive_snapshots", "name": "processing_job_id", "type": "uuid", "nullable": true },
     { "table": "release_database_identity", "name": "singleton", "type": "boolean", "nullable": false },

@@ -7,6 +7,7 @@ export type SchemaMigrationReceipt = {
 
 type SchemaMigrationManifest = {
   version: number;
+  receiptAlgorithm: "sha256-utf8-canonical-lf-v1";
   migrations: SchemaMigrationReceipt[];
 };
 
@@ -15,6 +16,9 @@ export const expectedSchemaMigrationReceipts = schemaMigrationManifest.migration
 
 export function evaluateExactSchemaMigrationReceipts(rows:SchemaMigrationReceipt[]){
   const errors:string[]=[];
+  if(schemaMigrationManifest.version!==2||schemaMigrationManifest.receiptAlgorithm!=="sha256-utf8-canonical-lf-v1"){
+    errors.push("migration receipt manifest does not use canonical LF v1");
+  }
   if(rows.length!==expectedSchemaMigrationReceipts.length){
     errors.push(`migration receipt count ${rows.length} does not match ${expectedSchemaMigrationReceipts.length}`);
   }

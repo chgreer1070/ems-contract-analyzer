@@ -115,12 +115,12 @@ jobs:
           category: '/language:javascript-typescript'
 
   attest:
-    name: Commit release attestation
+    name: Publish release attestation evidence
     needs: [validate, codeql]
     if: success() && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -137,7 +137,7 @@ jobs:
       - name: Write attestation
         shell: bash
         run: |
-          cat > contracttwin-release-attestation.json <<EOF
+          cat > "$RUNNER_TEMP/contracttwin-release-attestation.json" <<EOF
           {
             "application": "ContractTwin / EMS Commercial Legal Cockpit",
             "sourceSha": "${{ github.sha }}",
@@ -159,11 +159,21 @@ jobs:
             "productionActivationStillRequiresExternalApprovedInfrastructureAndPolicy": true
           }
           EOF
-      - name: Commit attestation
+      - name: Upload immutable run evidence
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contracttwin-release-attestation-${{ github.sha }}
+          path: ${{ runner.temp }}/contracttwin-release-attestation.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Record evidence digest in the run summary
         shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add contracttwin-release-attestation.json
-          git commit -m 'ci: attest ContractTwin release candidate ${{ github.sha }}'
-          git push origin HEAD:build/ems-commercial-legal-cockpit
+          {
+            echo '## ContractTwin release attestation'
+            echo
+            echo "- Source SHA: \`${GITHUB_SHA}\`"
+            echo "- Artifact digest: \`${{ steps.upload.outputs.artifact-digest }}\`"
+            echo '- Production activation remains externally gated.'
+          } >> "$GITHUB_STEP_SUMMARY"

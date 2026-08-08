@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import {assertSchemaMigrationManifestMatchesRepository} from "./schema-migration-manifest.mjs";
 
 const dir = path.join(process.cwd(), "db", "migrations");
 const sql = fs.readdirSync(dir).filter((f)=>f.endsWith(".sql")).sort().map((f)=>fs.readFileSync(path.join(dir,f),"utf8")).join("\n");
@@ -74,4 +75,5 @@ if (missing.length || controls.length) {
   console.error("Schema check failed", { missingTables:missing, missingControls:controls });
   process.exit(1);
 }
-console.log(`Schema check passed: ${required.length} required tables and legal-control fields present.`);
+const manifest=await assertSchemaMigrationManifestMatchesRepository(process.cwd());
+console.log(`Schema check passed: ${required.length} required tables and legal-control fields present; ${manifest.migrations.length} canonical-LF migration receipts match manifest v${manifest.version}.`);

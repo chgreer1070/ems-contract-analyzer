@@ -47,6 +47,7 @@ async function run(script,environment){
 
 await run("db:verify-migration-transport",migrationEnvironment);
 await run("db:verify-runtime-transport",runtimeEnvironment);
+await run("db:migrate:preflight",migrationEnvironment);
 await run("db:migrate",migrationEnvironment);
 await run("db:migrate",migrationEnvironment);
 await run("db:verify-target",migrationEnvironment);

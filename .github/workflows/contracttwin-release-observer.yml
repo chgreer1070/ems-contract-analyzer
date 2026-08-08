@@ -8,20 +8,17 @@ on:
       - completed
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   record-failure:
     if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.head_branch == 'build/ems-commercial-legal-cockpit'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: build/ems-commercial-legal-cockpit
       - name: Record failed release evidence
         shell: bash
         run: |
-          cat > contracttwin-release-failure.json <<EOF
+          cat > "$RUNNER_TEMP/contracttwin-release-failure.json" <<EOF
           {
             "application": "ContractTwin / EMS Commercial Legal Cockpit",
             "testedSourceSha": "${{ github.event.workflow_run.head_sha }}",
@@ -30,8 +27,10 @@ jobs:
             "recordedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
           EOF
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add contracttwin-release-failure.json
-          git commit -m 'ci: record failed ContractTwin release attestation' || exit 0
-          git push origin HEAD:build/ems-commercial-legal-cockpit
+      - name: Upload failed-run evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contracttwin-release-failure-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/contracttwin-release-failure.json
+          if-no-files-found: error
+          retention-days: 30

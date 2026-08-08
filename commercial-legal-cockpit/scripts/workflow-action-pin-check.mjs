@@ -22,6 +22,9 @@ const approvedPins=new Map([
 let actionReferenceCount=0;
 for(const workflowFile of workflowFiles){
   const source=await readFile(workflowFile,"utf8");
+  const relativeWorkflow=path.relative(process.cwd(),workflowFile);
+  assert.doesNotMatch(source,/^\s*contents:\s*write\s*$/mu,`${relativeWorkflow} must not grant repository write access`);
+  assert.doesNotMatch(source,/\bgit\s+(?:commit|push)\b/u,`${relativeWorkflow} must not advance a source branch from CI`);
   for(const [index,line] of source.split(/\r?\n/u).entries()){
     const match=line.match(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/u);
     if(!match)continue;
@@ -29,7 +32,7 @@ for(const workflowFile of workflowFiles){
     const reference=match[1];
     if(reference.startsWith("./"))continue;
     const referenceMatch=reference.match(/^([^@\s]+)@([0-9a-f]{40})$/u);
-    const location=`${path.relative(process.cwd(),workflowFile)}:${index+1}`;
+    const location=`${relativeWorkflow}:${index+1}`;
     assert.ok(referenceMatch,`${location} must pin every remote action to an exact lowercase 40-character commit SHA`);
     const [,action,sha]=referenceMatch;
     assert.ok(approvedPins.has(action),`${location} uses an unreviewed remote action: ${action}`);

@@ -21,6 +21,8 @@ A release is frozen only when an attestation records all of the following for on
 - artifact/deployment identity and required reviewer approvals; and
 - no source changes after the recorded SHA.
 
+The attestation is published as run-scoped workflow evidence with its artifact digest in the job summary. Release, failure and diagnostic workflows are read-only with respect to the repository: CI must never commit evidence back to the source branch, because doing so would advance the reviewed head to a new unvalidated commit.
+
 This document does not claim that those checks have run. If any application source, migration, dependency, workflow, validation corpus or release-control file changes after attestation, create and approve a new release candidate.
 
 ## Production-activation boundary
