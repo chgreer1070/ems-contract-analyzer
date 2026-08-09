@@ -48,12 +48,15 @@ export async function POST(request:Request){
     }
 
     const result=await withTransaction(async client=>{
-      const version=(await client.query<{status:string}>(
-        "select status from agreement_versions where id=$1 and matter_id=$2 for share",
+      const version=(await client.query<{status:string;evidence_protocol_version:number;authoritative_economics_run_id:string|null}>(
+        "select status,evidence_protocol_version,authoritative_economics_run_id from agreement_versions where id=$1 and matter_id=$2 for share",
         [agreementVersionId,matterId]
       )).rows[0];
       if(!version||!new Set(["WORKING","APPROVED"]).has(version.status)){
         throw new DecisionRequestError("Decision requests must be bound to an available WORKING or APPROVED agreement version.");
+      }
+      if(version.status==="APPROVED"&&(version.evidence_protocol_version<1||!version.authoritative_economics_run_id)){
+        throw new DecisionRequestError("Legacy package-lock versions cannot receive governed decision requests; create and lock a protocol-1 version with explicitly selected authoritative economics.");
       }
 
       let approvalRequired:string|null=null;
@@ -88,8 +91,8 @@ export async function POST(request:Request){
       const inserted=(await client.query<{id:string}>(`
         insert into decisions(
           matter_id,agreement_version_id,finding_id,decision_type,rationale,
-          decision_status,required_approver_role,requested_by
-        ) values($1,$2,$3,$4,$5,'PENDING',$6,$7)
+          decision_status,required_approver_role,requested_by,evidence_protocol_version
+        ) values($1,$2,$3,$4,$5,'PENDING',$6,$7,1)
         returning id`,
         [matterId,agreementVersionId,findingId,decisionType,rationale,requiredApproverRole,principal.userId]
       )).rows[0];
@@ -107,7 +110,7 @@ export async function POST(request:Request){
         ) values($1,$2,'DECISION_RECORDED',$3,'decision_request',$4,$5::jsonb)`,
         [principal.userId,principal.name,matterId,inserted.id,JSON.stringify({
           agreementVersionId,decisionType,requiredApproverRole,findingId,
-          conditionCount:conditions.length,status:"PENDING"
+          conditionCount:conditions.length,status:"PENDING",evidenceProtocolVersion:1
         })]
       );
       return {id:inserted.id,requiredApproverRole};

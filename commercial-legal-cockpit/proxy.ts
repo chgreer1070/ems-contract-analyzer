@@ -15,7 +15,7 @@ export function proxy(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
     const target = new URL("/sign-in", request.url);
-    target.searchParams.set("returnTo", pathname);
+    target.searchParams.set("returnTo", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(target);
   }
   return NextResponse.next();

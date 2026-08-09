@@ -1,12 +1,16 @@
 // pg_catalog remains implicitly first for name resolution when it is omitted;
 // public remains the explicit creation target for trusted migrations.
 export const SAFE_DATABASE_STARTUP_OPTIONS="-c search_path=public,pg_temp";
+const FORBIDDEN_DATABASE_URL_QUERY_OVERRIDES=["host","port","database","db","user","password","options"];
 
 export function verifiedDatabaseConnectionConfig(connectionString,applicationName,{requireVerifiedTls=false}={}){
   let parsed;
   try{parsed=new URL(connectionString);}catch{throw new Error("Database connection URL is invalid.");}
   if(!["postgres:","postgresql:"].includes(parsed.protocol))throw new Error("Database connection URL must use PostgreSQL.");
-  if(parsed.searchParams.has("options"))throw new Error("Database connection URL may not override the controlled startup search path.");
+  const forbiddenOverride=FORBIDDEN_DATABASE_URL_QUERY_OVERRIDES.find(name=>parsed.searchParams.has(name));
+  if(forbiddenOverride){
+    throw new Error(`Database connection URL may not override ${forbiddenOverride} through query parameters.`);
+  }
   if(requireVerifiedTls){
     if(process.env.NODE_TLS_REJECT_UNAUTHORIZED!==undefined||process.env.PGOPTIONS!==undefined||process.env.PGSSLMODE!==undefined){
       throw new Error("Production database connections reject inherited TLS or PostgreSQL option overrides.");

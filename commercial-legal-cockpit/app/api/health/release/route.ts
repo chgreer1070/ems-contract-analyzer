@@ -25,7 +25,7 @@ const RELEASE_TARGET_NONCE_PATTERN=/^[0-9a-f]{64}$/u;
 const BUILD_RELEASE_SOURCE_SHA=process.env.CONTRACTTWIN_RELEASE_SHA||"";
 const PLATFORM_RELEASE_SOURCE_SHA=process.env.VERCEL_GIT_COMMIT_SHA||"";
 
-type ReleaseTargetReceiptRow={source_sha:string;nonce_sha256:string;identity_matches:boolean};
+type ReleaseTargetReceiptRow={source_sha:string;nonce_sha256:string;identity_chain_matches:boolean};
 type DatabaseTransportRow={ssl:boolean;version:string|null;cipher:string|null;bits:number|null};
 
 function json(body:unknown,status:number){
@@ -52,9 +52,14 @@ export async function GET(request:Request){
       query<CriticalDatabaseControlRow>(CRITICAL_DATABASE_CONTROLS_QUERY),
       query<RuntimeDatabasePrincipalRow>(RUNTIME_DATABASE_PRINCIPAL_QUERY),
       query<ReleaseTargetReceiptRow>(`
-        select r.source_sha,r.nonce_sha256,(r.database_id=i.database_id) identity_matches
+        select r.source_sha,r.nonce_sha256,
+               (r.database_id=i.database_id and e.release_database_id=i.database_id and e.external_database_id=b.database_id) identity_chain_matches
           from public.release_database_identity i
-          join public.release_target_receipts r on r.database_id=i.database_id
+          join public.release_database_external_identity e
+            on e.singleton=true
+          join contracttwin_control.production_target_binding b
+            on b.singleton=true
+          join public.release_target_receipts r on true
          where i.singleton=true and r.source_sha=$1 and r.nonce_sha256=$2
       `,[sourceSha,nonceSha256]),
       query<DatabaseTransportRow>(`
@@ -68,7 +73,7 @@ export async function GET(request:Request){
     const exactMigrationReceipts=evaluateExactSchemaMigrationReceipts(migrations.rows);
     const targetReceipt=targetReceipts.rows[0];
     const releaseTargetBindingPassed=Boolean(
-      sourceSha&&nonceSha256&&targetReceipts.rows.length===1&&targetReceipt?.identity_matches===true&&
+      sourceSha&&nonceSha256&&targetReceipts.rows.length===1&&targetReceipt?.identity_chain_matches===true&&
       targetReceipt.source_sha===sourceSha&&targetReceipt.nonce_sha256===nonceSha256
     );
     const transport=transportEvidence.rows[0];

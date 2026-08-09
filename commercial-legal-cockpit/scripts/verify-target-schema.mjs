@@ -12,7 +12,7 @@ const expectedPublicTables=[
   "analysis_runs","api_rate_events","app_user_capabilities","app_user_roles","audit_events","contract_terms","customers",
   "decision_conditions","decisions","document_chunks","document_relations","documents","economics_runs","executive_snapshots",
   "findings","legal_hold_events","matter_members","matters","negotiation_standards","processing_jobs","purge_requests",
-  "release_database_identity","release_target_receipts","schema_migrations","session","term_dependencies","user",
+  "release_database_identity","release_database_external_identity","release_target_receipts","schema_migrations","session","term_dependencies","user",
   "validation_cases","validation_results","validation_runs","verification"
 ];
 const manifest=await assertSchemaMigrationManifestMatchesRepository();

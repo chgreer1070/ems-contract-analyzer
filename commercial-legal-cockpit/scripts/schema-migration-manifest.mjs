@@ -3,8 +3,7 @@ import {MIGRATION_RECEIPT_ALGORITHM,loadCanonicalMigrationSources} from "./migra
 
 const manifestUrl=new URL("../lib/schema-migration-manifest.json",import.meta.url);
 const MANIFEST_VERSION=2;
-export const MIGRATION_ADVISORY_LOCK_QUERY="select pg_catalog.pg_advisory_lock(pg_catalog.hashtext('contracttwin-schema-migrations'))";
-export const MIGRATION_ADVISORY_UNLOCK_QUERY="select pg_catalog.pg_advisory_unlock(pg_catalog.hashtext('contracttwin-schema-migrations'))";
+export const MIGRATION_ADVISORY_XACT_LOCK_QUERY="select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('contracttwin-schema-migrations'))";
 
 function evaluateManifestStructure(manifest){
   const errors=[];
@@ -85,6 +84,80 @@ export async function assertDatabaseSchemaMigrationReceiptPrefix(client,manifest
     :[];
   assertSchemaMigrationReceiptPrefix(rows,manifest,label);
   return {historyExists,rows};
+}
+
+export async function assertPristineProductionBootstrapTarget(client,label="Target",{requireExternalAnchor=false}={}){
+  const evidence=(await client.query(`
+    select
+      (select count(*)::int
+         from pg_catalog.pg_namespace n
+        where n.nspname OPERATOR(pg_catalog.!~) '^pg_'
+          and n.nspname OPERATOR(pg_catalog.<>) 'information_schema'
+          and n.nspname OPERATOR(pg_catalog.<>) 'public'
+          and n.nspname OPERATOR(pg_catalog.<>) 'contracttwin_control') extra_schema_count,
+      (select count(*)::int
+         from pg_catalog.pg_class c
+         join pg_catalog.pg_namespace n on n.oid OPERATOR(pg_catalog.=) c.relnamespace
+        where n.nspname OPERATOR(pg_catalog.!~) '^pg_'
+          and n.nspname OPERATOR(pg_catalog.<>) 'information_schema'
+          and not (
+            n.nspname OPERATOR(pg_catalog.=) 'contracttwin_control'
+            and (
+              (c.relname OPERATOR(pg_catalog.=) 'production_target_binding' and c.relkind OPERATOR(pg_catalog.=) 'r')
+              or (
+                c.relkind OPERATOR(pg_catalog.=) 'i'
+                and exists(
+                  select 1
+                    from pg_catalog.pg_index i
+                    join pg_catalog.pg_class anchored on anchored.oid OPERATOR(pg_catalog.=) i.indrelid
+                   where i.indexrelid OPERATOR(pg_catalog.=) c.oid
+                     and anchored.relnamespace OPERATOR(pg_catalog.=) n.oid
+                     and anchored.relname OPERATOR(pg_catalog.=) 'production_target_binding'
+                )
+              )
+            )
+          )) user_relation_count,
+      (select count(*)::int
+         from pg_catalog.pg_proc p
+         join pg_catalog.pg_namespace n on n.oid OPERATOR(pg_catalog.=) p.pronamespace
+        where n.nspname OPERATOR(pg_catalog.!~) '^pg_'
+          and n.nspname OPERATOR(pg_catalog.<>) 'information_schema') user_routine_count,
+      (select count(*)::int
+         from pg_catalog.pg_type t
+         join pg_catalog.pg_namespace n on n.oid OPERATOR(pg_catalog.=) t.typnamespace
+        where n.nspname OPERATOR(pg_catalog.!~) '^pg_'
+          and n.nspname OPERATOR(pg_catalog.<>) 'information_schema'
+          and t.typtype OPERATOR(pg_catalog.=) any(array['c','d','e','m','r']::"char"[])
+          and not (
+            n.nspname OPERATOR(pg_catalog.=) 'contracttwin_control'
+            and t.typname OPERATOR(pg_catalog.=) 'production_target_binding'
+            and t.typtype OPERATOR(pg_catalog.=) 'c'
+          )) user_type_count,
+      (select count(*)::int
+         from pg_catalog.pg_extension e
+        where e.extname OPERATOR(pg_catalog.<>) 'plpgsql') non_default_extension_count,
+      (select count(*)::int
+         from pg_catalog.pg_class c
+         join pg_catalog.pg_namespace n on n.oid OPERATOR(pg_catalog.=) c.relnamespace
+        where n.nspname OPERATOR(pg_catalog.=) 'contracttwin_control'
+          and c.relname OPERATOR(pg_catalog.=) 'production_target_binding'
+          and c.relkind OPERATOR(pg_catalog.=) 'r') anchor_relation_count
+  `)).rows[0];
+  const fields=[
+    "extra_schema_count",
+    "user_relation_count",
+    "user_routine_count",
+    "user_type_count",
+    "non_default_extension_count"
+  ];
+  const occupied=fields.filter(field=>evidence?.[field]!==0);
+  if(occupied.length){
+    throw new Error(`${label} is not a pristine dedicated database: ${occupied.join(", ")}`);
+  }
+  if(requireExternalAnchor&&evidence?.anchor_relation_count!==1){
+    throw new Error(`${label} does not contain the separately approved production target anchor.`);
+  }
+  return evidence;
 }
 
 export async function assertSchemaMigrationManifestMatchesRepository(root=process.cwd()){

@@ -6,8 +6,14 @@ import { getFrozenCorpus, MIN_FAMILY_RECALL, REQUIRED_GROUNDED_PRECISION, VALIDA
 import { REQUIRED_STANDARD_FAMILIES, standardGovernanceIssues, standardIsRelianceEligible, type GovernedStandard } from "@/lib/standards";
 import { currentEngineManifest } from "@/lib/engineManifest";
 import { canonicalStateHash } from "@/lib/stateHash";
+import evidenceKernelPolicy from "@/lib/evidence-kernel-blockers.json";
 
 export { REQUIRED_STANDARD_FAMILIES } from "@/lib/standards";
+
+// These are implemented-capability blockers, not deployment configuration.
+// Keep legal reliance fail-closed until each item is replaced by verifiable,
+// release-bound evidence and its corresponding acceptance suite.
+export const EVIDENCE_KERNEL_BLOCKERS: readonly string[] = Object.freeze([...evidenceKernelPolicy.blockers]);
 
 type ValidationEvidence={
   id:string;status:string;model_name:string|null;prompt_version:string;corpus_version:string;
@@ -95,8 +101,9 @@ export async function getSystemReadiness(options:{includePersistentEvidence?:boo
   const enginePoliciesReady=enginePoliciesMatch(activeEnginePolicies,engineManifest);
   const infrastructureReady=configured.authenticationRequired&&configured.microsoftConfigured&&configured.databaseConfigured&&configured.privateBlobConfigured&&configured.malwareScannerConfigured&&configured.aiConfigured&&configured.ocrConfigured;
   const standardsReady=missingStandards.length===0;
-  const legalRelianceReady=infrastructureReady&&validationPassed&&standardsReady&&enginePoliciesReady;
-  return {configured,infrastructureReady,legalRelianceReady,persistentEvidenceQueried:includePersistentEvidence&&configured.databaseConfigured,activeStandards,activeStandardEvidence,invalidActiveStandards,missingStandards,standardsReady,validationPassed,latestValidation,current,activeEnginePolicies,enginePoliciesReady,thresholds:{allCasesPass:true,missingCaseCount:0,unexpectedCaseCount:0,duplicateCaseCount:0,rejectedUngroundedFindingCount:0,familyRecall:MIN_FAMILY_RECALL,groundedPrecision:REQUIRED_GROUNDED_PRECISION,unsafePolicyInventionCount:0,exactQuoteFailureCount:0}};
+  const evidenceKernelReady=EVIDENCE_KERNEL_BLOCKERS.length===0;
+  const legalRelianceReady=infrastructureReady&&validationPassed&&standardsReady&&enginePoliciesReady&&evidenceKernelReady;
+  return {configured,infrastructureReady,evidenceKernelReady,evidenceKernelBlockers:[...EVIDENCE_KERNEL_BLOCKERS],legalRelianceReady,persistentEvidenceQueried:includePersistentEvidence&&configured.databaseConfigured,activeStandards,activeStandardEvidence,invalidActiveStandards,missingStandards,standardsReady,validationPassed,latestValidation,current,activeEnginePolicies,enginePoliciesReady,thresholds:{allCasesPass:true,missingCaseCount:0,unexpectedCaseCount:0,duplicateCaseCount:0,rejectedUngroundedFindingCount:0,familyRecall:MIN_FAMILY_RECALL,groundedPrecision:REQUIRED_GROUNDED_PRECISION,unsafePolicyInventionCount:0,exactQuoteFailureCount:0}};
 }
 
 export function legalRelianceEvidence(readiness:Awaited<ReturnType<typeof getSystemReadiness>>){
@@ -104,6 +111,8 @@ export function legalRelianceEvidence(readiness:Awaited<ReturnType<typeof getSys
   return {
     legalRelianceEnabled:readiness.configured.legalRelianceEnabled,
     legalRelianceReady:readiness.legalRelianceReady,
+    evidenceKernelReady:readiness.evidenceKernelReady,
+    evidenceKernelBlockers:readiness.evidenceKernelBlockers,
     current:readiness.current,
     activeEnginePolicies:[...readiness.activeEnginePolicies].sort((a,b)=>a.scope_type.localeCompare(b.scope_type)),
     enginePoliciesReady:readiness.enginePoliciesReady,
@@ -141,6 +150,7 @@ export async function assertLegalRelianceReady(options:{requireEnabled?:boolean}
     if(!readiness.validationPassed)blockers.push("current model/prompt/corpus validation has not passed");
     if(!readiness.enginePoliciesReady)blockers.push("the active database engine policies do not exactly match the application engine manifest");
     if(readiness.missingStandards.length)blockers.push(`${readiness.missingStandards.length} required negotiation standards lack a complete governed active version`);
+    if(!readiness.evidenceKernelReady)blockers.push(`the production evidence kernel is incomplete (${readiness.evidenceKernelBlockers.join("; ")})`);
     throw new Error(`LEGAL_RELIANCE_ENABLED is blocked: ${blockers.join("; ")}.`);
   }
   return readiness;

@@ -204,10 +204,112 @@ assert.equal(body.users[0].legal_counsel_attest_active,true);
 assert.match(rolesSql,/left join app_user_capabilities/i,"authenticated-user listing must expose counsel capability state");
 assert.match(rolesSql,/c\.capability='LEGAL_COUNSEL_ATTEST'/i);
 
+const roleMutationState={
+  roles:new Map([
+    ["admin-1",{role:"ADMIN",active:true}],
+    ["user-2",{role:"LAWYER",active:true}]
+  ]),
+  users:new Map([
+    ["admin-1",{id:"admin-1",email:"admin@example.com"}],
+    ["user-2",{id:"user-2",email:"counsel@example.com"}]
+  ]),
+  counselActive:true,
+  sawTableLock:false,
+  upserts:[],
+  audits:[]
+};
+const roleMutationClient={
+  query:async(sql,values=[])=>{
+    if(/lock table app_user_roles in share row exclusive mode/i.test(sql)){
+      roleMutationState.sawTableLock=true;
+      return {rows:[],rowCount:0};
+    }
+    if(/select role from app_user_roles where user_id=\$1 and active=true for update/i.test(sql)){
+      const record=roleMutationState.roles.get(values[0]);
+      return {rows:record?.active?[{role:record.role}]:[],rowCount:record?.active?1:0};
+    }
+    if(/select id,email from "user" where id=\$1 for share/i.test(sql)){
+      const user=roleMutationState.users.get(values[0]);
+      return {rows:user?[user]:[],rowCount:user?1:0};
+    }
+    if(/insert into app_user_roles/i.test(sql)){
+      roleMutationState.roles.set(values[0],{role:values[1],active:values[2]});
+      roleMutationState.upserts.push({sql,values});
+      return {rows:[],rowCount:1};
+    }
+    if(/select count\(\*\)::int count from app_user_roles/i.test(sql)){
+      const count=[...roleMutationState.roles.values()].filter(record=>record.role==="ADMIN"&&record.active).length;
+      return {rows:[{count}],rowCount:1};
+    }
+    if(/update app_user_capabilities set active=false/i.test(sql)){
+      const changed=roleMutationState.counselActive;
+      roleMutationState.counselActive=false;
+      return {rows:[],rowCount:changed?1:0};
+    }
+    if(/insert into audit_events/i.test(sql)){
+      roleMutationState.audits.push({sql,values});
+      return {rows:[],rowCount:1};
+    }
+    throw new Error(`Unexpected role-mutation query: ${sql}`);
+  }
+};
+const rolesMutationRoute=loadTypeScriptModule("app/api/admin/roles/route.ts",{
+  "@/lib/access":accessMocks,
+  "@/lib/db":{
+    databaseConfigured:()=>true,
+    query:async()=>({rows:[]}),
+    withTransaction:async(fn)=>fn(roleMutationClient)
+  }
+});
+const makeRoleRequest=(requestBody)=>new Request("https://contracttwin.test/api/admin/roles",{
+  method:"POST",
+  headers:{"content-type":"application/json"},
+  body:JSON.stringify(requestBody)
+});
+
+roleMutationState.roles.set("admin-1",{role:"APPROVER",active:true});
+response=await rolesMutationRoute.POST(makeRoleRequest({userId:"user-2",role:"LAWYER",active:true}));
+assert.equal(response.status,403,"an administrator demoted after authentication must fail the transaction-time authority recheck");
+assert.equal(roleMutationState.upserts.length,0);
+assert.equal(roleMutationState.audits.length,0);
+
+roleMutationState.roles.set("admin-1",{role:"ADMIN",active:true});
+response=await rolesMutationRoute.POST(makeRoleRequest({userId:"admin-1",role:"APPROVER",active:true}));
+assert.equal(response.status,409,"an active administrator cannot self-demote");
+assert.equal(roleMutationState.upserts.length,0);
+
+response=await rolesMutationRoute.POST(makeRoleRequest({userId:"user-2",role:"VIEWER",active:true}));
+assert.equal(response.status,200,"a serialized role mutation by a currently active administrator remains available");
+body=await response.json();
+assert.equal(body.counselCapabilityRevoked,true,"a Viewer role must not retain legal-counsel attestation authority");
+assert.equal(roleMutationState.sawTableLock,true,"role changes must serialize to prevent cross-demotion races");
+assert.equal(roleMutationState.upserts.length,1);
+assert.equal(roleMutationState.audits.length,1,"the role change and audit record must share the transaction");
+assert.deepEqual(roleMutationState.roles.get("user-2"),{role:"VIEWER",active:true});
+
 const adminUi=fs.readFileSync(path.join(repo,"components/AdminConsole.tsx"),"utf8");
 assert.match(adminUi,/This capability is separate from Viewer, Lawyer, Approver, and Admin roles/);
 assert.match(adminUi,/It does not grant matter access or approval authority/);
 assert.match(adminUi,/confirmLegalCounselAuthority:true/);
 assert.match(adminUi,/confirmSelfChange:selfChange/);
 
-console.log("Legal-counsel capability regression checks passed.");
+const authorityMigration=fs.readFileSync(path.join(repo,"db/migrations/011_authority_evidence_hardening.sql"),"utf8");
+assert.match(authorityMigration,/create or replace function public\.enforce_human_review_record\(\)/i,"the DB review trigger function must be replaced in a forward migration");
+assert.match(authorityMigration,/capability_record\.user_id=new\.reviewed_by[\s\S]*capability_record\.capability='LEGAL_COUNSEL_ATTEST'[\s\S]*capability_record\.active=true/i,"the DB must bind active counsel authority to the recorded reviewer");
+assert.match(authorityMigration,/for share/i,"the DB review trigger must lock the authority row through disposition commit");
+assert.match(authorityMigration,/Human disposition requires active LEGAL_COUNSEL_ATTEST capability/);
+
+for(const reviewRoute of [
+  "app/api/findings/[id]/review/route.ts",
+  "app/api/graph/review/route.ts",
+  "app/api/matters/[id]/relations/route.ts"
+]){
+  const source=fs.readFileSync(path.join(repo,reviewRoute),"utf8");
+  assert.match(source,/capability='LEGAL_COUNSEL_ATTEST' and active=true for share/i,`${reviewRoute} must lock current counsel authority inside the write transaction`);
+  assert.match(source,/principal\.userId/,`${reviewRoute} must check the authenticated reviewer identity`);
+  assert.match(source,/new AccessError\("Active legal-counsel attestation authority[^\n]+,403\)/,`${reviewRoute} must return a safe 403 before the DB backstop`);
+}
+const counselRelationRoute=fs.readFileSync(path.join(repo,"app/api/matters/[id]/relations/route.ts"),"utf8");
+assert.match(counselRelationRoute,/'VALIDATED',\$7,\$7,now\(\),\$6/,"a counsel-authored validated relation must record the authenticated identity as both creator and reviewer");
+
+console.log("Legal-counsel capability and Admin-role mutation checks passed, including transaction-time authority, serialization, safe API prechecks, and DB-authoritative legal dispositions.");

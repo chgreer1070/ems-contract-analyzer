@@ -42,8 +42,8 @@ try{
     await client.query(`revoke truncate,references,trigger,maintain on all tables in schema public from public,${roleIdentifier}`);
     await client.query(`revoke all privileges on table public.schema_migrations from ${roleIdentifier}`);
     await client.query(`grant select on table public.schema_migrations to ${roleIdentifier}`);
-    await client.query(`revoke all privileges on table public.release_database_identity,public.release_target_receipts from ${roleIdentifier}`);
-    await client.query(`grant select on table public.release_database_identity,public.release_target_receipts to ${roleIdentifier}`);
+    await client.query(`revoke all privileges on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts from ${roleIdentifier}`);
+    await client.query(`grant select on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts to ${roleIdentifier}`);
     await client.query(`grant usage,select on all sequences in schema public to ${roleIdentifier}`);
     await client.query(`revoke update on all sequences in schema public from public,${roleIdentifier}`);
     const runtimeFunctions=(await client.query(`

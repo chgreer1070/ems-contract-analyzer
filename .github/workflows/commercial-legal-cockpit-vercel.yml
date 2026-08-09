@@ -84,7 +84,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify database controls
         run: npm run db:check
-      - name: Apply Better Auth and ContractTwin migrations
+      - name: Apply ContractTwin and Better Auth migrations
         run: npm run db:migrate
       - name: Verify migrations are idempotent
         run: npm run db:migrate
@@ -96,6 +96,7 @@ jobs:
       - name: Prove database control invariants
         env:
           RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
+          CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service
         run: npm run test:db-controls
       - name: Prove application control boundaries
         run: npm run test:controls
@@ -226,6 +227,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deployment_target == 'production'
     runs-on: ubuntu-latest
     environment: contracttwin-production
+    concurrency:
+      group: contracttwin-production-database
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: commercial-legal-cockpit
@@ -294,11 +298,17 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Fail closed before any production database mutation while source blockers remain
+        run: npm run production:source-eligibility
       - name: Apply and verify exact target database migrations
         id: schema_gate
         env:
           PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          EXPECTED_PRODUCTION_TARGET_TOKEN: ${{ secrets.EXPECTED_PRODUCTION_TARGET_TOKEN }}
+          EXPECTED_PRODUCTION_DATABASE_ID: ${{ secrets.EXPECTED_PRODUCTION_DATABASE_ID }}
+          EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256 }}
+          EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256 }}
         run: node scripts/production-schema-gate.mjs "$PRODUCTION_ENV_FILE"
       - name: Stage production build without assigning production domains
         id: stage

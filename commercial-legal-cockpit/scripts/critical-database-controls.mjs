@@ -94,6 +94,20 @@ function objectMaps(rows) {
   };
 }
 
+function manifestIdentifierErrors(manifest){
+  const identifiers=[
+    ...manifest.columns.flatMap(({table,name})=>[table,name]),
+    ...manifest.rules.flatMap(({table,name})=>[table,name]),
+    ...manifest.triggers.flatMap(({table,name,function:functionName})=>[table,name,functionName]),
+    ...manifest.functions.map(({name})=>name),
+    ...manifest.constraints.flatMap(({table,name})=>[table,name]),
+    ...manifest.indexes.flatMap(({table,name})=>[table,name])
+  ];
+  return identifiers
+    .filter(identifier=>new TextEncoder().encode(identifier).length>63)
+    .map(identifier=>`critical database manifest identifier exceeds PostgreSQL's 63-byte limit: ${identifier}`);
+}
+
 export function calculateCriticalDatabaseControlFingerprint(rows,manifest) {
   const {columnRows,triggerRows,functionRows,constraintRows,indexRows}=objectMaps(rows);
   const serverVersionNumber=Number(rows.find(row=>row.kind==="server")?.server_version_num??0);
@@ -126,7 +140,7 @@ export function calculateCriticalDatabaseControlFingerprint(rows,manifest) {
 }
 
 export function evaluateCriticalDatabaseControls(rows,manifest) {
-  const errors=[];
+  const errors=manifestIdentifierErrors(manifest);
   const {columnRows,triggerRows,functionRows,constraintRows,indexRows}=objectMaps(rows);
   const serverVersionNumber=Number(rows.find(row=>row.kind==="server")?.server_version_num??0);
   const serverMajor=Math.floor(serverVersionNumber/10000);

@@ -15,6 +15,11 @@ async function createStage(input:PipelineInput,jobType:JobType,suffix:string,pri
   return enqueueJob({matterId:input.matterId,documentId:["MALWARE_SCAN","EXTRACT","OCR","ANALYZE","TERM_EXTRACT"].includes(jobType)?input.documentId:null,jobType,idempotencyKey:`${PIPELINE_VERSION}:${input.matterId}:${input.documentId}:${input.sourceFingerprint}:${suffix}`,createdBy:input.requestedBy,input:{requestedBy:input.requestedBy,requestedByName:input.requestedByName,pipelineVersion:PIPELINE_VERSION},priority,maxAttempts:3});
 }
 
+async function createDependencyStage(input:PipelineInput,termAnalysisRunId:string){
+  "use step";
+  return enqueueJob({matterId:input.matterId,jobType:"DEPENDENCY",idempotencyKey:`dependency:${input.matterId}:${termAnalysisRunId}`,createdBy:input.requestedBy,input:{requestedBy:input.requestedBy,requestedByName:input.requestedByName,pipelineVersion:PIPELINE_VERSION,termAnalysisRunId},priority:45,maxAttempts:3});
+}
+
 async function createWorkerId(documentId:string){
   "use step";
   return `pipeline:${documentId}:${randomUUID()}`;
@@ -60,8 +65,12 @@ export async function fullContractPipeline(input:PipelineInput){
   }else if(extractionState.extraction_status!=="EXTRACTED")throw new Error(`Source extraction did not reach EXTRACTED state (${extractionState.extraction_status}).`);
   const risk=await createStage(input,"ANALYZE","risk",30);await runStage(risk.id,worker);
   const termStage=await createStage(input,"TERM_EXTRACT","terms",40);const terms=await runStage(termStage.id,worker);
-  const dependencyJobId=typeof terms.output?.dependencyJobId==="string"?terms.output.dependencyJobId:null;
-  if(dependencyJobId)await runStage(dependencyJobId,worker);
+  const termAnalysisRunId=typeof terms.output?.analysisRunId==="string"?terms.output.analysisRunId:null;
+  if(!termAnalysisRunId)throw new Error("Term extraction completed without its exact analysis-run identifier.");
+  const dependency=await createDependencyStage(input,termAnalysisRunId);
+  const publishedDependencyJobId=typeof terms.output?.dependencyJobId==="string"?terms.output.dependencyJobId:null;
+  if(publishedDependencyJobId&&publishedDependencyJobId!==dependency.id)throw new Error("Term extraction and retry-aware dependency enqueue resolved to different job generations.");
+  await runStage(dependency.id,worker);
   const precedence=await createStage(input,"PRECEDENCE","precedence",50);await runStage(precedence.id,worker);
   return {pipelineVersion:PIPELINE_VERSION,documentId:input.documentId,matterId:input.matterId,status:"SUCCEEDED",humanReviewRequired:true,snapshotGenerated:false};
 }

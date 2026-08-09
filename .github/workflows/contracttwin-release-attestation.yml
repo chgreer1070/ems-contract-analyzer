@@ -50,7 +50,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Static legal-control schema check
         run: npm run db:check
-      - name: Apply Better Auth and ContractTwin migrations
+      - name: Apply ContractTwin and Better Auth migrations
         run: npm run db:migrate
       - name: Prove migration idempotency
         run: npm run db:migrate
@@ -62,6 +62,7 @@ jobs:
       - name: Prove database legal-control invariants
         env:
           RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
+          CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service
         run: npm run test:db-controls
       - name: Prove application control boundaries
         run: npm run test:controls

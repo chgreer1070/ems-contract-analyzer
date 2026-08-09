@@ -4,13 +4,20 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import {verifiedDatabaseConnectionConfig} from "./database-connection-config.mjs";
-import {evaluateReleaseTargetBinding,hashReleaseTargetNonce} from "./release-target-binding.mjs";
+import {
+  evaluatePreMigrationTargetBinding,
+  evaluateReleaseTargetBinding,
+  hashReleaseTargetNonce
+} from "./release-target-binding.mjs";
 import {assertSchemaMigrationManifestMatchesRepository,evaluateExactSchemaMigrationReceipts as evaluateScriptMigrationReceipts} from "./schema-migration-manifest.mjs";
 
 const root=process.cwd();
 const safeDatabaseConnection=verifiedDatabaseConnectionConfig("postgresql://runtime:secret@db.example/contracttwin","security-boundary-test");
 assert.equal(safeDatabaseConnection.options,"-c search_path=public,pg_temp");
 assert.throws(()=>verifiedDatabaseConnectionConfig("postgresql://runtime:secret@db.example/contracttwin?options=-c%20search_path%3Devil","security-boundary-test"),/may not override/);
+for(const name of ["host","port","database","db","user","password"]){
+  assert.throws(()=>verifiedDatabaseConnectionConfig(`postgresql://runtime:secret@db.example/contracttwin?${name}=attacker`,`security-boundary-test`),new RegExp(`may not override ${name}`),`database URL query parameter must not override ${name}`);
+}
 const savedDatabaseOverrides=Object.fromEntries(["NODE_TLS_REJECT_UNAUTHORIZED","PGOPTIONS","PGSSLMODE"].map(name=>[name,process.env[name]]));
 for(const name of Object.keys(savedDatabaseOverrides))delete process.env[name];
 assert.throws(()=>verifiedDatabaseConnectionConfig("postgresql://runtime:secret@db.example/contracttwin","security-boundary-test",{requireVerifiedTls:true}),/sslmode=verify-full/);
@@ -63,9 +70,16 @@ const releaseTargetNonce="1".repeat(64);
 const releaseTargetNonceSha256=hashReleaseTargetNonce(releaseTargetNonce);
 const releaseDatabaseId="11111111-1111-4111-8111-111111111111";
 const healthyReleaseReceipt={database_id:releaseDatabaseId,source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256};
+const liveTargetEvidence={database_name:"contracttwin",database_oid:"16384",system_identifier:"7671796604445737001",postmaster_started_at:"2026-08-08 12:00:00+00",in_recovery:false,transaction_read_only:"on"};
+const migrationTargetIdentity={...liveTargetEvidence,session_user_name:"contracttwin_migrator",current_user_name:"contracttwin_migrator"};
+const runtimeTargetIdentity={...liveTargetEvidence,session_user_name:"contracttwin_runtime",current_user_name:"contracttwin_runtime"};
+assert.equal(evaluatePreMigrationTargetBinding({migrationIdentity:migrationTargetIdentity,runtimeIdentity:runtimeTargetIdentity,runtimeChallengeResults:[false,false]}).ok,true,"distinct credentials reaching the same live logical database must pass the pre-migration proof");
+assert.equal(evaluatePreMigrationTargetBinding({migrationIdentity:migrationTargetIdentity,runtimeIdentity:{...runtimeTargetIdentity,database_oid:"16385"},runtimeChallengeResults:[false,false]}).ok,false,"different logical databases must fail before migration");
+assert.equal(evaluatePreMigrationTargetBinding({migrationIdentity:migrationTargetIdentity,runtimeIdentity:runtimeTargetIdentity,runtimeChallengeResults:[true,true]}).ok,false,"credentials reaching different live database instances must fail before migration");
+assert.equal(evaluatePreMigrationTargetBinding({migrationIdentity:migrationTargetIdentity,runtimeIdentity:{...runtimeTargetIdentity,session_user_name:"contracttwin_migrator",current_user_name:"contracttwin_migrator"},runtimeChallengeResults:[false,false]}).ok,false,"migration and runtime principals must be distinct before migration");
 assert.equal(evaluateReleaseTargetBinding({migrationDatabaseId:releaseDatabaseId,runtimeDatabaseId:releaseDatabaseId,receipt:healthyReleaseReceipt,expectedSourceSha:approvedReleaseSha,expectedNonceSha256:releaseTargetNonceSha256}).ok,true);
 assert.equal(evaluateReleaseTargetBinding({migrationDatabaseId:releaseDatabaseId,runtimeDatabaseId:"22222222-2222-4222-8222-222222222222",receipt:healthyReleaseReceipt,expectedSourceSha:approvedReleaseSha,expectedNonceSha256:releaseTargetNonceSha256}).ok,false,"different migration and runtime databases must fail release binding");
-assert.equal(evaluateReleaseTargetBinding({migrationDatabaseId:releaseDatabaseId,runtimeDatabaseId:releaseDatabaseId,receipt:null,expectedSourceSha:approvedReleaseSha,expectedNonceSha256:releaseTargetNonceSha256}).ok,false,"a restored clone without the unpredictable release receipt must fail release binding");
+assert.equal(evaluateReleaseTargetBinding({migrationDatabaseId:releaseDatabaseId,runtimeDatabaseId:releaseDatabaseId,receipt:null,expectedSourceSha:approvedReleaseSha,expectedNonceSha256:releaseTargetNonceSha256}).ok,false,"a target missing the current release receipt must fail release binding");
 const savedReleaseEnvironment=Object.fromEntries(["RELEASE_ATTESTATION_TOKEN","APP_ENV","AUTH_REQUIRED","ALLOW_DEMO_ACCESS","LEGAL_RELIANCE_ENABLED","ALLOW_SOURCE_PURGE","CONTRACTTWIN_RELEASE_SHA","VERCEL_GIT_COMMIT_SHA"].map(name=>[name,process.env[name]]));
 Object.assign(process.env,{RELEASE_ATTESTATION_TOKEN:"r".repeat(48),APP_ENV:"production",AUTH_REQUIRED:"true",ALLOW_DEMO_ACCESS:"false",LEGAL_RELIANCE_ENABLED:"true",ALLOW_SOURCE_PURGE:"false",CONTRACTTWIN_RELEASE_SHA:approvedReleaseSha});
 delete process.env.VERCEL_GIT_COMMIT_SHA;
@@ -89,6 +103,10 @@ const healthyDatabaseControlRows=[
 ];
 databaseControlManifest.schemaDefinitionSha256=databaseControls.calculateCriticalDatabaseControlFingerprint(healthyDatabaseControlRows,databaseControlManifest);
 assert.equal(databaseControls.evaluateCriticalDatabaseControls(healthyDatabaseControlRows).ok,true);
+const overlongIdentifierManifest={...databaseControlManifest,constraints:[...databaseControlManifest.constraints,{table:"agreement_versions",name:"x".repeat(64),type:"c",validated:true}]};
+const overlongIdentifierResult=databaseControls.evaluateCriticalDatabaseControls(healthyDatabaseControlRows,overlongIdentifierManifest);
+assert.equal(overlongIdentifierResult.ok,false,"critical control manifests must reject identifiers PostgreSQL would silently truncate");
+assert.ok(overlongIdentifierResult.errors.some(error=>error.includes("63-byte limit")));
 const sameNameWeakenedRows=healthyDatabaseControlRows.map(row=>row.object_name==="trg_agreement_execution_controls"?{...row,function_definition:"CREATE FUNCTION public.enforce_agreement_execution_controls() RETURNS trigger AS 'BEGIN RETURN NEW; END' LANGUAGE plpgsql"}:row);
 const sameNameWeakenedResult=databaseControls.evaluateCriticalDatabaseControls(sameNameWeakenedRows);
 assert.equal(sameNameWeakenedResult.ok,false,"same-name trigger functions must remain bound to their exact clean-schema body");
@@ -102,14 +120,14 @@ const unexpectedRuleResult=databaseControls.evaluateCriticalDatabaseControls([..
 assert.equal(unexpectedRuleResult.ok,false,"unexpected user rewrite rules on any public table must fail the globally closed rule set");
 assert.ok(unexpectedRuleResult.errors.includes("unexpected rewrite rule public.app_user_roles.zzz_test_unexpected_rule"));
 let liveDatabaseControlRows=healthyDatabaseControlRows;
-const healthyRuntimePrincipal={session_user_name:"contracttwin_runtime",current_user_name:"contracttwin_runtime",identities_match:true,role_attributes_safe:true,role_membership_safe:true,owner_membership_safe:true,dangerous_membership_safe:true,database_create_safe:true,database_temp_safe:true,schema_create_safe:true,application_function_execute_safe:true,approved_runtime_functions_ready:true,application_table_dml_ready:true,application_sequence_privileges_safe:true,table_trigger_safe:true,table_truncate_safe:true,table_references_safe:true,table_maintain_safe:true,replication_mode_safe:true,replication_parameter_safe:true,migration_receipts_read_only:true,release_control_tables_read_only:true};
+const healthyRuntimePrincipal={session_user_name:"contracttwin_runtime",current_user_name:"contracttwin_runtime",identities_match:true,role_attributes_safe:true,role_membership_safe:true,inbound_role_membership_safe:true,owner_membership_safe:true,dangerous_membership_safe:true,database_create_safe:true,database_temp_safe:true,schema_create_safe:true,application_function_execute_safe:true,approved_runtime_functions_ready:true,application_table_dml_ready:true,application_sequence_privileges_safe:true,table_trigger_safe:true,table_truncate_safe:true,table_references_safe:true,table_maintain_safe:true,replication_mode_safe:true,replication_parameter_safe:true,migration_receipts_read_only:true,release_control_tables_read_only:true};
 assert.equal(runtimeDatabasePrincipal.evaluateRuntimeDatabasePrincipal(healthyRuntimePrincipal).ok,true);
-for(const field of ["identities_match","role_attributes_safe","role_membership_safe","owner_membership_safe","dangerous_membership_safe","database_create_safe","database_temp_safe","schema_create_safe","application_function_execute_safe","approved_runtime_functions_ready","application_table_dml_ready","application_sequence_privileges_safe","table_trigger_safe","table_truncate_safe","table_references_safe","table_maintain_safe","replication_mode_safe","replication_parameter_safe","migration_receipts_read_only","release_control_tables_read_only"]){
+for(const field of ["identities_match","role_attributes_safe","role_membership_safe","inbound_role_membership_safe","owner_membership_safe","dangerous_membership_safe","database_create_safe","database_temp_safe","schema_create_safe","application_function_execute_safe","approved_runtime_functions_ready","application_table_dml_ready","application_sequence_privileges_safe","table_trigger_safe","table_truncate_safe","table_references_safe","table_maintain_safe","replication_mode_safe","replication_parameter_safe","migration_receipts_read_only","release_control_tables_read_only"]){
   assert.equal(runtimeDatabasePrincipal.evaluateRuntimeDatabasePrincipal({...healthyRuntimePrincipal,[field]:false}).ok,false,`runtime principal must fail closed on ${field}`);
 }
 let liveRuntimePrincipal=healthyRuntimePrincipal;
 let liveMigrationReceipts=migrationReceiptManifest.migrations;
-let liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_matches:true}];
+let liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_chain_matches:true}];
 let liveRuntimeTransport={ssl:true,version:"TLSv1.3",cipher:"TLS_AES_256_GCM_SHA384",bits:256};
 const releaseHealth=load("app/api/health/release/route.ts",{
   "@/lib/db":{query:async(sql,parameters)=>/select filename,sha256 from public\.schema_migrations/i.test(sql)?{rows:liveMigrationReceipts}:/with identities as materialized/i.test(sql)?{rows:[liveRuntimePrincipal]}:/from public\.release_database_identity i/i.test(sql)?{rows:parameters?.[0]===approvedReleaseSha&&parameters?.[1]===releaseTargetNonceSha256?liveReleaseTargetRows:[]}:/from pg_catalog\.pg_stat_ssl/i.test(sql)?{rows:[liveRuntimeTransport]}:{rows:liveDatabaseControlRows}},
@@ -119,6 +137,10 @@ const releaseHealth=load("app/api/health/release/route.ts",{
   "@/lib/runtimeDatabasePrincipal":runtimeDatabasePrincipal,
   "@/lib/schemaMigrationManifest":schemaMigrationManifest
 });
+const releaseHealthSource=fs.readFileSync(path.join(root,"app/api/health/release/route.ts"),"utf8");
+for(const identitySource of ["release_database_identity","release_database_external_identity","contracttwin_control.production_target_binding","release_target_receipts","identity_chain_matches"]){
+  assert.match(releaseHealthSource,new RegExp(identitySource.replaceAll(".","\\.")),`release health must continuously bind ${identitySource}`);
+}
 const releaseHeaders={Authorization:`Bearer ${"r".repeat(48)}`,"x-contracttwin-release-target-nonce":releaseTargetNonce};
 let releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/api/health/release"));
 assert.equal(releaseResponse.status,401,"release health must reject unauthenticated callers");
@@ -133,6 +155,11 @@ releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/a
 assert.equal(releaseResponse.status,503,"release health must fail closed when the runtime database principal can create temp shadow objects");
 const unsafePrincipalBody=await releaseResponse.json();assert.equal(unsafePrincipalBody.runtimeDatabasePrincipalPassed,false);
 liveRuntimePrincipal=healthyRuntimePrincipal;
+liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_chain_matches:false}];
+releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/api/health/release",{headers:releaseHeaders}));
+assert.equal(releaseResponse.status,503,"release health must reject a receipt whose physical identity, external mapping, and separately owned target anchor do not form one exact chain");
+const wrongIdentityChainBody=await releaseResponse.json();assert.equal(wrongIdentityChainBody.releaseTargetBindingPassed,false);
+liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_chain_matches:true}];
 liveRuntimeTransport={...liveRuntimeTransport,version:"TLSv1.1"};
 releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/api/health/release",{headers:releaseHeaders}));
 assert.equal(releaseResponse.status,503,"release health must reject TLS 1.0 and TLS 1.1 database sessions");
@@ -140,7 +167,7 @@ liveRuntimeTransport={ssl:true,version:"TLSv1.3",cipher:"TLS_AES_256_GCM_SHA384"
 liveReleaseTargetRows=[];
 releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/api/health/release",{headers:releaseHeaders}));
 assert.equal(releaseResponse.status,503,"release health must reject a missing exact database target receipt");
-liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_matches:true}];
+liveReleaseTargetRows=[{source_sha:approvedReleaseSha,nonce_sha256:releaseTargetNonceSha256,identity_chain_matches:true}];
 liveMigrationReceipts=migrationReceiptManifest.migrations.map((row,index)=>index===0?{...row,sha256:"0".repeat(64)}:row);
 releaseResponse=await releaseHealth.GET(new Request("https://contracttwin.test/api/health/release",{headers:releaseHeaders}));
 assert.equal(releaseResponse.status,503,"release health must reject a forged migration receipt");
@@ -167,45 +194,69 @@ assert.match(pipeline,/dependencyJobId/,"pipeline must run the dependency job re
 assert.match(pipeline,/randomUUID\(\)/,"each workflow invocation must use a distinct worker lease identity");
 const jobs=fs.readFileSync(path.join(root,"lib/jobs.ts"),"utf8");
 const continuation=jobs.slice(jobs.indexOf("export async function continueJob"),jobs.indexOf("export async function waitExternal"));
-assert.match(continuation,/status='WAITING_EXTERNAL'/,"internal continuation must not consume the retry budget");
-assert.doesNotMatch(continuation,/status='QUEUED'/,"internal continuation must not masquerade as a retry");
+assert.match(continuation,/status:\s*"WAITING_EXTERNAL"/,"internal continuation must not consume the retry budget");
+assert.doesNotMatch(continuation,/status:\s*"QUEUED"/,"internal continuation must not masquerade as a retry");
 const syncAnalyze=fs.readFileSync(path.join(root,"app/api/documents/[id]/analyze/route.ts"),"utf8");
 assert.match(syncAnalyze,/Synchronous persistence is disabled/);
+const proxySource=fs.readFileSync(path.join(root,"proxy.ts"),"utf8");
+assert.match(proxySource,/`\$\{pathname\}\$\{request\.nextUrl\.search\}`/,"authentication returnTo must preserve the exact query-bound snapshot or workspace target");
 const purge=fs.readFileSync(path.join(root,"app/api/purge-requests/[id]/route.ts"),"utf8");
 assert.ok(purge.indexOf("PENDING_PURGE")<purge.indexOf("await del("),"recoverable database marker must precede external deletion");
 assert.match(purge,/BlobNotFoundError/);
 assert.match(purge,/Cancellation is blocked after purge execution begins/);
+assert.doesNotMatch(purge,/Date\.now\(\)/,"purge retention must never be adjudicated by the application clock");
+assert.match(purge,/current_date>greatest\(d\.retention_until,m\.retention_until\)/,"purge retention expiry must be adjudicated by the locked database state and clock");
+assert.ok((purge.match(/assertActiveAdmin\(client,principal\.userId\)/g)||[]).length>=5,"every purge mutation phase must recheck and lock active Admin authority inside its transaction");
 const snapshot=fs.readFileSync(path.join(root,"lib/jobProcessor.ts"),"utf8");
 for(const required of ["agreement_version_id","sourceChunks","analysisRuns:latestRuns","sourceManifestCanonical","matterContext","requestedAgreementVersionId","requestedEconomicsRunId","requestedAuditId","review_note","security_scan_status","server_sha256"])assert.match(snapshot,new RegExp(required),`snapshot must bind ${required}`);
 for(const required of [/annual_revenue::text annual_revenue/,/updated_at::text updated_at/,/effective_date::text effective_date/,/reviewed_at::text reviewed_at/,/created_at::text created_at/])assert.match(snapshot,required,"snapshot receipt evidence must preserve exact PostgreSQL numeric/timestamp text without JavaScript precision loss");
 const runtimePrincipalSource=fs.readFileSync(path.join(root,"lib/runtimeDatabasePrincipal.ts"),"utf8");
-for(const required of ["session_user=current_user","rolsuper","rolcreaterole","rolcreatedb","rolreplication","rolbypassrls","pg_catalog.pg_has_role","pg_read_all_data","pg_write_all_data","select c.relowner from pg_catalog.pg_class c","p.proowner","'CREATE'","'TEMP'","'TRIGGER'","'TRUNCATE'","'REFERENCES'","'MAINTAIN'","has_sequence_privilege","session_replication_role","has_parameter_privilege","schema_migrations","release_database_identity","release_target_receipts","release_control_tables_read_only","p.prosecdef","has_function_privilege","canonical_jsonb_text","lock_documents_for_legal_publication","executive_snapshot_receipt_verified"]){assert.ok(runtimePrincipalSource.includes(required),`runtime principal proof must include ${required}`);}
+for(const required of ["session_user=current_user","rolsuper","rolcreaterole","rolcreatedb","rolreplication","rolbypassrls","pg_catalog.pg_has_role","pg_read_all_data","pg_write_all_data","select c.relowner from pg_catalog.pg_class c","p.proowner","'CREATE'","'TEMP'","'TRIGGER'","'TRUNCATE'","'REFERENCES'","'MAINTAIN'","has_sequence_privilege","session_replication_role","has_parameter_privilege","schema_migrations","release_database_identity","release_database_external_identity","release_target_receipts","release_control_tables_read_only","p.prosecdef","has_function_privilege","canonical_jsonb_text","lock_documents_for_legal_publication","executive_snapshot_receipt_verified"]){assert.ok(runtimePrincipalSource.includes(required),`runtime principal proof must include ${required}`);}
 const databaseControlAcceptance=fs.readFileSync(path.join(root,"scripts/db-control-acceptance-check.mjs"),"utf8");
-for(const required of ["delete environment[name]","scripts/db-integration-check.mjs","scripts/target-schema-drift-check.mjs","scripts/runtime-database-principal-integration-check.mjs"]){assert.ok(databaseControlAcceptance.includes(required),`database-control acceptance must isolate and execute ${required}`);}
+for(const required of ["delete environment[name]","scripts/pre-migration-target-binding-integration-check.mjs","scripts/production-target-anchor-integration-check.mjs","delete targetBindingEnvironment.MIGRATION_DATABASE_URL","scripts/db-integration-check.mjs","scripts/target-schema-drift-check.mjs","scripts/runtime-database-principal-integration-check.mjs"]){assert.ok(databaseControlAcceptance.includes(required),`database-control acceptance must isolate and execute ${required}`);}
+const productionTargetAnchor=fs.readFileSync(path.join(root,"scripts/production-target-anchor.mjs"),"utf8");
+assert.match(productionTargetAnchor,/pg_has_role\(current_user,pg_catalog\.pg_get_userbyid\(n\.nspowner\),'MEMBER'\)/,"target readers must prove they cannot SET ROLE to the anchor owner");
+assert.match(productionTargetAnchor,/ownerMembershipRows[\s\S]*schema_owner_member[\s\S]*table_owner_member/,"bootstrap verification must inspect both routine principals for direct or transitive owner membership");
+assert.match(productionTargetAnchor,/routineMembershipRows[\s\S]*member_role\.rolname[\s\S]*pg_database_owner/,"target verification must reject cross-reader and other SET ROLE paths while allowing only the migrator's implicit database-owner role");
 const ciRuntimeProvisioner=fs.readFileSync(path.join(root,"scripts/provision-ci-runtime-role.mjs"),"utf8");
 for(const required of ["process.env.CI!==\"true\"","process.env.GITHUB_ACTIONS!==\"true\"","disposable-postgres-service","localhost","127.0.0.1","randomBytes(36)","::add-mask::","nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls","revoke temporary","schema_migrations","revoke execute on function"]){assert.ok(ciRuntimeProvisioner.includes(required),`CI runtime-role provisioner must include ${required}`);}
 const productionSchemaGate=fs.readFileSync(path.join(root,"scripts/production-schema-gate.mjs"),"utf8");
 assert.match(productionSchemaGate,/MIGRATION_DATABASE_URL/);
 assert.match(productionSchemaGate,/CHILD_ENVIRONMENT_ALLOWLIST/);
 assert.doesNotMatch(productionSchemaGate,/Object\.fromEntries\(variables\)/,"database subprocesses must not inherit pulled Vercel secrets");
-assert.match(productionSchemaGate,/const migrationEnvironment=childEnvironment\(\{DATABASE_URL:migrationDatabaseUrl\}\)/);
+assert.match(productionSchemaGate,/const migrationTransportEnvironment=childEnvironment\(\{DATABASE_URL:migrationDatabaseUrl\}\)/);
+assert.match(productionSchemaGate,/const migrationEnvironment=childEnvironment\(\{\s*DATABASE_URL:migrationDatabaseUrl,\s*EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor\.databaseId,\s*EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding\.liveDatabaseFingerprint,\s*HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding\.challenge\s*\}\)/s);
 assert.match(productionSchemaGate,/RUNTIME_DATABASE_URL:runtimeDatabaseUrl/);
 assert.doesNotMatch(productionSchemaGate,/childEnvironment\(\{[^}]*MIGRATION_DATABASE_URL/s,"migration credential must never enter a child environment");
 assert.ok(productionSchemaGate.indexOf('run("db:verify-migration-transport"')<productionSchemaGate.indexOf('run("db:migrate"'),"migration TLS evidence must precede migration acceptance");
 assert.ok(productionSchemaGate.indexOf('run("db:verify-runtime-transport"')<productionSchemaGate.indexOf("const binding=await establishReleaseTargetBinding"),"runtime TLS evidence must precede release-target binding");
-for(const required of ["establishReleaseTargetBinding","release_target_nonce","::add-mask::","GITHUB_OUTPUT","NODE_TLS_REJECT_UNAUTHORIZED","PGOPTIONS","PGSSLMODE","test:runtime-db-principal"]){assert.match(productionSchemaGate,new RegExp(required),`production schema gate must include ${required}`);}
-assert.match(productionSchemaGate,/test:runtime-db-principal/);
+const preMigrationBindingCall='await verifyPreMigrationTargetBinding({';
+assert.ok(productionSchemaGate.indexOf('run("db:verify-runtime-transport"')<productionSchemaGate.indexOf(preMigrationBindingCall),"both live TLS proofs must precede the pre-migration cross-credential challenge");
+assert.ok(productionSchemaGate.indexOf(preMigrationBindingCall)<productionSchemaGate.indexOf('run("db:migrate:preflight"'),"cross-credential live target proof must precede even the read-only migration preflight");
+assert.ok(productionSchemaGate.indexOf(preMigrationBindingCall)<productionSchemaGate.indexOf('run("db:migrate"'),"cross-credential live target proof must precede every authentication or application migration");
+assert.ok(productionSchemaGate.indexOf('run("db:migrate"')<productionSchemaGate.indexOf("preMigrationBinding.release()"),"held live target proof must remain open throughout schema mutation");
+for(const required of ["verifyPreMigrationTargetBinding","expectedProductionTargetAnchor","assertApprovedDatabaseEndpoints","EXPECTED_PRODUCTION_TARGET_TOKEN","EXPECTED_PRODUCTION_DATABASE_ID","EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256","EXPECTED_LIVE_DATABASE_FINGERPRINT","HELD_PRE_MIGRATION_DATABASE_CHALLENGE","establishReleaseTargetBinding","release_target_nonce","::add-mask::","GITHUB_OUTPUT","NODE_TLS_REJECT_UNAUTHORIZED","PGOPTIONS","PGSSLMODE","db:verify-runtime-principal"]){assert.match(productionSchemaGate,new RegExp(required),`production schema gate must include ${required}`);}
+assert.doesNotMatch(productionSchemaGate,/test:runtime-db-principal|CONTROL_DATABASE_URL/,"production schema gating must use the read-only runtime verifier and never receive owner authority for mutation fixtures");
 const productionEnvironmentCheck=fs.readFileSync(path.join(root,"scripts/production-env-check.mjs"),"utf8");
 assert.match(productionEnvironmentCheck,/MIGRATION_DATABASE_URL must remain a protected CI-only secret/);
 for(const required of ["sslmode=verify-full","NODE_TLS_REJECT_UNAUTHORIZED","PGOPTIONS","PGSSLMODE"]){assert.match(productionEnvironmentCheck,new RegExp(required),`production environment gate must enforce ${required}`);}
 const postdeploy=fs.readFileSync(path.join(root,"scripts/production-postdeploy-check.mjs"),"utf8");
 for(const required of ["runtimeDatabasePrincipalPassed","runtimeDatabaseTransportPassed","releaseTargetBindingPassed","exactMigrationReceiptsPassed","RELEASE_TARGET_NONCE","x-contracttwin-release-target-nonce","Cache-Control","no-cache","cache:\"no-store\"","non-apex vercel.app HTTPS URL"]){assert.match(postdeploy,new RegExp(required),`postdeploy gate must include ${required}`);}
 const deploymentWorkflow=fs.readFileSync(path.join(root,"..",".github","workflows","commercial-legal-cockpit-vercel.yml"),"utf8");
+const sourceEligibility=fs.readFileSync(path.join(root,"scripts","production-source-eligibility-check.mjs"),"utf8");
+assert.match(sourceEligibility,/evidence-kernel-blockers\.json/,"production eligibility must read the same source blocker policy as runtime readiness");
+assert.match(sourceEligibility,/if\(policy\.blockers\.length\)/,"any known source blocker must fail the production mutation gate");
 const migrationSecretLines=deploymentWorkflow.split(/\r?\n/).filter(line=>line.includes("MIGRATION_DATABASE_URL"));
 assert.equal(migrationSecretLines.length,1,"migration credential must appear in exactly one production workflow step");
 assert.match(migrationSecretLines[0],/MIGRATION_DATABASE_URL:\s*\$\{\{ secrets\.MIGRATION_DATABASE_URL \}\}/);
+assert.doesNotMatch(deploymentWorkflow,/PRODUCTION_DATABASE_BOOTSTRAP_URL|EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256/,"routine release must never receive bootstrap-only authority");
 assert.match(deploymentWorkflow,/cancel-in-progress:\s*false/,"release workflows must serialize instead of interrupting an in-flight migration and promotion protocol");
+assert.match(deploymentWorkflow,/group:\s*contracttwin-production-database/,"production mutation must share the target-bootstrap concurrency lock");
+for(const secretName of ["EXPECTED_PRODUCTION_TARGET_TOKEN","EXPECTED_PRODUCTION_DATABASE_ID","EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256"]){
+  assert.match(deploymentWorkflow,new RegExp(`${secretName}:\\s*\\$\\{\\{ secrets\\.${secretName} \\}\\}`),`production release must receive protected ${secretName}`);
+}
 assert.ok(deploymentWorkflow.indexOf("- name: Build production")<deploymentWorkflow.indexOf("- name: Apply and verify exact target database migrations"),"production build must succeed before the production database is mutated");
+assert.ok(deploymentWorkflow.indexOf("- name: Fail closed before any production database mutation while source blockers remain")<deploymentWorkflow.indexOf("- name: Apply and verify exact target database migrations"),"implemented-capability blockers must stop the release before any target migration");
 assert.ok(deploymentWorkflow.indexOf("- name: Apply and verify exact target database migrations")<deploymentWorkflow.indexOf("- name: Stage production build"),"schema target binding must remain immediately upstream of staging");
 assert.match(deploymentWorkflow,/CONTRACTTWIN_RELEASE_SHA:\s*\$\{\{ github\.sha \}\}/,"build must bind the exact approved source SHA");
 assert.match(deploymentWorkflow,/--env CONTRACTTWIN_RELEASE_SHA="\$GITHUB_SHA"/,"prebuilt deployment must receive the exact approved runtime source SHA");
@@ -219,11 +270,30 @@ for(const stepName of ["Install pinned Vercel CLI","Apply and verify exact targe
 for(const workflowName of ["commercial-legal-cockpit.yml","commercial-legal-cockpit-vercel.yml","contracttwin-release-attestation.yml"]){
   const workflow=fs.readFileSync(path.join(root,"..",".github","workflows",workflowName),"utf8");
   assert.match(workflow,/CI_RUNTIME_ROLE_PROVISIONING: disposable-postgres-service/,`${workflowName} must explicitly constrain disposable runtime-role provisioning`);
+  assert.match(workflow,/CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service/,`${workflowName} must explicitly constrain disposable database-control fixtures`);
   assert.match(workflow,/RUNTIME_DATABASE_URL:\s*\$\{\{ steps\.ci-runtime\.outputs\.runtime_database_url \}\}/,`${workflowName} must pass only the masked disposable runtime URL into database-control acceptance`);
 }
+const targetAnchorSource=fs.readFileSync(path.join(root,"scripts/production-target-anchor.mjs"),"utf8");
+for(const required of ["contracttwin_control.production_target_binding","hashProductionTargetToken","databaseEndpointSha256","assertProductionTargetAnchor","schema_owner","table_owner","schema_create","table_update","scope_clean","column_acl_clean"]){assert.match(targetAnchorSource,new RegExp(required),`external target anchor must include ${required}`);}
+const targetBootstrapSource=fs.readFileSync(path.join(root,"scripts/production-target-bootstrap.mjs"),"utf8");
+assert.ok(targetBootstrapSource.indexOf("assertApprovedDatabaseEndpoints")<targetBootstrapSource.indexOf("verifyPreMigrationTargetBinding"),"bootstrap endpoint approval must precede database proof");
+assert.ok(targetBootstrapSource.indexOf("assertPristineProductionBootstrapTarget")<targetBootstrapSource.indexOf("create schema contracttwin_control"),"bootstrap must prove a pristine target before creating its anchor");
+assert.ok(targetBootstrapSource.indexOf("assertHeldPreMigrationTargetChallenge(bootstrapClient")<targetBootstrapSource.indexOf("create schema contracttwin_control"),"bootstrap mutator must prove the held live target in its exact transaction");
+assert.doesNotMatch(targetBootstrapSource,/db:migrate|vercel (?:build|deploy|promote)/,"target bootstrap must stop without application migration or deployment");
+const targetBootstrapWorkflow=fs.readFileSync(path.join(root,"..",".github","workflows","contracttwin-production-target-bootstrap.yml"),"utf8");
+assert.match(targetBootstrapWorkflow,/environment:\s*contracttwin-production-bootstrap/,"bootstrap credential must use its own protected environment");
+assert.match(targetBootstrapWorkflow,/group:\s*contracttwin-production-database/,"bootstrap must share the production database mutation lock");
+assert.match(targetBootstrapWorkflow,/PRODUCTION_DATABASE_BOOTSTRAP_URL:\s*\$\{\{ secrets\.PRODUCTION_DATABASE_BOOTSTRAP_URL \}\}/);
+assert.match(targetBootstrapWorkflow,/MIGRATION_DATABASE_URL:\s*\$\{\{ secrets\.MIGRATION_DATABASE_URL \}\}/);
+for(const secretName of ["EXPECTED_PRODUCTION_TARGET_TOKEN","EXPECTED_PRODUCTION_DATABASE_ID","EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256"]){
+  assert.match(targetBootstrapWorkflow,new RegExp(`${secretName}:\\s*\\$\\{\\{ secrets\\.${secretName} \\}\\}`),`target bootstrap must receive protected ${secretName}`);
+}
+assert.match(targetBootstrapWorkflow,/node scripts\/production-target-bootstrap\.mjs/);
+assert.doesNotMatch(targetBootstrapWorkflow,/npm run db:migrate|vercel (?:build|deploy|promote)/,"bootstrap workflow must create only the target anchor");
 const vercelConfiguration=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8"));
 assert.equal(vercelConfiguration?.git?.deploymentEnabled,false,"Vercel Git auto-deployments must remain disabled so production promotion cannot bypass the approval-gated CLI workflow");
 const exampleEnvironment=fs.readFileSync(path.join(root,".env.example"),"utf8");
 assert.doesNotMatch(exampleEnvironment,/^MIGRATION_DATABASE_URL=/m,"migration credential must never be presented as a Vercel/runtime environment setting");
+for(const protectedName of ["PRODUCTION_DATABASE_BOOTSTRAP_URL","EXPECTED_PRODUCTION_TARGET_TOKEN","EXPECTED_PRODUCTION_DATABASE_ID","EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256","EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256"]){assert.doesNotMatch(exampleEnvironment,new RegExp(`^${protectedName}=`,`m`),`${protectedName} must not be presented as a Vercel/runtime environment setting`);}
 
 console.log("Security-boundary checks passed: malware gate, authority derivation, canonical state hash, durable analysis, controlled purge, snapshot provenance, exact-schema fingerprints, and split least-privilege runtime database identity.");

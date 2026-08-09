@@ -44,12 +44,16 @@ public_sequences as (
    where n.nspname='public' and c.relkind='S'
 ),
 protected_release_tables(relname) as (
-  values ('release_database_identity'),('release_target_receipts')
+  values ('release_database_identity'),('release_database_external_identity'),('release_target_receipts')
 )
 select session_user::text session_user_name,current_user::text current_user_name,
        session_user=current_user identities_match,
        not exists(select 1 from identities i where i.rolsuper or i.rolcreaterole or i.rolcreatedb or i.rolreplication or i.rolbypassrls) role_attributes_safe,
        not exists(select 1 from identities i join pg_catalog.pg_roles r on r.oid<>i.oid and pg_catalog.pg_has_role(i.oid,r.oid,'MEMBER')) role_membership_safe,
+       not exists(
+         select 1 from identities i join pg_catalog.pg_roles candidate on candidate.oid<>i.oid
+          where not candidate.rolsuper and pg_catalog.pg_has_role(candidate.oid,i.oid,'MEMBER')
+       ) inbound_role_membership_safe,
        not exists(select 1 from identities i cross join owner_roles o where pg_catalog.pg_has_role(i.oid,o.owner_oid,'MEMBER')) owner_membership_safe,
        not exists(select 1 from identities i join dangerous_roles d on true join pg_catalog.pg_roles r on r.rolname=d.role_name where pg_catalog.pg_has_role(i.oid,r.oid,'MEMBER')) dangerous_membership_safe,
        not exists(select 1 from identities i where pg_catalog.has_database_privilege(i.rolname,pg_catalog.current_database(),'CREATE')) database_create_safe,
@@ -76,7 +80,7 @@ select session_user::text session_user_name,current_user::text current_user_name
        ) approved_runtime_functions_ready,
        not exists(
          select 1 from identities i cross join public_tables t
-           where t.relname not in ('schema_migrations','release_database_identity','release_target_receipts') and (
+           where t.relname not in ('schema_migrations','release_database_identity','release_database_external_identity','release_target_receipts') and (
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'SELECT') or
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'INSERT') or
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'UPDATE') or
@@ -117,7 +121,7 @@ select session_user::text session_user_name,current_user::text current_user_name
           )
         ) and not exists(
           select 1 from identities i cross join public_tables t
-           where t.relname in ('release_database_identity','release_target_receipts') and (
+           where t.relname in ('release_database_identity','release_database_external_identity','release_target_receipts') and (
              not pg_catalog.has_table_privilege(i.rolname,t.oid,'SELECT') or
              pg_catalog.has_table_privilege(i.rolname,t.oid,'INSERT') or pg_catalog.has_table_privilege(i.rolname,t.oid,'UPDATE') or
              pg_catalog.has_table_privilege(i.rolname,t.oid,'DELETE') or pg_catalog.has_table_privilege(i.rolname,t.oid,'TRUNCATE') or
@@ -131,7 +135,7 @@ select session_user::text session_user_name,current_user::text current_user_name
 `;
 
 export const REQUIRED_RUNTIME_DATABASE_PRINCIPAL_FIELDS=[
-  "identities_match","role_attributes_safe","role_membership_safe","owner_membership_safe","dangerous_membership_safe",
+  "identities_match","role_attributes_safe","role_membership_safe","inbound_role_membership_safe","owner_membership_safe","dangerous_membership_safe",
   "database_create_safe","database_temp_safe","schema_create_safe","application_function_execute_safe",
   "approved_runtime_functions_ready","application_table_dml_ready","application_sequence_privileges_safe",
   "table_trigger_safe","table_truncate_safe","table_references_safe","table_maintain_safe",

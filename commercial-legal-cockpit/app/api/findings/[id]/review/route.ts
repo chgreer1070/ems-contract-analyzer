@@ -1,4 +1,4 @@
-import { accessErrorResponse, requireResourceMatterAccess } from "@/lib/access";
+import { AccessError, accessErrorResponse, requireResourceMatterAccess } from "@/lib/access";
 import { databaseConfigured, withTransaction } from "@/lib/db";
 import { internalErrorResponse } from "@/lib/safeErrors";
 
@@ -24,6 +24,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const locked=await client.query<{review_status:string}>("select review_status from findings where id=$1 and matter_id=$2 for update",[id,matterId]);
       if(!locked.rows[0])throw new Error("Finding disappeared during review.");
       if(locked.rows[0].review_status!=="UNREVIEWED")return null;
+      const counselAuthority=await client.query(
+        "select 1 from app_user_capabilities where user_id=$1 and capability='LEGAL_COUNSEL_ATTEST' and active=true for share",
+        [principal.userId]
+      );
+      if(counselAuthority.rowCount!==1){
+        throw new AccessError("Active legal-counsel attestation authority is required at disposition time.",403);
+      }
       const result=await client.query<{ id: string; review_status: string; reviewed_at: string }>(`update findings set review_status=$3,reviewed_by=$4,reviewed_at=now(),review_note=$5 where id=$1 and matter_id=$2 returning id,review_status,reviewed_at`,[id,matterId,status,principal.userId,note]);
       await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values($1,$2,'FINDING_REVIEWED',$3,'finding',$4,$5::jsonb)`,[principal.userId,principal.name,matterId,id,JSON.stringify({from:locked.rows[0].review_status,to:status,noteRecorded:true})]);
       return result;

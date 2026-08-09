@@ -11,6 +11,10 @@
     { "filename": "007_version_scoped_lifecycle.sql", "sha256": "6f2093367d81d9193ef3ceef9fc1e1e25e5dc2fc9497f31c2aff4553275aaf4b" },
     { "filename": "008_analysis_review_attestations.sql", "sha256": "0e265ef73cfb3e515af67ea92fda0458120ce25bce85f77ab70d06bae45bddee" },
     { "filename": "009_executive_snapshot_receipts.sql", "sha256": "9f7d6e67a1d9f9bb73d2a13e8d3f84aa398f2a2479780615a5b285c4feb9ca3f" },
-    { "filename": "010_release_target_binding.sql", "sha256": "6e91ce24ddece5e58a25075a36b38b9b043b4af4026a258d1161e6198e21d8f0" }
+    { "filename": "010_release_target_binding.sql", "sha256": "6e91ce24ddece5e58a25075a36b38b9b043b4af4026a258d1161e6198e21d8f0" },
+    { "filename": "011_authority_evidence_hardening.sql", "sha256": "f3c975d5201e6591287f028425568a8d780b8e49895cc22fcf3c84cae6e83b9c" },
+    { "filename": "012_processing_job_lease_fencing.sql", "sha256": "3effd8f180b433311984ed0a279774ad6c0b627a21c3280993ecb60eb858bbb6" },
+    { "filename": "013_decision_economics_evidence.sql", "sha256": "e4575582695f308b017b30f5fba80fd0868e26276c3cb6568d1d43dbf1f68928" },
+    { "filename": "014_release_database_external_identity.sql", "sha256": "90b4ba8a08063864551eac1b7a0a03e9f22ee97374dde1bd0feb11e09cd9b8e0" }
   ]
 }

@@ -9,7 +9,7 @@ const required = [
   "decisions","economics_runs","audit_events","agreement_versions","agreement_version_documents","document_relations","contract_terms",
   "term_dependencies","processing_jobs","analysis_runs","validation_cases","validation_runs","validation_results","executive_snapshots",
   "legal_hold_events","purge_requests","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies",
-  "release_database_identity","release_target_receipts"
+  "release_database_identity","release_database_external_identity","release_target_receipts"
 ];
 const missing = required.filter((name) => !new RegExp(`create table(?: if not exists)?\\s+(?:public\\.)?${name}\\b`, "i").test(sql));
 const controls = [

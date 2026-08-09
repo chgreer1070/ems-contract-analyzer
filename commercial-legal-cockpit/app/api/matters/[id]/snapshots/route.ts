@@ -19,13 +19,18 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
     if(!readiness)throw new Error("Legal-reliance evidence is unavailable.");
     const requestedRelianceEvidence=legalRelianceEvidence(readiness);
     const requestedRelianceHash=canonicalStateHash(requestedRelianceEvidence);
-    const agreement=(await query<{id:string}>(`select id from agreement_versions where matter_id=$1 and status in ('APPROVED','EXECUTED') order by case status when 'EXECUTED' then 0 else 1 end,version_number desc limit 1`,[matterId])).rows[0];
-    if(!agreement)return Response.json({ok:false,error:"Approve an agreement version before generating an executive snapshot."},{status:409});
+    const agreement=(await query<{id:string;authoritative_economics_run_id:string}>(`
+      select id,authoritative_economics_run_id
+        from agreement_versions
+       where matter_id=$1 and status in ('APPROVED','EXECUTED')
+         and evidence_protocol_version>=1 and authoritative_economics_run_id is not null
+       order by case status when 'EXECUTED' then 0 else 1 end,version_number desc limit 1`,[matterId])).rows[0];
+    if(!agreement)return Response.json({ok:false,error:"Lock a protocol-1 agreement version with explicitly selected authoritative economics before generating an executive snapshot."},{status:409});
     const sourceCheck=(await query<{document_count:number;invalid_count:number}>(`select count(*)::int document_count,count(*) filter(where d.deletion_status<>'ACTIVE' or d.security_scan_status<>'CLEAN' or d.integrity_status<>'SERVER_VERIFIED' or d.extraction_status<>'EXTRACTED' or d.sha256 is null or d.server_sha256 is null or lower(d.sha256)<>lower(d.server_sha256))::int invalid_count from agreement_version_documents avd join documents d on d.id=avd.document_id where avd.agreement_version_id=$1`,[agreement.id])).rows[0];
     if(!sourceCheck?.document_count)return Response.json({ok:false,error:"The approved agreement version has no source documents."},{status:409});
     if(sourceCheck.invalid_count)return Response.json({ok:false,error:`${sourceCheck.invalid_count} agreement source document(s) are not clean, extracted, hash-verified, and active.`},{status:409});
-    const economics=(await query<{id:string}>("select id from economics_runs where matter_id=$1 and agreement_version_id=$2 and formula_version=$3 and review_status='VALIDATED' order by created_at desc,id desc limit 1",[matterId,agreement.id,ECONOMICS_FORMULA_VERSION])).rows[0];
-    if(!economics)return Response.json({ok:false,error:"Validate a version-scoped economics scenario for the selected agreement version before generating an executive snapshot."},{status:409});
+    const economics=(await query<{id:string}>("select id from economics_runs where id=$4::uuid and matter_id=$1 and agreement_version_id=$2 and formula_version=$3 and review_status='VALIDATED'",[matterId,agreement.id,ECONOMICS_FORMULA_VERSION,agreement.authoritative_economics_run_id])).rows[0];
+    if(!economics)return Response.json({ok:false,error:"The selected agreement version's authoritative economics evidence is not validated on the current formula."},{status:409});
     const state=await query<{audit_id:string}>(`select coalesce((select max(id)::text from audit_events where matter_id=$1),'0') audit_id`,[matterId]);
     const requestedAuditId=state.rows[0].audit_id;
     const sourceKey=`${agreement.id}:${economics.id}:${requestedAuditId}`;

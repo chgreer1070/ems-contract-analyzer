@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "blockers": [
+    "structure-preserving extraction and full-package coverage receipts are not implemented",
+    "all relied-on analysis stages lack representative artifact-bound legal validation",
+    "execution artifact authenticity and independent execution certification are not implemented",
+    "finance evidence/assumption lineage and the delegated multi-function authority matrix are not implemented",
+    "source-scoped provider processing authorization manifests are not implemented",
+    "the approved 41-section EMS taxonomy, financial-risk methods, and Top-10 cascade coverage are not implemented as governed validation gates",
+    "the mixed-bundle decision, economics, and snapshot evidence rollout has not completed its drain and contract-enforcement phase"
+  ]
+}

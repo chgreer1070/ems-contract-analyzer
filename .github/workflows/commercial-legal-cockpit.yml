@@ -55,7 +55,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Check database controls
         run: npm run db:check
-      - name: Apply Better Auth and ContractTwin migrations
+      - name: Apply ContractTwin and Better Auth migrations
         run: npm run db:migrate
       - name: Verify migrations are idempotent
         run: npm run db:migrate
@@ -67,6 +67,7 @@ jobs:
       - name: Prove database control invariants
         env:
           RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
+          CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service
         run: npm run test:db-controls
       - name: Prove application control boundaries
         run: npm run test:controls

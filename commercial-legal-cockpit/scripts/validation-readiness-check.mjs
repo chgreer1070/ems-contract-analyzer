@@ -25,6 +25,7 @@ function loadTypeScriptModule(relativePath,mocks){
 }
 
 const corpus=JSON.parse(fs.readFileSync(path.join(repo,"validation/frozen-ems-regression.json"),"utf8"));
+const evidenceKernelPolicy=JSON.parse(fs.readFileSync(path.join(repo,"lib/evidence-kernel-blockers.json"),"utf8"));
 const validation=loadTypeScriptModule("lib/validation.ts",{
   "@/validation/frozen-ems-regression.json":corpus,
   "@/lib/analysisEngine":{analyzeContractText:async()=>{throw new Error("not used");},sourceContainsExcerpt:()=>true}
@@ -104,6 +105,7 @@ assert.equal(activationSql.length,1,"activation must stop before mutating siblin
 
 const engineManifest={modelName:"model-current",clauseRisk:{promptVersion:"clause-prompt",schemaVersion:"clause-schema"},termExtraction:{promptVersion:"term-prompt",schemaVersion:"term-schema"},dependency:{promptVersion:"dependency-prompt",schemaVersion:"dependency-schema"},precedence:{promptVersion:"precedence-prompt",schemaVersion:"precedence-schema"},agreementGraphVersion:"graph-v1",economicsFormulaVersion:"economics-v1",pipelineVersion:"pipeline-v1"};
 const readiness=loadTypeScriptModule("lib/readiness.ts",{
+  "@/lib/evidence-kernel-blockers.json":evidenceKernelPolicy,
   "@/lib/auth":{authenticationRequired:()=>true,isMicrosoftConfigured:()=>true},
   "@/lib/db":{databaseConfigured:()=>true,query:async()=>({rows:[]})},
   "@/lib/ocr":{azureOcrConfigured:()=>true},
@@ -113,6 +115,7 @@ const readiness=loadTypeScriptModule("lib/readiness.ts",{
   "@/lib/validation":{getFrozenCorpus:()=>corpus,MIN_FAMILY_RECALL:0.95,REQUIRED_GROUNDED_PRECISION:1,VALIDATION_GATE_VERSION:validation.VALIDATION_GATE_VERSION},
   "@/lib/standards":{REQUIRED_STANDARD_FAMILIES:standards.REQUIRED_STANDARD_FAMILIES,standardGovernanceIssues:standards.standardGovernanceIssues,standardIsRelianceEligible:standards.standardIsRelianceEligible}
 });
+assert.deepEqual(readiness.EVIDENCE_KERNEL_BLOCKERS,evidenceKernelPolicy.blockers,"runtime readiness and pre-mutation production policy must use one exact blocker registry");
 const current={model:"model-current",promptVersion:"prompt-current",corpusVersion:corpus.version,totalCases:corpus.cases.length};
 const passingEvidence={
   id:"run",status:"PASSED",model_name:current.model,prompt_version:current.promptVersion,corpus_version:current.corpusVersion,
@@ -133,6 +136,7 @@ try{
   const policyRows=[["CLAUSE_RISK",engineManifest.clauseRisk,null],["TERM_EXTRACTION",engineManifest.termExtraction,null],["DEPENDENCY",engineManifest.dependency,engineManifest.agreementGraphVersion],["PRECEDENCE",engineManifest.precedence,engineManifest.agreementGraphVersion]].map(([scope,stage,graphVersion],index)=>({id:`policy-${index}`,scope_type:scope,policy_version:"policy-v1",model_name:engineManifest.modelName,prompt_version:stage.promptVersion,schema_version:stage.schemaVersion,graph_version:graphVersion,economics_formula_version:engineManifest.economicsFormulaVersion,approved_by:"admin",approved_at:new Date().toISOString()}));
   let readinessQueryCount=0;
   const readinessWithEvidence=loadTypeScriptModule("lib/readiness.ts",{
+    "@/lib/evidence-kernel-blockers.json":evidenceKernelPolicy,
     "@/lib/auth":{authenticationRequired:()=>true,isMicrosoftConfigured:()=>true},
     "@/lib/db":{databaseConfigured:()=>true,query:async(text)=>{readinessQueryCount+=1;if(/negotiation_standards/i.test(text))return {rows:governedRows};if(/validation_results/i.test(text))return {rows:Array.from({length:current.totalCases},(_,index)=>({validation_case_id:`case-${index}`}))};if(/analysis_engine_policies/i.test(text))return {rows:policyRows};return {rows:[passingEvidence]};}},
     "@/lib/ocr":{azureOcrConfigured:()=>true},
@@ -149,7 +153,12 @@ try{
   assert.equal(readinessQueryCount,4);
   assert.equal(productionReadiness.validationPassed,true);
   assert.equal(productionReadiness.standardsReady,true);
-  assert.equal(productionReadiness.legalRelianceReady,true,"complete current evidence and governed standards should remain reliance-ready");
+  assert.equal(productionReadiness.enginePoliciesReady,true);
+  assert.equal(productionReadiness.evidenceKernelReady,false,"known implemented-capability gaps must block legal reliance even when configuration evidence passes");
+  assert.ok(productionReadiness.evidenceKernelBlockers.length>=6);
+  assert.ok(productionReadiness.evidenceKernelBlockers.some(blocker=>blocker.includes("provider processing authorization")));
+  assert.ok(productionReadiness.evidenceKernelBlockers.some(blocker=>blocker.includes("41-section EMS taxonomy")));
+  assert.equal(productionReadiness.legalRelianceReady,false,"configuration and synthetic validation cannot overstate production legal reliance");
   const originalPolicy=policyRows[0];
   policyRows[0]={...originalPolicy,model_name:"unapproved-model"};
   const policyMismatchBlocked=await readinessWithEvidence.getSystemReadiness({includePersistentEvidence:true});

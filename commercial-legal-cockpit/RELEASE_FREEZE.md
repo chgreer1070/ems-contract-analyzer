@@ -6,7 +6,7 @@ This file defines what a future ContractTwin release freeze must mean. Its prese
 
 The candidate is intended to include the production-oriented application, identity and authorization model, private source-document evidence chain, ClamAV quarantine gate, durable processing workflows, atomic source-grounded analysis publication, contract graph, deterministic economics, governed negotiation standards, documented human review, independently dispositioned approvals, agreement versioning, explicitly generated state-bound executive snapshots, records governance, legal holds, two-phase controlled purge, audit history, validation framework, security controls, CI, CodeQL and guarded Vercel release automation.
 
-Every migration through `010_release_target_binding.sql` is part of this scope and must travel with the matching application and worker code. Migration `010` adds immutable database identity, append-only release-target receipts and pinned trigger-function search paths. The full document pipeline ends after precedence analysis; it does not automatically generate an executive snapshot. A separately requested snapshot is reliance-capable only when its immutable successful generator receipt binds the authorized requester, exact agreement/economics/reliance preimage and canonical state hash.
+Every migration through `014_release_database_external_identity.sql` is part of this scope and must travel with the matching application and worker code. Migration `010` adds immutable physical database identity, append-only release-target receipts and pinned trigger-function search paths; `011` adds counsel-authority and decision-rationale evidence; `012` adds monotonic worker lease fencing; `013` adds expand-safe decision/economics evidence protocol storage; and `014` maps the externally approved logical database ID without rewriting migration `010`. The full document pipeline ends after precedence analysis; it does not automatically generate an executive snapshot. A separately requested snapshot is reliance-capable only when its immutable successful generator receipt binds the authorized requester, protocol-1 agreement version, exact authoritative economics/reliance preimage and canonical state hash.
 
 ## Freeze evidence required
 
@@ -14,7 +14,7 @@ A release is frozen only when an attestation records all of the following for on
 
 - exact Git commit SHA and clean source state;
 - locked dependency installation and production dependency audit;
-- Better Auth and ContractTwin migrations through `010` against PostgreSQL 17, including exact ordered filename/hash receipts, idempotent rerun, immutable target identity/per-release binding, database-control checks and live critical-object drift detection;
+- Better Auth and ContractTwin migrations through `014` against PostgreSQL 17, including exact ordered filename/hash receipts, idempotent rerun, immutable physical/logical target identity and per-release binding, database-control checks, counsel-authority and decision-rationale controls, worker-concurrency fencing, and live critical-object drift detection;
 - application access, validation/readiness and security-boundary control checks;
 - frozen corpus and deterministic economics checks;
 - TypeScript, production build and CodeQL results;

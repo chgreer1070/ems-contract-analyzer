@@ -12,6 +12,7 @@ const TRANSITIONS:Record<string,Set<string>>={
   EXECUTED:new Set(["SUPERSEDED"]),
   SUPERSEDED:new Set()
 };
+const UUID_PATTERN=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
 class VersionStateError extends Error{
   constructor(message:string,public status=409){super(message);}
@@ -21,10 +22,20 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
   try{
     if(!databaseConfigured())return Response.json({ok:false,error:"Agreement version status requires DATABASE_URL."},{status:503});
     const {id}=await context.params;
-    const body=await request.json() as {status?:string};
+    const body=await request.json() as {status?:string;authoritativeEconomicsRunId?:string|null};
     const nextStatus=String(body.status??"").toUpperCase();
     if(!new Set(["APPROVED","EXECUTED","SUPERSEDED"]).has(nextStatus)){
       return Response.json({ok:false,error:"status must be APPROVED, EXECUTED, or SUPERSEDED."},{status:400});
+    }
+    const requestedAuthoritativeEconomicsRunId=String(body.authoritativeEconomicsRunId??"").trim()||null;
+    if(nextStatus==="APPROVED"&&!requestedAuthoritativeEconomicsRunId){
+      return Response.json({ok:false,error:"authoritativeEconomicsRunId is required when locking an agreement version."},{status:400});
+    }
+    if(requestedAuthoritativeEconomicsRunId&&!UUID_PATTERN.test(requestedAuthoritativeEconomicsRunId)){
+      return Response.json({ok:false,error:"authoritativeEconomicsRunId must be a valid UUID."},{status:400});
+    }
+    if(nextStatus!=="APPROVED"&&requestedAuthoritativeEconomicsRunId){
+      return Response.json({ok:false,error:"authoritativeEconomicsRunId may be selected only during the WORKING to APPROVED transition."},{status:400});
     }
     const {principal,matterId}=await requireResourceMatterAccess(request,"AGREEMENT_VERSION",id,"APPROVE");
     if(nextStatus==="APPROVED"||nextStatus==="EXECUTED")await assertLegalRelianceReady({requireEnabled:true});
@@ -49,8 +60,12 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         throw new AccessError("Resource not found or access denied.",404);
       }
 
-      const current=(await client.query<{matter_id:string;status:string}>(
-        "select matter_id,status from agreement_versions where id=$1 and matter_id=$2 for update",
+      const current=(await client.query<{
+        matter_id:string;status:string;authoritative_economics_run_id:string|null;
+        authoritative_economics_selected_by:string|null;authoritative_economics_selected_at:string|null;
+        evidence_protocol_version:number;
+      }>(
+        "select matter_id,status,authoritative_economics_run_id,authoritative_economics_selected_by,authoritative_economics_selected_at,evidence_protocol_version from agreement_versions where id=$1 and matter_id=$2 for update",
         [id,matterId]
       )).rows[0];
       if(!current)throw new VersionStateError("Agreement version is no longer available.",404);
@@ -92,6 +107,17 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         if(competing){
           throw new VersionStateError("Only one successor may be APPROVED at a time; supersede the other approved successor first.");
         }
+        const formulaVersion=currentEngineManifest().economicsFormulaVersion;
+        const authoritativeEconomics=(await client.query<{id:string}>(`
+          select id from economics_runs
+           where id=$1::uuid and matter_id=$2 and agreement_version_id=$3
+             and formula_version=$4 and review_status='VALIDATED'
+           for share`,
+          [requestedAuthoritativeEconomicsRunId,current.matter_id,id,formulaVersion]
+        )).rows[0];
+        if(!authoritativeEconomics){
+          throw new VersionStateError("The explicitly selected authoritative economics run must be validated, current-formula, and bound to this exact agreement version.");
+        }
       }
 
       let supersededExecutedVersionIds:string[]=[];
@@ -120,13 +146,17 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         const precedenceHash=canonicalStateHash(precedenceInputs);
         const precedenceReceipt=(await client.query<{id:string}>(`select pj.id from processing_jobs pj join analysis_review_attestations ara on ara.processing_job_id=pj.id and ara.scope_type='PRECEDENCE' where pj.matter_id=$1 and pj.job_type='PRECEDENCE' and pj.status='SUCCEEDED' and pj.input->>'agreementVersionId'=$2 and pj.input->>'graphVersion'=$3 and pj.output->'sourceDocumentIds'=$4::jsonb and pj.output->>'modelName'=$5 and pj.output->>'promptVersion'=$6 and pj.output->>'schemaVersion'=$7 and pj.output->>'inputHash'=$8 and pj.output->>'rejectedCandidateCount'='0' order by pj.finished_at desc,pj.id desc limit 1`,[current.matter_id,id,engine.agreementGraphVersion,JSON.stringify(documentIds),engine.modelName,engine.precedence.promptVersion,engine.precedence.schemaVersion,precedenceHash])).rows[0];
         if(!precedenceReceipt)throw new VersionStateError("Execution requires an exact, rejection-free, counsel-attested precedence receipt for this agreement version.");
+        if(current.evidence_protocol_version<1||!current.authoritative_economics_run_id){
+          throw new VersionStateError("Execution requires a protocol-1 locked agreement version with explicitly selected authoritative economics.");
+        }
         const validatedEconomics=(await client.query<{id:string}>(`
           select id from economics_runs
-           where matter_id=$2 and agreement_version_id=$1 and formula_version=$3 and review_status='VALIDATED'
-           order by created_at desc,id desc limit 1`,[id,current.matter_id,engine.economicsFormulaVersion]
+           where id=$4::uuid and matter_id=$2 and agreement_version_id=$1
+             and formula_version=$3 and review_status='VALIDATED'`,
+          [id,current.matter_id,engine.economicsFormulaVersion,current.authoritative_economics_run_id]
         )).rows[0];
         if(!validatedEconomics){
-          throw new VersionStateError("Validate an economics run for this exact agreement version before execution.");
+          throw new VersionStateError("The agreement version's authoritative economics selection is no longer valid for the current formula.");
         }
 
         const pendingDecisions=(await client.query<{count:number}>(`
@@ -136,12 +166,26 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         if(pendingDecisions){
           throw new VersionStateError(`${pendingDecisions} pending decision(s) for this agreement version must be resolved before execution.`);
         }
+        const blockingDispositions=(await client.query<{count:number}>(`
+          select count(*)::int count from decisions
+           where agreement_version_id=$1 and decision_status='APPROVED'
+             and evidence_protocol_version>=1 and economics_run_id=$2::uuid
+             and decision_type in ('NEGOTIATE','ESCALATE','REJECT')
+             and char_length(btrim(coalesce(disposition_note,''))) between 12 and 4000`,
+          [id,validatedEconomics.id]
+        )).rows[0]?.count??0;
+        if(blockingDispositions){
+          throw new VersionStateError(`${blockingDispositions} effective NEGOTIATE, ESCALATE, or REJECT disposition(s) block execution.`);
+        }
         const pendingConditions=(await client.query<{count:number}>(`
           select count(*)::int count
             from decision_conditions dc
             join decisions d on d.id=dc.decision_id
            where d.agreement_version_id=$1 and d.decision_status='APPROVED'
-             and dc.condition_status='PENDING'`,[id]
+             and d.evidence_protocol_version>=1
+             and d.economics_run_id=$2::uuid
+             and char_length(btrim(coalesce(d.disposition_note,''))) between 12 and 4000
+             and dc.condition_status='PENDING'`,[id,validatedEconomics.id]
         )).rows[0]?.count??0;
         if(pendingConditions){
           throw new VersionStateError(`${pendingConditions} approved-decision condition(s) must be satisfied or waived before execution.`);
@@ -170,15 +214,18 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
             select distinct d.finding_id
               from decisions d
              where d.agreement_version_id=$1 and d.finding_id is not null
-               and d.decision_status='APPROVED'
-               and d.decision_type in ('ACCEPT','APPROVE_EXCEPTION')
+                and d.decision_status='APPROVED'
+                and d.evidence_protocol_version>=1
+                and d.decision_type in ('ACCEPT','APPROVE_EXCEPTION')
+                and d.economics_run_id=$3::uuid
+                and char_length(btrim(coalesce(d.disposition_note,''))) between 12 and 4000
           )
           select (select count(*)::int from current_findings where review_status='UNREVIEWED') current_unreviewed_count,
                  count(*)::int required_count,
                  count(*) filter(where a.finding_id is null)::int unauthorized_count
             from required_findings r
             left join authorized_findings a on a.finding_id=r.id`,
-          [id,current.matter_id]
+          [id,current.matter_id,validatedEconomics.id]
         )).rows[0];
         if(authority?.current_unreviewed_count){
           throw new VersionStateError(`${authority.current_unreviewed_count} current finding(s) still require a human disposition before execution.`);
@@ -205,17 +252,31 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         }
       }
 
-      const updated=(await client.query<{id:string;status:string}>(`
-        update agreement_versions set status=$3
-         where id=$1 and matter_id=$2 returning id,status`,
-        [id,matterId,nextStatus]
+      const updated=(await client.query<{
+        id:string;status:string;authoritative_economics_run_id:string|null;
+        authoritative_economics_selected_by:string|null;authoritative_economics_selected_at:string|null;
+        evidence_protocol_version:number;
+      }>(`
+        update agreement_versions
+           set status=$3,
+               authoritative_economics_run_id=case when $3='APPROVED' then $4::uuid else authoritative_economics_run_id end,
+               authoritative_economics_selected_by=case when $3='APPROVED' then $5 else authoritative_economics_selected_by end,
+               authoritative_economics_selected_at=case when $3='APPROVED' then clock_timestamp() else authoritative_economics_selected_at end,
+               evidence_protocol_version=case when $3='APPROVED' then 1 else evidence_protocol_version end
+         where id=$1 and matter_id=$2
+         returning id,status,authoritative_economics_run_id,authoritative_economics_selected_by,authoritative_economics_selected_at,evidence_protocol_version`,
+        [id,matterId,nextStatus,requestedAuthoritativeEconomicsRunId,principal.userId]
       )).rows[0];
       await client.query(`
         insert into audit_events(
           actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata
         ) values($1,$2,'AGREEMENT_VERSION_STATUS_CHANGED',$3,'agreement_version_status',$4,$5::jsonb)`,
         [principal.userId,principal.name,current.matter_id,id,JSON.stringify({
-          from:current.status,to:nextStatus,supersededExecutedVersionIds
+          from:current.status,to:nextStatus,supersededExecutedVersionIds,
+          authoritativeEconomicsRunId:updated.authoritative_economics_run_id,
+          authoritativeEconomicsSelectedBy:updated.authoritative_economics_selected_by,
+          authoritativeEconomicsSelectedAt:updated.authoritative_economics_selected_at,
+          evidenceProtocolVersion:updated.evidence_protocol_version
         })]
       );
       return updated;
