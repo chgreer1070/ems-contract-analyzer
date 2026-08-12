@@ -1,0 +1,13 @@
+const input={annualRevenue:250000000,grossMarginPct:8,paymentDays:90,baselinePaymentDays:45,carryingCostPct:10,inventoryOnHand:18000000,ncnrExposure:6000000,forecastReductionPct:40,warrantyRatePct:.6,terminationCoveragePct:35,liabilityCap:15000000,modeledClaim:28000000};
+const incrementalReceivable=input.annualRevenue*((input.paymentDays-input.baselinePaymentDays)/365);
+const workingCapitalCost=incrementalReceivable*(input.carryingCostPct/100);
+const strandedInventoryExposure=(input.inventoryOnHand+input.ncnrExposure)*(input.forecastReductionPct/100);
+const terminationExposure=strandedInventoryExposure*(1-input.terminationCoveragePct/100);
+const warrantyReserve=input.annualRevenue*(input.warrantyRatePct/100);
+const liabilityCapGap=Math.max(0,input.modeledClaim-input.liabilityCap);
+const total=workingCapitalCost+terminationExposure+warrantyReserve+liabilityCapGap;
+if(Math.abs(incrementalReceivable-30821917.8082)>1) throw new Error('receivable mismatch');
+if(Math.abs(strandedInventoryExposure-9600000)>1) throw new Error('inventory mismatch');
+if(Math.abs(terminationExposure-6240000)>1) throw new Error('termination mismatch');
+if(total<=0) throw new Error('invalid total');
+console.log(JSON.stringify({ok:true,incrementalReceivable,workingCapitalCost,strandedInventoryExposure,terminationExposure,warrantyReserve,liabilityCapGap,total},null,2));

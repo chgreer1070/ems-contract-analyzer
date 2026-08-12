@@ -1,0 +1,56 @@
+name: Commercial Legal Cockpit - CodeQL
+
+on:
+  push:
+    branches:
+      - build/ems-commercial-legal-cockpit
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/commercial-legal-cockpit-codeql.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+  schedule:
+    - cron: '17 9 * * 1'
+
+concurrency:
+  group: commercial-legal-cockpit-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  security-events: write
+  packages: read
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL JavaScript / TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          languages: javascript-typescript
+          source-root: commercial-legal-cockpit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked application dependencies
+        working-directory: commercial-legal-cockpit
+        run: npm ci --no-audit --no-fund
+      - name: Build application
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+        run: npm run build
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          category: '/language:javascript-typescript'

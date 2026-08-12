@@ -1,0 +1,180 @@
+name: ContractTwin Release Attestation
+
+on:
+  push:
+    branches:
+      - build/ems-commercial-legal-cockpit
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/contracttwin-release-attestation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: contracttwin-release-attestation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Full release validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: contracttwin
+          POSTGRES_PASSWORD: contracttwin_ci
+          POSTGRES_DB: contracttwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U contracttwin -d contracttwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://contracttwin:contracttwin_ci@localhost:5432/contracttwin
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Static legal-control schema check
+        run: npm run db:check
+      - name: Apply ContractTwin and Better Auth migrations
+        run: npm run db:migrate
+      - name: Prove migration idempotency
+        run: npm run db:migrate
+      - name: Provision disposable restricted runtime role
+        id: ci-runtime
+        env:
+          CI_RUNTIME_ROLE_PROVISIONING: disposable-postgres-service
+        run: npm run db:provision-ci-runtime
+      - name: Prove database legal-control invariants
+        env:
+          RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
+          CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service
+        run: npm run test:db-controls
+      - name: Prove application control boundaries
+        run: npm run test:controls
+      - name: Validate frozen synthetic EMS corpus
+        run: npm run test:corpus
+      - name: Validate deterministic economics
+        run: npm run test:economics
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production Next.js / Workflow build
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+
+  codeql:
+    name: CodeQL security analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          languages: javascript-typescript
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        working-directory: commercial-legal-cockpit
+        run: npm ci --no-audit --no-fund
+      - name: Build analyzed application
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          category: '/language:javascript-typescript'
+
+  attest:
+    name: Publish release attestation evidence
+    needs: [validate, codeql]
+    if: success() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: build/ems-commercial-legal-cockpit
+          fetch-depth: 0
+      - name: Verify branch still points to tested source
+        shell: bash
+        run: |
+          current="$(git rev-parse HEAD)"
+          if [[ "$current" != "${{ github.sha }}" ]]; then
+            echo "Branch advanced from tested SHA ${{ github.sha }} to $current; refusing stale attestation."
+            exit 1
+          fi
+      - name: Write attestation
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/contracttwin-release-attestation.json" <<EOF
+          {
+            "application": "ContractTwin / EMS Commercial Legal Cockpit",
+            "sourceSha": "${{ github.sha }}",
+            "workflowRunId": "${{ github.run_id }}",
+            "attestedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "lockedDependencies": true,
+            "postgresMigrationApplied": true,
+            "migrationIdempotencyPassed": true,
+            "databaseLegalControlsPassed": true,
+            "applicationControlBoundariesPassed": true,
+            "frozenCorpusStructurePassed": true,
+            "deterministicEconomicsPassed": true,
+            "typescriptPassed": true,
+            "productionDependencyAuditPassed": true,
+            "productionBuildPassed": true,
+            "codeqlPassed": true,
+            "legalRelianceEnabledDuringBuild": false,
+            "sourcePurgeEnabledDuringBuild": false,
+            "productionActivationStillRequiresExternalApprovedInfrastructureAndPolicy": true
+          }
+          EOF
+      - name: Upload immutable run evidence
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contracttwin-release-attestation-${{ github.sha }}
+          path: ${{ runner.temp }}/contracttwin-release-attestation.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Record evidence digest in the run summary
+        shell: bash
+        run: |
+          {
+            echo '## ContractTwin release attestation'
+            echo
+            echo "- Source SHA: \`${GITHUB_SHA}\`"
+            echo "- Artifact digest: \`${{ steps.upload.outputs.artifact-digest }}\`"
+            echo '- Production activation remains externally gated.'
+          } >> "$GITHUB_STEP_SUMMARY"

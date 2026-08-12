@@ -1,0 +1,79 @@
+name: ContractTwin Production Target Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-target:
+    name: Anchor approved production database only
+    runs-on: ubuntu-latest
+    environment: contracttwin-production-bootstrap
+    concurrency:
+      group: contracttwin-production-database
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Require the exact current main source
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if [[ "$GITHUB_REF" != "refs/heads/main" || "$checked_out_sha" != "$GITHUB_SHA" || "$(git rev-parse refs/remotes/origin/main)" != "$GITHUB_SHA" ]]; then
+            echo "Target bootstrap is allowed only from the exact current main source."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies and pinned Vercel CLI
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --global vercel@58.0.0
+      - name: Require bootstrap Vercel configuration
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [[ -z "$VERCEL_TOKEN" || -z "$VERCEL_ORG_ID" || -z "$VERCEL_PROJECT_ID" ]]; then
+            echo "Bootstrap Vercel configuration is incomplete."
+            exit 1
+          fi
+      - name: Pull and validate the production runtime environment
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-target-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}.env
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel env pull "$PRODUCTION_ENV_FILE" --yes --environment=production --token="$VERCEL_TOKEN"
+          node scripts/production-env-check.mjs "$PRODUCTION_ENV_FILE"
+      - name: Create the separately owned external target anchor and stop
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-target-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}.env
+          PRODUCTION_DATABASE_BOOTSTRAP_URL: ${{ secrets.PRODUCTION_DATABASE_BOOTSTRAP_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          EXPECTED_PRODUCTION_TARGET_TOKEN: ${{ secrets.EXPECTED_PRODUCTION_TARGET_TOKEN }}
+          EXPECTED_PRODUCTION_DATABASE_ID: ${{ secrets.EXPECTED_PRODUCTION_DATABASE_ID }}
+          EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256 }}
+          EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256 }}
+          EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256 }}
+        run: node scripts/production-target-bootstrap.mjs "$PRODUCTION_ENV_FILE"
+      - name: Remove pulled production environment file
+        if: always()
+        shell: bash
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-target-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}.env
+        run: rm -f -- "$PRODUCTION_ENV_FILE"

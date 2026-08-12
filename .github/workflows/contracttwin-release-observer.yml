@@ -1,0 +1,36 @@
+name: ContractTwin Release Observer
+
+on:
+  workflow_run:
+    workflows:
+      - ContractTwin Release Attestation
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  record-failure:
+    if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.head_branch == 'build/ems-commercial-legal-cockpit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record failed release evidence
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/contracttwin-release-failure.json" <<EOF
+          {
+            "application": "ContractTwin / EMS Commercial Legal Cockpit",
+            "testedSourceSha": "${{ github.event.workflow_run.head_sha }}",
+            "workflowRunId": "${{ github.event.workflow_run.id }}",
+            "workflowConclusion": "${{ github.event.workflow_run.conclusion }}",
+            "recordedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+      - name: Upload failed-run evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contracttwin-release-failure-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/contracttwin-release-failure.json
+          if-no-files-found: error
+          retention-days: 30

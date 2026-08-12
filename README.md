@@ -1,38 +1,25 @@
-# Contract Review App
+# ContractTwin / EMS Commercial Legal Cockpit
 
-A web application for analyzing contracts. Upload or paste contract text to get automated clause detection, risk assessment, financial term extraction, and obligation identification.
+The canonical product target in this repository is the governed ContractTwin platform under [`commercial-legal-cockpit/`](commercial-legal-cockpit/README.md). The current code is an engineering pilot toward a private, human-authorized EMS commercial intelligence and negotiation system of record; the immutable negotiation ledger and accepted-state agreement pipeline are not implemented yet. Start with:
 
-## Features
+- [`commercial-legal-cockpit/ARCHITECTURE.md`](commercial-legal-cockpit/ARCHITECTURE.md) for the target product and completion contract;
+- [`commercial-legal-cockpit/README.md`](commercial-legal-cockpit/README.md) for local setup and implemented capabilities;
+- [`commercial-legal-cockpit/PRODUCTION_READINESS.md`](commercial-legal-cockpit/PRODUCTION_READINESS.md) for current release limitations and acceptance gates.
 
-- **Clause Detection** - Identifies 12 standard clause types (termination, indemnification, confidentiality, IP, etc.) and flags missing ones
-- **Risk Assessment** - Scores contracts 0-100 based on detected risk indicators (unlimited liability, auto-renewal, broad waivers, etc.)
-- **Financial Term Extraction** - Finds monetary amounts, percentages, and payment terms
-- **Obligation Tracking** - Extracts duties and requirements from the contract language
-- **Key Date Identification** - Locates effective dates, deadlines, and renewal dates
-- **Party Identification** - Attempts to identify the contracting parties
-- **File Support** - Accepts `.txt`, `.pdf`, and `.docx` file uploads, or direct text paste
+This repository does **not** claim that a preview, synthetic evaluation, or passing source-level test establishes production readiness. Production reliance requires the exact deployed release, approved source-processing environment, live integrations, complete human authority, and the acceptance evidence listed in the readiness document.
 
-## Setup
+## Canonical development commands
 
 ```bash
-pip install -r requirements.txt
-python app.py
+cd commercial-legal-cockpit
+npm ci
+npm run test:controls
+npm run typecheck
+npm run build
 ```
 
-Open `http://localhost:5000` in your browser.
+Database-backed acceptance also requires disposable PostgreSQL or an explicitly approved non-production target; see the cockpit runbook.
 
-## Testing
+## Historical Flask prototype
 
-```bash
-python -m unittest tests -v
-```
-
-## Project Structure
-
-```
-app.py              - Flask web server and API routes
-analyzer.py         - Contract analysis engine
-templates/index.html - Frontend UI
-tests.py            - Unit tests
-sample_contract.txt - Example contract for testing
-```
+`app.py`, `analyzer.py`, `templates/`, the Python fixtures, and `tests.py` are a retained stateless regex prototype. They are non-authoritative historical/demo material, have no persistent governance or legal-reliance controls, and must not be deployed or used for contract conclusions. Their CI job is labeled as legacy coverage while they are being isolated into an archival package.

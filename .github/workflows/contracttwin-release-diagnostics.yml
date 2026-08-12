@@ -1,0 +1,41 @@
+name: ContractTwin Release Diagnostics
+
+on:
+  workflow_run:
+    workflows:
+      - ContractTwin Release Attestation
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.head_branch == 'build/ems-commercial-legal-cockpit'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Capture failed jobs and steps
+        shell: bash
+        run: |
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs" --jq '[.jobs[] | {name,status,conclusion,failedSteps:[.steps[] | select(.conclusion=="failure") | .name]}]')"
+          cat > "$RUNNER_TEMP/contracttwin-release-diagnostics.json" <<EOF
+          {
+            "testedSourceSha": "${{ github.event.workflow_run.head_sha }}",
+            "workflowRunId": "${RUN_ID}",
+            "workflowConclusion": "${{ github.event.workflow_run.conclusion }}",
+            "jobs": ${jobs},
+            "recordedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contracttwin-release-diagnostics-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/contracttwin-release-diagnostics.json
+          if-no-files-found: error
+          retention-days: 30

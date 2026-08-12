@@ -1,0 +1,355 @@
+name: Commercial Legal Cockpit - Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - build/ems-commercial-legal-cockpit
+    paths:
+      - 'commercial-legal-cockpit/**'
+      - '.github/workflows/commercial-legal-cockpit-vercel.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'commercial-legal-cockpit/**'
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Validation only, preview deployment, or approval-gated production deployment'
+        required: true
+        default: validation
+        type: choice
+        options:
+          - validation
+          - preview
+          - production
+
+concurrency:
+  group: commercial-legal-cockpit-vercel-${{ github.ref }}
+  # A release may have written migrations and its per-release target receipt;
+  # serialize subsequent runs instead of interrupting that promotion protocol.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: contracttwin
+          POSTGRES_PASSWORD: contracttwin_ci
+          POSTGRES_DB: contracttwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U contracttwin -d contracttwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://contracttwin:contracttwin_ci@localhost:5432/contracttwin
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - name: Reject production dispatches outside main
+        if: github.event_name == 'workflow_dispatch' && inputs.deployment_target == 'production' && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          echo "Production may be dispatched only from main."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact preflight source SHA
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
+            echo "Preflight source does not match the workflow release SHA."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify database controls
+        run: npm run db:check
+      - name: Apply ContractTwin and Better Auth migrations
+        run: npm run db:migrate
+      - name: Verify migrations are idempotent
+        run: npm run db:migrate
+      - name: Provision disposable restricted runtime role
+        id: ci-runtime
+        env:
+          CI_RUNTIME_ROLE_PROVISIONING: disposable-postgres-service
+        run: npm run db:provision-ci-runtime
+      - name: Prove database control invariants
+        env:
+          RUNTIME_DATABASE_URL: ${{ steps.ci-runtime.outputs.runtime_database_url }}
+          CI_DATABASE_CONTROL_FIXTURE: disposable-postgres-service
+        run: npm run test:db-controls
+      - name: Prove application control boundaries
+        run: npm run test:controls
+      - name: Verify frozen legal corpus
+        run: npm run test:corpus
+      - name: Verify deterministic economics
+        run: npm run test:economics
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production build
+        env:
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+
+  codeql:
+    name: Exact release CodeQL
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deployment_target == 'production'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact CodeQL source SHA
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
+            echo "CodeQL source does not match the workflow release SHA."
+            exit 1
+          fi
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          languages: javascript-typescript
+          source-root: commercial-legal-cockpit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Install locked application dependencies
+        working-directory: commercial-legal-cockpit
+        run: npm ci --no-audit --no-fund
+      - name: Build exact application source for CodeQL
+        working-directory: commercial-legal-cockpit
+        env:
+          APP_ENV: 'development'
+          AUTH_REQUIRED: 'false'
+          ALLOW_DEMO_ACCESS: 'true'
+          LEGAL_RELIANCE_ENABLED: 'false'
+          ALLOW_SOURCE_PURGE: 'false'
+        run: npm run build
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          category: '/language:javascript-typescript-release-gate'
+          ref: ${{ github.ref }}
+          sha: ${{ github.sha }}
+
+  deploy-preview:
+    name: Vercel preview
+    needs: preflight
+    if: github.ref != 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.deployment_target == 'preview')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Check Vercel deployment configuration
+        id: configured
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [[ -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Vercel deployment is configured."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Vercel deploy skipped until VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID secrets are configured."
+          fi
+      - name: Install pinned Vercel CLI
+        if: steps.configured.outputs.enabled == 'true'
+        run: npm install --global vercel@58.0.0
+      - name: Pull preview environment
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+      - name: Build preview
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --token="$VERCEL_TOKEN"
+      - name: Deploy preview
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+  deploy-production:
+    name: Approval-gated Vercel production
+    needs:
+      - preflight
+      - codeql
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deployment_target == 'production'
+    runs-on: ubuntu-latest
+    environment: contracttwin-production
+    concurrency:
+      group: contracttwin-production-database
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact deployment source SHA
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
+            echo "Deployment source does not match the preflight and CodeQL release SHA."
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$GITHUB_SHA" ]]; then
+            echo "Production approval is stale because main has advanced."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - name: Require Vercel production configuration
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [[ -z "$VERCEL_TOKEN" || -z "$VERCEL_ORG_ID" || -z "$VERCEL_PROJECT_ID" ]]; then
+            echo "Vercel production configuration is incomplete."
+            exit 1
+          fi
+      - name: Install pinned Vercel CLI
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --global vercel@58.0.0
+      - name: Pull production environment into temporary gate file
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel env pull "$PRODUCTION_ENV_FILE" --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Validate production environment without exposing values
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+        run: node scripts/production-env-check.mjs "$PRODUCTION_ENV_FILE"
+      - name: Pull production project settings
+        shell: bash
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          install -m 600 "$PRODUCTION_ENV_FILE" .vercel/.env.production.local
+      - name: Build production
+        env:
+          CONTRACTTWIN_RELEASE_SHA: ${{ github.sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Fail closed before any production database mutation while source blockers remain
+        run: npm run production:source-eligibility
+      - name: Apply and verify exact target database migrations
+        id: schema_gate
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          EXPECTED_PRODUCTION_TARGET_TOKEN: ${{ secrets.EXPECTED_PRODUCTION_TARGET_TOKEN }}
+          EXPECTED_PRODUCTION_DATABASE_ID: ${{ secrets.EXPECTED_PRODUCTION_DATABASE_ID }}
+          EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256 }}
+          EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256 }}
+        run: node scripts/production-schema-gate.mjs "$PRODUCTION_ENV_FILE"
+      - name: Stage production build without assigning production domains
+        id: stage
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          deployment_url="$(vercel deploy --prebuilt --prod --skip-domain --env CONTRACTTWIN_RELEASE_SHA="$GITHUB_SHA" --token="$VERCEL_TOKEN")"
+          if [[ ! "$deployment_url" =~ ^https://[^[:space:]]+$ ]]; then
+            echo "Vercel did not return a valid staged production URL."
+            exit 1
+          fi
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+      - name: Verify staged live controls and exact source SHA
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+          RELEASE_TARGET_NONCE: ${{ steps.schema_gate.outputs.release_target_nonce }}
+        run: node scripts/production-postdeploy-check.mjs "$PRODUCTION_ENV_FILE" "$DEPLOYMENT_URL" "$GITHUB_SHA"
+      - name: Reject promotion if main advanced during release verification
+        shell: bash
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$GITHUB_SHA" ]]; then
+            echo "Staged deployment is stale because main advanced before promotion."
+            exit 1
+          fi
+      - name: Promote verified staged deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel promote "$DEPLOYMENT_URL" --yes --token="$VERCEL_TOKEN"
+      - name: Remove pulled production environment files
+        if: always()
+        shell: bash
+        env:
+          PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
+        run: |
+          rm -f -- "$PRODUCTION_ENV_FILE"
+          rm -f -- .vercel/.env.production.local
