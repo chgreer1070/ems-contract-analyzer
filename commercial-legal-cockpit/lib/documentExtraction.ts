@@ -1,12 +1,14 @@
-import * as mammoth from "mammoth";
 import { extractText, getDocumentProxy } from "unpdf";
 import { chunkText, type SourceChunk } from "@/lib/chunking";
+import { extractDocx } from "@/lib/docxExtraction";
+import type { DocxEvidence } from "@/lib/docxEvidence";
 
 export type ExtractionResult = {
-  method: "PDF_TEXT" | "DOCX_RAW_TEXT" | "PLAIN_TEXT" | "EXTERNAL_LAYOUT_REQUIRED";
+  method: "PDF_TEXT" | "DOCX_OOXML_EVIDENCE" | "PLAIN_TEXT" | "EXTERNAL_LAYOUT_REQUIRED";
   pageCount: number | null;
   chunks: SourceChunk[];
   warnings: string[];
+  docxEvidence?: DocxEvidence;
 };
 
 export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Promise<ExtractionResult> {
@@ -19,8 +21,8 @@ export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Pro
   }
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    const result = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
-    return { method:"DOCX_RAW_TEXT",pageCount:null,chunks:chunkText(result.value,{pageNumber:null}),warnings:result.messages.length?["DOCX extraction completed with parser warnings; source text remains subject to human review."]:[] };
+    const result = extractDocx(bytes);
+    return { method:"DOCX_OOXML_EVIDENCE",pageCount:null,chunks:result.chunks,docxEvidence:result.evidence,warnings:["DOCX original and proposed views are negotiation evidence. Revision authors are unverified metadata; counsel must establish party identity and operative text.",...result.evidence.issues.map(issue=>`${issue.code}: ${issue.message}`)] };
   }
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType === "application/vnd.ms-excel") {
