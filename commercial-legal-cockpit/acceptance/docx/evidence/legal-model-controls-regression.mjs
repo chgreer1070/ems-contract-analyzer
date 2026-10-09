@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import { createTypeScriptLoader } from '../../../scripts/ts-test-loader.mjs';
+import { fixture, p, text, revision, story, comment } from '../../../validation/docx/fixtures.mjs';
+
+const load=createTypeScriptLoader();
+const { extractDocx }=load('lib/docxExtraction.ts');
+const clause=load('lib/analysisEngine.ts');
+const { extractTerms }=load('lib/termEngine.ts');
+const benign='Customer and Manufacturer shall meet quarterly.';
+const metadata='Unlimited liability. NCNR and obsolete inventory. Fixed price.';
+const bytes=await fixture({body:p('<w:commentRangeStart w:id="1"/>'+text(benign)+'<w:commentRangeEnd w:id="1"/><w:r><w:commentReference w:id="1"/></w:r>'),parts:{'word/comments.xml':{xml:story('comments',comment('1',metadata)),kind:'comments'}}});
+const benignSource=extractDocx(bytes).chunks[0].text;
+assert.deepEqual((await clause.analyzeContractText(benignSource,{allowAi:false})).findings,[],'Comment/metadata cannot trigger deterministic contract risks.');
+assert.equal(clause.sourceContainsExcerpt(benignSource,metadata),false,'Comment body cannot ground quote.');
+
+const original='Customer payment is due within 30 days of invoice.';
+const proposed='Customer payment is due within 90 days of invoice.';
+const source=extractDocx(await fixture({body:p(text('Customer payment is due within ')+revision('del','10','Reviewer A','30 days')+revision('ins','11','Reviewer B','90 days')+text(' of invoice.'))})).chunks[0].text;
+const deterministic=await clause.analyzeContractText(source,{allowAi:false});
+assert.ok(deterministic.findings.length>0,'Proposed90dayterm must still trigger contract view risk.');
+assert.ok(deterministic.findings.every(f=>/^Unapproved negotiation/.test(f.issue)&&/proposed view/.test(f.uncertainty)&&/acceptance, execution and party attribution are not established/.test(f.uncertainty)),'Deterministic results require view/unapproved uncertainty.');
+
+let payload={};
+globalThis.fetch=async(url)=>{assert.equal(url,'https://api.openai.com/v1/responses');return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify(payload)}]}]});};
+process.env.OPENAI_API_KEY='synthetic-never-sent';
+const finding=quote=>({clauseFamily:'payment_terms',issue:'Provider conclusion.',risk:'High',rationale:'Provider rationale.',operationalConsequence:'Provider consequence.',sourceExcerpt:quote,uncertainty:'',financialVariables:[]});
+payload={findings:[finding(original)]};
+const result=await clause.analyzeContractText(source);
+assert.equal(result.findings.length,1);
+assert.match(result.findings[0].issue,/Unapproved negotiation.*original view only/,'Original-only quote must retain view.');
+assert.match(result.findings[0].uncertainty,/acceptance, execution and party attribution are not established/,'AI results need deterministic uncertainty.');
+payload={findings:[finding(proposed.toLowerCase())]};
+assert.equal((await clause.analyzeContractText(source)).findings.length,0,'Case-mutated AI quote must fail exact DOCX grounding.');
+const term=quote=>({clauseFamily:'payment_terms',sectionLabel:'',termType:'OBLIGATION',party:'Customer',counterparty:'Manufacturer',exactText:quote,normalizedStatement:'Payment candidate.',triggerEvent:'invoice',exceptions:[],operationalOwner:'',confidence:1});
+payload={terms:[term(original),term(proposed),term(proposed.toLowerCase()),term('Reviewer B')]};
+const terms=await extractTerms(source);
+assert.equal(terms.terms.length,1,'Original-only, altered-case and metadata quotes must be rejected.');
+assert.equal(terms.terms[0].exactText,proposed);
+assert.match(terms.terms[0].normalizedStatement,/^Unapproved proposed text:/);
+assert.equal(terms.rejectedUngrounded,3);
+console.log('Legal DOCX control repair regressions passed: comments excluded from fallback/quotes; deterministic and AI view/uncertainty labels; exact clause/term quotes; original-only terms and metadata rejected. Provider is doubled; no network or legal approval.');

@@ -4,6 +4,8 @@ import { analyzeContractText, legalRelianceEnabled, PROMPT_VERSION, sourceContai
 import { query, withTransaction } from "@/lib/db";
 import { inferDependencies, DEPENDENCY_PROMPT_VERSION, DEPENDENCY_SCHEMA_VERSION } from "@/lib/dependencyEngine";
 import { extractDocument } from "@/lib/documentExtraction";
+import { proposedTextContainsExcerpt, readDocxProjection } from "@/lib/docxEvidence";
+import { assertDocxReceipt, createDocxReceipt } from "@/lib/docxReceipt";
 import { enrichFindings, type EnrichedFinding } from "@/lib/findings";
 import { assertJobLease, completeJob, continueJob, enqueueJobWithClient, failJob, heartbeatJob, JobLeaseLostError, pollAzureOcr, transitionJobWithFence, waitExternal, type ProcessingJob } from "@/lib/jobs-internal";
 import { jobHeartbeatIntervalMillis } from "@/lib/jobLease";
@@ -25,7 +27,7 @@ class ExternalOperationRejectedError extends Error {}
 type BufferedFinding=EnrichedFinding&{sourceLocator:string;sourceChunkId?:string};
 type BufferedTerm=ExtractedTerm&{chunkId:string};
 type SourceChunk={id:string;page_number:number|null;chunk_index:number;content:string;content_sha256:string};
-type SourceDocument={id:string;matter_id:string;filename:string;document_type:string;mime_type:string;blob_pathname:string;sha256:string|null;server_sha256:string|null;integrity_status:string;extraction_status:string;extraction_job_id:string|null;security_scan_status:string;deletion_status:string};
+type SourceDocument={id:string;matter_id:string;filename:string;document_type:string;mime_type:string;blob_pathname:string;sha256:string|null;server_sha256:string|null;integrity_status:string;extraction_status:string;extraction_method:string|null;extraction_job_id:string|null;security_scan_status:string;deletion_status:string};
 
 function bufferedFindings(value:unknown):BufferedFinding[]{return Array.isArray(value)?value as BufferedFinding[]:[];}
 function bufferedTerms(value:unknown):BufferedTerm[]{return Array.isArray(value)?value as BufferedTerm[]:[];}
@@ -54,11 +56,30 @@ function assertProcessableSource(doc:SourceDocument,matterId:string){
   if(doc.security_scan_status!=="CLEAN")throw new TerminalJobError(`Source processing requires a CLEAN malware scan; current state is ${doc.security_scan_status}.`);
   if(doc.integrity_status!=="SERVER_VERIFIED"||!doc.sha256||!doc.server_sha256||doc.sha256.toLowerCase()!==doc.server_sha256.toLowerCase())throw new TerminalJobError("Source processing requires matching client and server SHA-256 evidence.");
   if(doc.extraction_status!=="EXTRACTED")throw new TerminalJobError(`Source processing requires EXTRACTED source text; current state is ${doc.extraction_status}.`);
+  if(doc.mime_type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"&&doc.extraction_method!=="DOCX_OOXML_EVIDENCE")throw new TerminalJobError("Legacy DOCX extraction lacks revision and comment evidence; reprocess the preserved source.");
+}
+
+type EvidenceQuery=(sql:string,values:unknown[])=>Promise<{rows:any[]}>;
+async function assertDocxSourceEvidence(doc:SourceDocument,chunks:SourceChunk[],execute:EvidenceQuery=query){
+  if(doc.mime_type!=="application/vnd.openxmlformats-officedocument.wordprocessingml.document")return;
+  const receipt=(await execute("select status,output from processing_jobs where id=$1 and document_id=$2 and matter_id=$3 and job_type='EXTRACT'",[doc.extraction_job_id,doc.id,doc.matter_id])).rows[0];
+  if(receipt?.status!=="SUCCEEDED")throw new TerminalJobError("DOCX source requires its exact successful extraction-generation receipt.");
+  try{assertDocxReceipt(recordValue(receipt.output),doc.server_sha256!,chunks);}catch{throw new TerminalJobError("DOCX source evidence is incomplete or stale; reprocess the preserved source.");}
+}
+
+async function assertCurrentSourceEvidence(documentId:string,matterId:string,execute:EvidenceQuery=query){
+  const doc=(await execute("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for share",[documentId])).rows[0] as SourceDocument|undefined;
+  if(!doc)throw new TerminalJobError("Current source evidence no longer exists.");
+  assertProcessableSource(doc,matterId);
+  if(doc.mime_type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"){
+    const chunks=(await execute("select id,page_number,chunk_index,content,content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[documentId])).rows as SourceChunk[];
+    await assertDocxSourceEvidence(doc,chunks,execute);
+  }
 }
 
 async function loadDocument(documentId:string){
   const result=await query<SourceDocument>(
-    "select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 limit 1",[documentId]
+    "select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 limit 1",[documentId]
   );
   if(!result.rows[0]) throw new Error("Document not found.");
   return result.rows[0];
@@ -78,7 +99,7 @@ async function processMalwareScan(job:ProcessingJob){
     const result=await scanBuffer(bytes);
     await withTransaction(async client=>{
       await assertJobLease(client,job);
-      const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
+      const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
       if(!current||current.deletion_status!=="ACTIVE"||current.blob_pathname!==doc.blob_pathname||!current.sha256||current.sha256.toLowerCase()!==serverSha)throw new TerminalJobError("Source identity changed while malware scanning; the scan result was not applied.");
       const status=result.clean?"CLEAN":"QUARANTINED";
       await client.query(`update documents set security_scan_status=$2,security_scanned_at=now(),security_scan_result=$3,server_sha256=$4,integrity_status='SERVER_VERIFIED',extraction_status=case when $2='QUARANTINED' then 'FAILED' else extraction_status end where id=$1`,[doc.id,status,result.clean?"Malware scan passed.":"Malware scanner reported a threat.",serverSha]);
@@ -118,7 +139,7 @@ async function recordIntegrityFailure(doc:SourceDocument,job:ProcessingJob,obser
 async function persistChunks(job:ProcessingJob,documentId:string,matterId:string,chunks:Array<{pageNumber:number|null;chunkIndex:number;text:string;sha256:string}>,method:string,pageCount:number|null,serverSha:string,expectedExtractionJobId:string,actor:{id:string;name:string}){
   await withTransaction(async client=>{
     await assertJobLease(client,job);
-    const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[documentId])).rows[0];
+    const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[documentId])).rows[0];
     if(!current||current.matter_id!==matterId||current.extraction_job_id!==expectedExtractionJobId||current.deletion_status!=="ACTIVE"||current.security_scan_status!=="CLEAN"||!current.sha256||current.sha256.toLowerCase()!==serverSha.toLowerCase())throw new TerminalJobError("Source identity or extraction generation changed before extracted chunks could be published.");
     await client.query("delete from document_chunks where document_id=$1",[documentId]);
     for(const chunk of chunks) await client.query(
@@ -134,6 +155,8 @@ async function persistChunks(job:ProcessingJob,documentId:string,matterId:string
 function sourceLocator(finding:CoreFinding,chunks:Array<{id:string;page_number:number|null;chunk_index:number;content:string}>,filename:string){
   const chunk=chunks.find(c=>sourceContainsExcerpt(c.content,finding.sourceExcerpt));
   if(!chunk) return `${filename} · verified source excerpt`;
+  const projection=readDocxProjection(chunk.content);
+  if(projection)return `${filename} · ${projection.paragraph.source.part} · ${projection.paragraph.source.path} · unapproved original/proposed negotiation evidence`;
   return chunk.page_number?`${filename} · p. ${chunk.page_number}`:`${filename} · text chunk ${chunk.chunk_index+1}`;
 }
 
@@ -142,7 +165,7 @@ async function processExtract(job:ProcessingJob){
   const doc=await withTransaction(async client=>{
     await assertJobLease(client,job);
     if(job.job_type!=="EXTRACT")throw new TerminalJobError("Extraction generation is not an exact RUNNING EXTRACT job.");
-    const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[job.document_id])).rows[0];
+    const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[job.document_id])).rows[0];
     if(!current)throw new TerminalJobError("Extraction source no longer exists.");
     if(job.matter_id&&current.matter_id!==job.matter_id)throw new TerminalJobError("Extraction job matter does not match the source document.");
     if(job.matter_id!==current.matter_id)throw new TerminalJobError("Extraction job matter lineage is invalid.");
@@ -158,10 +181,23 @@ async function processExtract(job:ProcessingJob){
     throw new TerminalJobError("Source integrity verification failed.");
   }
   const extraction=await extractDocument(bytes,doc.mime_type);
+  if(extraction.docxEvidence&&!extraction.docxEvidence.analysisEligible){
+    const receipt=createDocxReceipt(extraction.docxEvidence,[]);
+    await withTransaction(async client=>{
+      await assertJobLease(client,job);
+      const updated=await client.query("update documents set extraction_status='FAILED',extraction_method=$2,server_sha256=$3,integrity_status='SERVER_VERIFIED' where id=$1 and matter_id=$4 and extraction_job_id=$5 and deletion_status='ACTIVE' and security_scan_status='CLEAN' and lower(sha256)=$3 returning id",[doc.id,extraction.method,serverSha,doc.matter_id,job.id]);
+      if(!updated.rowCount)throw new TerminalJobError("DOCX evidence generation changed before the blocked receipt could be published.");
+      // Failed jobs can be retried and their output reset. Archive the entire
+      // blocked receipt in the existing append-only, matter-scoped audit ledger.
+      await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values($1,$2,'DOCUMENT_EXTRACTION_BLOCKED',$3,'document',$4,$5::jsonb)`,[String(job.input?.requestedBy||"system-worker"),String(job.input?.requestedByName||"ContractTwin Worker"),doc.matter_id,doc.id,JSON.stringify({extractionJobId:job.id,method:extraction.method,serverSha256:serverSha,docxEvidenceSha256:receipt.docxEvidenceSha256,issueCodes:extraction.docxEvidence!.issues.map(i=>i.code),blockedReceipt:receipt})]);
+      await transitionJobWithFence(client,job,{status:"FAILED",output:{...receipt,method:extraction.method,serverSha256:serverSha,warnings:extraction.warnings},errorMessage:"DOCX extraction is blocked by unsupported or incomplete source evidence. Review the preserved source and extraction receipt."});
+    });
+    return;
+  }
   if(!extraction.chunks.length){
     const ocrJob=await withTransaction(async client=>{
       await assertJobLease(client,job);
-      const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
+      const current=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
       if(!current||current.extraction_job_id!==job.id||current.deletion_status!=="ACTIVE"||current.security_scan_status!=="CLEAN"||!current.sha256||current.sha256.toLowerCase()!==serverSha)throw new TerminalJobError("Source identity or extraction generation changed before OCR handoff.");
       await client.query("update documents set integrity_status='SERVER_VERIFIED',server_sha256=$2,extraction_status='OCR_REQUIRED',extraction_method=$3,page_count=$4 where id=$1",[doc.id,serverSha,extraction.method,extraction.pageCount]);
       await client.query(`insert into audit_events(actor_user_id,actor_name,action,matter_id,entity_type,entity_id,metadata) values($1,$2,'DOCUMENT_OCR_REQUIRED',$3,'document',$4,$5::jsonb)`,[String(job.input?.requestedBy||"system-worker"),String(job.input?.requestedByName||"ContractTwin Worker"),doc.matter_id,doc.id,JSON.stringify({method:extraction.method,pageCount:extraction.pageCount,serverSha256:serverSha})]);
@@ -174,7 +210,7 @@ async function processExtract(job:ProcessingJob){
     return;
   }
   await persistChunks(job,doc.id,doc.matter_id,extraction.chunks,extraction.method,extraction.pageCount,serverSha,job.id,{id:String(job.input?.requestedBy||"system-worker"),name:String(job.input?.requestedByName||"ContractTwin Worker")});
-  await completeJob(job,{chunkCount:extraction.chunks.length,pageCount:extraction.pageCount,method:extraction.method,serverSha256:serverSha,warnings:extraction.warnings});
+  await completeJob(job,{chunkCount:extraction.chunks.length,pageCount:extraction.pageCount,method:extraction.method,serverSha256:serverSha,warnings:extraction.warnings,...(extraction.docxEvidence?createDocxReceipt(extraction.docxEvidence,extraction.chunks):{})});
 }
 
 async function processOcr(job:ProcessingJob){
@@ -185,6 +221,7 @@ async function processOcr(job:ProcessingJob){
   if(job.matter_id&&doc.matter_id!==job.matter_id)throw new TerminalJobError("OCR job matter does not match the source document.");
   if(doc.deletion_status!=="ACTIVE"||doc.security_scan_status!=="CLEAN")throw new Error("OCR requires an active source with a CLEAN malware scan.");
   if(doc.extraction_job_id!==extractionJobId)throw new TerminalJobError("OCR output belongs to a stale extraction generation.");
+  if(doc.mime_type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document")throw new TerminalJobError("DOCX cannot use flattening OCR as a substitute for negotiated-document evidence.");
   if(!job.external_operation_url){
     const bytes=await loadBlobBytes(doc.blob_pathname);
     const serverSha=createHash("sha256").update(Buffer.from(bytes)).digest("hex");
@@ -209,6 +246,7 @@ async function processAnalysis(job:ProcessingJob){
   const doc=await loadDocument(job.document_id);
   assertProcessableSource(doc,job.matter_id);
   const chunks=(await query<SourceChunk>("select id,page_number,chunk_index,content,content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[doc.id])).rows;
+  await assertDocxSourceEvidence(doc,chunks);
   if(!chunks.length) throw new Error("No extracted source chunks are available.");
   const state={next:Number(job.output?.nextChunk??0),rejected:Number(job.output?.rejected??0),analysisRunId:String(job.output?.analysisRunId||""),findings:bufferedFindings(job.output?.findings),models:Array.isArray(job.output?.models)?job.output.models.map(String):[] as string[],modes:Array.isArray(job.output?.modes)?job.output.modes.map(String):[] as string[],warnings:Array.isArray(job.output?.warnings)?job.output.warnings.map(String):[] as string[]};
   if(!Number.isInteger(state.next)||state.next<0||!Number.isInteger(state.rejected)||state.rejected<0)throw new TerminalJobError("Clause-risk continuation state is invalid.");
@@ -234,10 +272,11 @@ async function processAnalysis(job:ProcessingJob){
     const ready=dedupeBufferedFindings(grounded);
     await withTransaction(async client=>{
       await assertJobLease(client,job);
-      const currentDoc=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
+      const currentDoc=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[doc.id])).rows[0];
       if(!currentDoc)throw new TerminalJobError("Source document disappeared before clause-risk publication.");
       assertProcessableSource(currentDoc,job.matter_id!);
       const currentChunks=(await client.query<SourceChunk>("select id,page_number,chunk_index,content,content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[doc.id])).rows;
+      await assertDocxSourceEvidence(currentDoc,currentChunks,client.query.bind(client));
       const currentRun=(await client.query<{status:string;input_sha256:string;source_chunk_count:number}>("select status,input_sha256,source_chunk_count from analysis_runs where id=$1 and matter_id=$2 and document_id=$3 and run_type='CLAUSE_RISK' for update",[runId,job.matter_id,doc.id])).rows[0];
       if(!currentRun||currentRun.status!=="RUNNING"||currentRun.input_sha256.toLowerCase()!==chunkInputHash(currentChunks)||Number(currentRun.source_chunk_count)!==currentChunks.length)throw new TerminalJobError("Extracted source changed before clause-risk publication.");
       if(ready.some(finding=>finding.sourceChunkId?!currentChunks.some(chunk=>chunk.id===finding.sourceChunkId&&sourceContainsExcerpt(chunk.content,finding.sourceExcerpt)):!currentChunks.some(chunk=>sourceContainsExcerpt(chunk.content,finding.sourceExcerpt))))throw new TerminalJobError("Buffered clause-risk evidence no longer exists in the current source chunks.");
@@ -259,6 +298,7 @@ async function processTerms(job:ProcessingJob){
   const doc=await loadDocument(job.document_id);
   assertProcessableSource(doc,job.matter_id);
   const chunks=(await query<SourceChunk>("select id,page_number,chunk_index,content,content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[job.document_id])).rows;
+  await assertDocxSourceEvidence(doc,chunks);
   if(!chunks.length) throw new Error("No extracted source chunks are available.");
   const state={next:Number(job.output?.nextChunk??0),rejected:Number(job.output?.rejected??0),analysisRunId:String(job.output?.analysisRunId||""),terms:bufferedTerms(job.output?.terms),models:Array.isArray(job.output?.models)?job.output.models.map(String):[] as string[]};let runId=state.analysisRunId;
   if(!Number.isInteger(state.next)||state.next<0||!Number.isInteger(state.rejected)||state.rejected<0)throw new TerminalJobError("Term-extraction continuation state is invalid.");
@@ -276,19 +316,20 @@ async function processTerms(job:ProcessingJob){
   const run=(await query<{matter_id:string;document_id:string|null;run_type:string;status:string;input_sha256:string;source_chunk_count:number}>("select matter_id,document_id,run_type,status,input_sha256,source_chunk_count from analysis_runs where id=$1",[runId])).rows[0];
   if(!run||run.matter_id!==job.matter_id||run.document_id!==doc.id||run.run_type!=="TERM_EXTRACTION"||run.status!=="RUNNING"||run.input_sha256.toLowerCase()!==chunkInputHash(chunks)||Number(run.source_chunk_count)!==chunks.length)throw new TerminalJobError("Term-extraction run is no longer bound to the current extracted source state.");
   if(state.next>=chunks.length){
-    const grounded=state.terms.filter(term=>chunks.some(chunk=>chunk.id===term.chunkId&&sourceContainsExcerpt(chunk.content,term.exactText)));
+    const grounded=state.terms.filter(term=>chunks.some(chunk=>chunk.id===term.chunkId&&proposedTextContainsExcerpt(chunk.content,term.exactText)));
     const rejected=state.rejected+(state.terms.length-grounded.length);
     if(legalRelianceEnabled&&rejected>0)throw new TerminalJobError("Legal-reliance term extraction rejected ungrounded output; no terms were published.");
     const ready=dedupeBufferedTerms(grounded);let inserted=0;
     await withTransaction(async client=>{
       await assertJobLease(client,job);
-      const currentDoc=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[job.document_id])).rows[0];
+      const currentDoc=(await client.query<SourceDocument>("select id,matter_id,filename,document_type,mime_type,blob_pathname,sha256,server_sha256,integrity_status,extraction_status,extraction_method,extraction_job_id,security_scan_status,deletion_status from documents where id=$1 for update",[job.document_id])).rows[0];
       if(!currentDoc)throw new TerminalJobError("Source document disappeared before term publication.");
       assertProcessableSource(currentDoc,job.matter_id!);
       const currentChunks=(await client.query<SourceChunk>("select id,page_number,chunk_index,content,content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[job.document_id])).rows;
+      await assertDocxSourceEvidence(currentDoc,currentChunks,client.query.bind(client));
       const currentRun=(await client.query<{status:string;input_sha256:string;source_chunk_count:number}>("select status,input_sha256,source_chunk_count from analysis_runs where id=$1 and matter_id=$2 and document_id=$3 and run_type='TERM_EXTRACTION' for update",[runId,job.matter_id,job.document_id])).rows[0];
       if(!currentRun||currentRun.status!=="RUNNING"||currentRun.input_sha256.toLowerCase()!==chunkInputHash(currentChunks)||Number(currentRun.source_chunk_count)!==currentChunks.length)throw new TerminalJobError("Extracted source changed before term publication.");
-      if(ready.some(term=>!currentChunks.some(chunk=>chunk.id===term.chunkId&&sourceContainsExcerpt(chunk.content,term.exactText))))throw new TerminalJobError("Buffered term evidence no longer exists in the current source chunks.");
+      if(ready.some(term=>!currentChunks.some(chunk=>chunk.id===term.chunkId&&proposedTextContainsExcerpt(chunk.content,term.exactText))))throw new TerminalJobError("Buffered term evidence no longer exists in the current source chunks.");
       await client.query("update contract_terms set review_status='SUPERSEDED' where document_id=$1 and review_status='UNREVIEWED'",[job.document_id]);
       for(const term of ready){const result=await client.query(`insert into contract_terms(matter_id,document_id,analysis_run_id,chunk_id,clause_family,section_label,term_type,party,counterparty,exact_text,exact_text_sha256,normalized_statement,trigger_event,exceptions,operational_owner,confidence,model_name,prompt_version,created_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19)`,[job.matter_id,job.document_id,runId,term.chunkId,term.clauseFamily,term.sectionLabel||null,term.termType,term.party||null,term.counterparty||null,term.exactText,exactTextHash(term.exactText),term.normalizedStatement,term.triggerEvent||null,JSON.stringify(term.exceptions),term.operationalOwner||null,term.confidence,state.models.join(",")||"unknown",TERM_PROMPT_VERSION,String(job.input?.requestedBy||"system-worker")]);inserted+=result.rowCount||0;}
       await client.query("update analysis_runs set status='SUCCEEDED',model_name=$2,output_count=$3,rejected_ungrounded_count=$4,finished_at=now() where id=$1",[runId,state.models.join(",")||"unknown",inserted,rejected]);
@@ -313,6 +354,7 @@ async function processDependencies(job:ProcessingJob){
   const sourceRuns=(await query<{id:string;document_id:string;status:string;input_sha256:string;source_chunk_count:number}>(`select distinct on(ar.document_id) ar.id,ar.document_id,ar.status,ar.input_sha256,ar.source_chunk_count from analysis_runs ar where ar.matter_id=$1 and ar.run_type='TERM_EXTRACTION' and ($2::uuid[] is null or ar.document_id=any($2::uuid[])) order by ar.document_id,ar.started_at desc,ar.id desc`,[job.matter_id,requestedScope])).rows;
   if(!sourceRuns.some(run=>run.id===triggerRunId)||sourceRuns.some(run=>run.status!=="SUCCEEDED")||(requestedScope&&sourceRuns.length!==requestedScope.length))throw new TerminalJobError("Dependency job term-analysis scope is stale, incomplete, superseded by a newer run, or unsuccessful.");
   const sourceDocumentIds=sourceRuns.map(run=>run.document_id).sort();const sourceRunIds=sourceRuns.map(run=>run.id).sort();
+  for(const documentId of sourceDocumentIds)await assertCurrentSourceEvidence(documentId,job.matter_id);
   if(requestedRunIds&&!sameSortedIds(requestedRunIds,sourceRunIds))throw new TerminalJobError("Dependency job term-analysis run scope is stale or was substituted.");
   for(const run of sourceRuns){
     const chunks=(await query<Pick<SourceChunk,"content_sha256">>("select content_sha256 from document_chunks where document_id=$1 order by coalesce(page_number,0),chunk_index,id",[run.document_id])).rows;
@@ -328,6 +370,7 @@ async function processDependencies(job:ProcessingJob){
   await withTransaction(async client=>{
     await assertJobLease(client,job);
     await client.query("select id from matters where id=$1 for update",[job.matter_id]);
+    for(const documentId of sourceDocumentIds)await assertCurrentSourceEvidence(documentId,job.matter_id!,client.query.bind(client));
     const currentRuns=(await client.query<{id:string;document_id:string;status:string;input_sha256:string;source_chunk_count:number}>(`select distinct on(ar.document_id) ar.id,ar.document_id,ar.status,ar.input_sha256,ar.source_chunk_count from analysis_runs ar where ar.matter_id=$1 and ar.run_type='TERM_EXTRACTION' and ar.document_id=any($2::uuid[]) order by ar.document_id,ar.started_at desc,ar.id desc`,[job.matter_id,sourceDocumentIds])).rows;
     const currentRunIds=currentRuns.map(run=>run.id).sort();const currentTerms=(await client.query<{id:string;analysis_run_id:string;clause_family:string;term_type:string;normalized_statement:string;trigger_event:string|null}>(`select t.id,t.analysis_run_id,t.clause_family,t.term_type,t.normalized_statement,t.trigger_event from contract_terms t where t.matter_id=$1 and t.document_id=any($2::uuid[]) and t.analysis_run_id=any($3::uuid[]) and t.review_status<>'SUPERSEDED' order by t.created_at,t.id limit 251`,[job.matter_id,sourceDocumentIds,currentRunIds])).rows;
     if(currentRuns.some(run=>run.status!=="SUCCEEDED")||!sameSortedIds(currentRunIds,sourceRunIds))throw new TerminalJobError("A newer or unsuccessful term run replaced the dependency input while analysis was running.");
@@ -358,6 +401,7 @@ async function processPrecedence(job:ProcessingJob){
   };
   const inputs=await loadInputs();
   const sourceDocumentIds=inputs.map(input=>input.id).sort();
+  for(const documentId of sourceDocumentIds)await assertCurrentSourceEvidence(documentId,job.matter_id);
   const inputHash=canonicalStateHash(inputs.map(({text,...input})=>input));
   const precedenceResult=inputs.length<2?{relations:[],rawCount:0,invalidCount:0,duplicateCount:0,rejectedCount:0}:await analyzePrecedence(inputs);
   if(legalRelianceEnabled&&precedenceResult.rejectedCount)throw new TerminalJobError("Legal-reliance precedence analysis rejected invalid or ungrounded model edges; no precedence receipt was published.");
@@ -366,6 +410,7 @@ async function processPrecedence(job:ProcessingJob){
     await assertJobLease(client,job);
     await client.query("select id from matters where id=$1 for update",[job.matter_id]);
     const currentDocs=(await client.query<{id:string;filename:string;document_type:string;sha256:string;server_sha256:string}>("select id,filename,document_type,sha256,server_sha256 from documents where matter_id=$1 and id=any($2::uuid[]) and extraction_status='EXTRACTED' and integrity_status='SERVER_VERIFIED' and security_scan_status='CLEAN' and deletion_status='ACTIVE' and sha256 is not null and server_sha256 is not null and lower(sha256)=lower(server_sha256) order by uploaded_at,id",[job.matter_id,sourceDocumentIds])).rows;
+    for(const documentId of sourceDocumentIds)await assertCurrentSourceEvidence(documentId,job.matter_id!,client.query.bind(client));
     const currentInputs=[] as Array<{id:string;filename:string;documentType:string;sourceChunks:Array<{id:string;content_sha256:string}>;sha256:string}>;
     for(const doc of currentDocs){const chunks=(await client.query<{id:string;content_sha256:string}>(`select id,content_sha256 from document_chunks where document_id=$1 order by case when content ~* '(preced|conflict|amend|supersed|control|incorporat|govern|order of precedence)' then 0 else 1 end,coalesce(page_number,0),chunk_index,id limit 12`,[doc.id])).rows;currentInputs.push({id:doc.id,filename:doc.filename,documentType:doc.document_type,sourceChunks:chunks,sha256:doc.sha256.toLowerCase()});}
     if(currentDocs.length!==sourceDocumentIds.length||canonicalStateHash(currentInputs)!==inputHash)throw new TerminalJobError("Current document state changed while precedence analysis was running.");

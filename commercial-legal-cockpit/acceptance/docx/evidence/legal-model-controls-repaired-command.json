@@ -1,0 +1,8 @@
+{
+  "command": "env -u OPENAI_API_KEY -u OPENAI_MODEL LEGAL_RELIANCE_ENABLED=false node acceptance/docx/evidence/legal-model-controls-check.mjs",
+  "chunk_id": "e03234",
+  "wall_time_seconds": 0.463995121,
+  "exit_code": 1,
+  "original_token_count": 107,
+  "output": "{\n  \"candidateSha\": \"0d446203d670e086aa50ef8d65755cbc653ae6be\",\n  \"observations\": 25,\n  \"passed\": 21,\n  \"failed\": 4,\n  \"scope\": \"DETERMINISTIC_SYNTHETIC_AND_PROVIDER_DOUBLES_ONLY\",\n  \"failures\": [\n    \"pricing-meaning-party-control\",\n    \"ncnr-meaning-party-control\",\n    \"eo-meaning-party-control\",\n    \"notice-meaning-party-control\"\n  ],\n  \"packSha256\": \"e26c0d8d05a72c8c2a65b34ca63ec52d3e5b4029402c263e46e29cb25b1fdc02\"\n}\n"
+}

@@ -32,7 +32,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 
 ## 3. Contract extraction — BLOCKING
 
-- Machine-readable PDF/DOCX/TXT test set achieves agreed extraction fidelity.
+- Machine-readable PDF/DOCX/TXT test set achieves agreed extraction fidelity. The bounded negotiated-DOCX adapter and its synthetic suite are implemented; representative Word-created agreements and target-environment receipt/publication checks remain required. See `DOCX_INGESTION.md`.
 - Scanned PDF/OCR path is implemented and tested before relying on scanned agreements.
 - Tables, schedules and pricing exhibits have a validated extraction path before relying on them.
 - Oversized contracts use an asynchronous worker and never silently truncate.

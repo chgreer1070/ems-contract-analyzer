@@ -1,0 +1,41 @@
+COMMAND: node acceptance/docx/evidence/release-authority-check.mjs 0d446203d670e086aa50ef8d65755cbc653ae6be
+CWD: /workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit
+EXIT: 0
+STDOUT:
+PASS source HEAD is the full independently supplied base; current bytes are separately snapshot-bound
+PASS Git integration automatic deployment is disabled
+PASS production requires manual main-only production dispatch
+PASS production names an environment and requires preflight plus CodeQL
+PASS production checkout and stale-main checks bind the workflow SHA twice
+PASS source denial precedes production mutation, staging and promotion
+PASS staged live proof precedes promotion
+PASS preview job can execute automatically; disabled Git integration is not universal deployment denial
+PASS bootstrap is manual-only and names a separate environment
+PASS seven implemented-capability blockers remain
+OBSERVED source-eligibility exit=1
+file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/scripts/production-source-eligibility-check.mjs:8
+  throw new Error(`Production mutation is blocked by ${policy.blockers.length} source-code completion gate(s): ${policy.blockers.join("; ")}`);
+        ^
+
+Error: Production mutation is blocked by 7 source-code completion gate(s): full-package coverage and validated layout/numbering/unsupported-format extraction are not implemented; negotiated DOCX evidence has bounded pilot support; all relied-on analysis stages lack representative artifact-bound legal validation; execution artifact authenticity and independent execution certification are not implemented; finance evidence/assumption lineage and the delegated multi-function authority matrix are not implemented; source-scoped provider processing authorization manifests are not implemented; the approved 41-section EMS taxonomy, financial-risk methods, and Top-10 cascade coverage are not implemented as governed validation gates; the mixed-bundle decision, economics, and snapshot evidence rollout has not completed its drain and contract-enforcement phase
+    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/scripts/production-source-eligibility-check.mjs:8:9
+
+Node.js v24.19.0
+
+PASS executed source eligibility denies production
+PASS runtime readiness requires exact engine policies plus evidence-kernel completion
+PASS changed clause and term versions are not auto-activated by existing seed migration
+PASS DOCX successful receipt binds document, matter and extraction generation
+PASS legacy DOCX and flattening OCR are denied
+PASS clause and term final publication recheck current DOCX receipt
+PASS blocked receipt is archived in the audit event
+PASS findings are initially unreviewed and document pipeline cannot generate a snapshot
+PASS actual receipt implementation accepts a complete synthetic receipt
+PASS actual receipt implementation rejects a different source version
+PASS actual receipt implementation rejects prior extractor version even with rehashed receipt
+PASS actual receipt implementation cannot elevate extraction to legal evidence
+PASS actual receipt implementation rejects hash-consistent changed paragraph content
+PASS tracked source snapshot did not change while checks ran
+{"baseRevision":"0d446203d670e086aa50ef8d65755cbc653ae6be","revision":"295ad76b8fe514f17e16029c79421d22206f7b96c1e7935ece3ba18c7a8cb1ab","scope":"synthetic","assertions_passed":24,"assertions_failed":0,"production_authorized":false,"limitations":["Text inspections are source assertions, not deployed environment proof.","Receipt tests isolate integrity behavior; they do not establish source completeness.","Actual hosted reviewers, live controls and rollback have not been tested."]}
+
+STDERR:

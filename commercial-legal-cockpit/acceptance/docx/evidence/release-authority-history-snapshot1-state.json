@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0",
+  "recordKind": "agent-acceptance-state",
+  "baseGitRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "observedSourceSnapshotSha256": "cb3a1a9f8ec981829c07fbdc295a017a40135d57d5e41b5c8d3320c4989ea782",
+  "evidenceScope": "synthetic",
+  "reviewDisposition": "blocked",
+  "productionAuthorized": false,
+  "legalRelianceAuthorized": false,
+  "modelPolicyActivationAuthorized": false,
+  "humanAuthorization": null,
+  "docxAcceptanceItems": [
+    {
+      "item": 1,
+      "ownerRole": "Technical release owner",
+      "status": "blocked",
+      "neededEvidence": "Exact final-SHA CI/CodeQL and passing dependency audit; current independent source tests are insufficient"
+    },
+    {
+      "item": 2,
+      "ownerRole": "Legal and technical owners",
+      "status": "not_executed",
+      "neededEvidence": "Representative Word-created source comparison with verified author attribution and exact fixture hashes"
+    },
+    {
+      "item": 3,
+      "ownerRole": "Database and technical owners",
+      "status": "not_executed",
+      "neededEvidence": "Approved target PostgreSQL receipt/audit immutability, generation/concurrency and safe re-extraction results; disposable tests remain bounded"
+    },
+    {
+      "item": 4,
+      "ownerRole": "Security and technical owners",
+      "status": "human_approval_required",
+      "neededEvidence": "Exact final-source parser and workload results plus approved memory/latency/load criteria and runtime limits"
+    },
+    {
+      "item": 5,
+      "ownerRole": "Legal control owner",
+      "status": "human_approval_required",
+      "neededEvidence": "Current model/prompt/schema artifact-bound representative evaluation and formally approved successor policy; no existing active-policy evidence supplied"
+    },
+    {
+      "item": 6,
+      "ownerRole": "Authorized production release owner",
+      "status": "blocked",
+      "neededEvidence": "All DOCX and platform gates, hosted environment review protections, target release/rollback evidence and explicit exact-SHA production approval"
+    }
+  ],
+  "platformMandatoryGates": [
+    {
+      "id": "source_grounding",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "interpretation_precedence",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "economics_pricing",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "economics_ncnr",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "economics_eo",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "notice_deadlines",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "action_authorization",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "four_pillar_traceability",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "audit_integrity",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "workflow_integration",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "independent_adversarial",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "build_runtime",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "release_reproducibility",
+      "status": "blocked",
+      "evidenceScopeRequired": "bounded-or-live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "enterprise_identity",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "tenant_isolation",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "data_classification",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "integration_reconciliation",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "concurrency",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "backup_restore",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "monitoring_runbook",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "business_uat",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    },
+    {
+      "id": "rollback",
+      "status": "not_executed",
+      "evidenceScopeRequired": "live",
+      "acceptedEvidence": []
+    }
+  ],
+  "unverifiedHostedFacts": [
+    "Required reviewers and prevent-self-review/bypass settings on protected GitHub environments",
+    "Production Vercel project settings and preview separation",
+    "Approved target/runtime source versions and receipt history",
+    "Backup restoration and rollback deployment identity",
+    "Named owner appointments and corporate approval authority"
+  ],
+  "nextPermittedIncrement": "Complete independent local repairs and exact-source tests; request owner designation and approved nonproduction Word/target acceptance scope. No merge, publication, workflow dispatch, live processing or deployment.",
+  "mitigationOwnerRole": "Authorized production release owner",
+  "mitigation": "Keep production deployment and legal reliance blocked; do not enable lease recovery or activate engine policy through this record."
+}

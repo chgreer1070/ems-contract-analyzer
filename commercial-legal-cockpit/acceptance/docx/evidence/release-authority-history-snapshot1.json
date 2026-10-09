@@ -1,0 +1,36 @@
+{
+  "baseGitRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceSnapshotSha256": "cb3a1a9f8ec981829c07fbdc295a017a40135d57d5e41b5c8d3320c4989ea782",
+  "currentEvidence": false,
+  "reason": "Superseded by integrated dependency, package wiring, parser integrity and DOCX documentation changes; historical checks retained without claiming final release acceptance.",
+  "artifacts": [
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-check.txt",
+      "sha256": "49d4c019d11681332f715909040037ec96a1e88ffb25687a302c214ed6c8b28a"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-source-inventory.json",
+      "sha256": "58cf12231573d9c604738d0c0df4f3f7a48a6d401edba5693c3d307f94a31657"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-check.json",
+      "sha256": "88f3c2bad77b559d2444fe9219085a6e3e776b8e366d211a5c25a69d29945d29"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-state.json",
+      "sha256": "40cd60543063a49efaab08840658ec2ef5c7e9ccb1ccfd0e12632f0dae78d2f2"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-report.txt",
+      "sha256": "5ef82133da0964f8db44da1d9f3f27e40c99c9573ab8b557ea378423da7df1de"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-enterprise-manifest.json",
+      "sha256": "7fd200da6f2729c0b7aedb5f4e1a9878c983eba48dc7c71cb66820f3a73c5716"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-manifest-verification.txt",
+      "sha256": "1f9260479edeb2e5a8d4e5ee1fddbd77ef7d194a1ca842c782c9b986f79cc1b4"
+    }
+  ]
+}

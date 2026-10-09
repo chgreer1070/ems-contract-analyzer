@@ -1,0 +1,76 @@
+# Release authority acceptance report
+
+Date: October 9, 2026. Disposition: **NO-GO for production and legal reliance.** This review grants no permission to merge, publish, dispatch a workflow, activate policy, process customer material or deploy.
+
+The independently supplied input was Git revision `0d446203d670e086aa50ef8d65755cbc653ae6be`. Semantic/parser repairs changed tracked files during this invocation. The completed 24-check run therefore binds to current tracked-source snapshot SHA-256 `cb3a1a9f8ec981829c07fbdc295a017a40135d57d5e41b5c8d3320c4989ea782`, with the original Git revision recorded separately. `evidence/release-authority-source-inventory.json` defines the exact byte inventory and snapshot calculation. Later code, lockfile or other tracked-file changes invalidate that snapshot claim; rerun for the final candidate. No clean committed release is asserted by this report.
+
+## Checked behavior and limits
+
+| Check | Observed result | What it establishes |
+| --- | --- | --- |
+| `node acceptance/docx/evidence/release-authority-check.mjs` | Exit 0; 24 assertions | Bounded source inspection plus actual receipt integrity and source-eligibility execution. Not hosted or live acceptance. |
+| Production source eligibility, executed inside that check | Exit 1 as required; seven source blockers | Production mutation is denied before target migration, staging or promotion in the workflow. |
+| Actual receipt implementation | Positive synthetic receipt accepted; altered source/version/legal-evidence claim and hash-consistent changed content denied | Extraction cannot grant legal-evidence status; same-generation and complete projection constraints remain required. This test does not establish source completeness. |
+| Canonical release manifest verifier, `enterprise-live` profile | Exit 1; blocked; 22 required gates, zero verified | Synthetic/local checks are insufficient to grant live release. No mandatory gate is waived. The blocked manifest is a missing-proof inventory, not a certificate. |
+| Cross-agent source/fixture hashes | 95 source-hash references and seven preserved legal fixture hashes matched when inspected | Reviewed semantic/parser repair reports refer to the inspected bytes. They retain synthetic/provider-double limits. Later changes require revalidation. |
+
+Raw commands, exit codes and output are in `evidence/release-authority-check.txt` and `evidence/release-authority-manifest-verification.txt`. The test-result JSON deliberately does not claim a complete platform `action_authorization` gate. The state schema is a draft agent-review contract, with action/reliance/policy authorization fixed false; it is not an application runtime control or human approval record. Only JSON syntax was checked for that schema, not conformance by a JSON Schema implementation.
+
+## Material findings
+
+1. **Production code controls are implemented; hosted protection remains unverified.** `commercial-legal-cockpit-vercel.yml` restricts production to explicit dispatch from current `main`, names `contracttwin-production`, checks out the exact workflow SHA, requires preflight and exact-release CodeQL, rejects advanced `main` before release and promotion, verifies source eligibility before database mutation, stages without production domains, and requires a live proof before promotion. Naming a GitHub environment does not prove required reviewers, self-review prevention, bypass restrictions or protected secret configuration. The release owner must supply those hosted facts.
+2. **Preview is different.** `vercel.json` disables Vercel Git integration deployment. The Actions preview job can still deploy eligible PR/build-branch runs automatically after preflight when Vercel secrets exist. This invocation did not publish or dispatch anything. Do not claim universal automatic-deployment denial. Any later public push or PR update must be separately authorized with this consequence understood.
+3. **Seven platform gaps still block release.** Source eligibility actually rejected this candidate. `lib/readiness.ts` additionally requires current validation, governed standards and exact current engine policies before legal reliance. A flag or report cannot remove the missing implementation/evidence. These DOCX checks do not close full-package/layout/numbering extraction, every relied-on analysis stage, execution authenticity, delegated authority/finance lineage, provider-processing authorization, the full governed EMS taxonomy or the protocol-1 drain/contract phase.
+4. **New engine policy approval remains open.** Current repaired clause/term/pipeline versions are v6/v3/v8 and extractor v2. The existing migration seeds earlier clause/term policies. No successor activation is performed. Actual target policies and immutable current validation were not read; their approval cannot be inferred from source identifiers or migration labels.
+5. **Current source receipts protect the ingestion path, but live evidence remains missing.** The worker checks exact document/matter/extraction generation and successful receipt before model use and at clause/term publication, denies legacy raw-text DOCX and OCR substitution, and archives blocked receipts in audit metadata. Database immutability, transaction behavior, re-extraction, review retention and concurrency must still be proven by the database lane and approved target acceptance. An app-layer check does not prove database enforcement against every direct write.
+6. **Human legal and operational approvals remain separate.** Findings start unreviewed; document processing cannot generate an executive snapshot. Current runtime agreement approval/execution and snapshots require readiness. `APPROVED` currently represents a package lock, not independently authenticated legal/business approval or authentic execution. Keep those distinctions in the release decision.
+
+## Cross-agent review
+
+The legal lane preserved actual synthetic reproducers for revised/orphan note activation, inactive headers and cross-story comment anchors, then recorded seven passing repair checks. I verified its 15 current source hashes and all seven retained source bytes. Those tests establish the reproduced defect closures; Microsoft Word Original/Final/comment comparison remains unexecuted.
+
+The model-control packet contains four EMS fixtures and explicitly declares deterministic/provider-double execution. Its ten current source hashes matched. It is useful grounding/state regression evidence. It cannot approve a configured live model, policy successor or representative legal interpretation.
+
+The parser lane's raw result JSON records 14 samples, all with expected eligibility observed, and 70 source-hash references matched. It identifies runtime/host and measurement limitations. Resource approval, deployed concurrency and performance criteria remain external facts; these measurements alone cannot establish a production capacity limit.
+
+The downloaded CI result record is pinned to the original Git input. It records failed installation/lock, cockpit/preflight and CodeQL runs, a neutral unsuccessful-analysis SARIF result, and skipped preview/production. A local lock repair or successful build does not turn those hosted runs green or approve a changed SHA. The technical lane owns final source/lock repair and exact-version CI/CodeQL. This reviewer did not independently re-fetch hosted checks.
+
+This review does not yet incorporate a completed database lane report or final lock-remediation evidence. The coordinator must add them to the exact final-version inventory; no optimistic acceptance is recorded in their absence.
+
+## Human release checklist
+
+All items must close **before production approval**. No deployment date or named accountable individual was supplied. The authorized production release owner owns the mitigation: keep production and legal reliance blocked until all applicable control owners accept matching evidence.
+
+| Owner role | Must provide/accept | Risk if missing | Required mitigation |
+| --- | --- | --- | --- |
+| Technical release owner | Final full Git SHA, clean deployable source, reproducible lock/build, CI/CodeQL and passing dependency gate | Untested or vulnerable bytes can be promoted | Hold release; repair and rerun affected exact-version checks |
+| Legal and technical fixture owners | Representative Word-generated source/view packet; exact original/proposed, anchor and story comparison | Proposed/deleted or inactive language may be treated as operative evidence | Block affected documents/features until comparison passes |
+| Database owner | Disposable regressions plus approved target receipt/audit immutability, stale/concurrent generation and re-extraction proof | Stale output or lost review history can appear current | Deny affected publication; retain sources/receipts; repair without erasing history |
+| Security/technical owner | Parser review, approved workload/resource criteria, hosted protection, private repository and data boundary proof | Service failure or unauthorized access/processing | Keep live sources and deployment blocked |
+| Legal control owner | Current artifact-bound model validation and approved successor engine policies | Old approval can attach to changed inference behavior | Keep policies/reliance inactive; never rewrite old approval/validation |
+| Operations/release owner | Approved target, staged-source/live proof, monitoring, restore and rollback drill; named human authority | Recovery may reintroduce flattening or stale-worker publication | Use approved previous safe bundle; block DOCX if it lacks current evidence controls |
+
+## Rollback and activation review
+
+- Record a proven safe rollback deployment SHA, artifact digest and compatible schema manifest. None is supplied here. No rollback drill was performed. Do not promise one-click rollback or choose an older raw-text bundle as safe for negotiated DOCX.
+- Under approved change control, disable reliance and lease recovery, stop new work and drain workers before allowing an older bundle. Recheck leases/fencing and source receipt versions. Keep negotiated-DOCX processing blocked if that bundle lacks current preservation/denial controls. Original-source and reviewed history retention is mandatory.
+- Do not reverse migrations, rewrite immutable receipts, mark blocked documents clean/extracted, delete audit history or substitute flattened OCR. A database restore/clone also requires independent provider/control-plane evidence and source-store reconciliation; database-resident identity alone cannot establish restored resource authenticity.
+- Activation needs separate approvals for deployment, model/policy, data processing and legal reliance. Build/push/merge, successful synthetic tests and an agent's `ready` label authorize none of these.
+
+## Human decision record template — unfilled, no authority
+
+| Required field | Current value |
+| --- | --- |
+| Decision / permitted action | **PENDING; no consequential action permitted** |
+| Final full Git source SHA and clean source proof | Not provided; current review snapshot is recorded above |
+| Built artifact digest / staged deployment identity | Not provided |
+| Exact target environment and independently verified identity | Not provided |
+| Evidence inventory digest and accepted DOCX/platform gates | Review inventory available; mandatory release gates blocked |
+| Named Legal, Technical, Security, Database, Operations and Finance/Business control owners | Not provided |
+| Accountable release approver and verified delegated authority | Not provided |
+| Approval timestamp, scope, conditions and expiry | Not provided |
+| Rollback source/artifact, tested compatibility and drain proof | Not provided |
+| Legal policy / source-processing / reliance authorization | None; separate records required |
+| Reasoned go/no-go disposition | NO-GO until all missing proof and explicit authority are recorded |
+
+The smallest next human input is one synthetic Word-created W01 comparison packet under the legal lane's protocol. Owner designation and approval of a nonproduction target acceptance scope are also needed; supplying a fixture or designating an owner does not authorize live/customer processing or production deployment.

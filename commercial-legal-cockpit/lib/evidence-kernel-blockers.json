@@ -1,7 +1,7 @@
 {
   "version": 1,
   "blockers": [
-    "structure-preserving extraction and full-package coverage receipts are not implemented",
+    "full-package coverage and validated layout/numbering/unsupported-format extraction are not implemented; negotiated DOCX evidence has bounded pilot support",
     "all relied-on analysis stages lack representative artifact-bound legal validation",
     "execution artifact authenticity and independent execution certification are not implemented",
     "finance evidence/assumption lineage and the delegated multi-function authority matrix are not implemented",

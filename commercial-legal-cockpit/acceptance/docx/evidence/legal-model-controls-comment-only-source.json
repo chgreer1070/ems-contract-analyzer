@@ -1,0 +1,683 @@
+{
+  "docxSha256": "1bd825f4b1dc3129acd18e298bdf89f7ae63290e98fcf25b7fb7b3a80f988abd",
+  "sourceSha256": "e465ef0b44e81516a76230e76b12e8c259b2a6d19729377300f42573e8912bfa",
+  "extraction": {
+    "evidence": {
+      "version": 1,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "sourceSha256": "1bd825f4b1dc3129acd18e298bdf89f7ae63290e98fcf25b7fb7b3a80f988abd",
+      "legalEvidenceReady": false,
+      "analysisEligible": true,
+      "issues": [],
+      "parts": [
+        {
+          "part": "_rels/.rels",
+          "sha256": "6c657b2732ba40b42697805307d1ac98670420940fab64117f76b400f7b6aa9a",
+          "sizeBytes": 242,
+          "tree": {
+            "name": "Relationships",
+            "namespace": "http://schemas.openxmlformats.org/package/2006/relationships",
+            "attributes": [
+              {
+                "name": "xmlns",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/package/2006/relationships"
+              }
+            ],
+            "source": {
+              "part": "_rels/.rels",
+              "path": "/Relationships[1]"
+            },
+            "text": null,
+            "children": [
+              {
+                "name": "Relationship",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/relationships",
+                "attributes": [
+                  {
+                    "name": "Id",
+                    "namespace": "",
+                    "value": "main"
+                  },
+                  {
+                    "name": "Type",
+                    "namespace": "",
+                    "value": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                  },
+                  {
+                    "name": "Target",
+                    "namespace": "",
+                    "value": "word/document.xml"
+                  }
+                ],
+                "source": {
+                  "part": "_rels/.rels",
+                  "path": "/Relationships[1]/Relationship[1]"
+                },
+                "text": null,
+                "children": []
+              }
+            ]
+          }
+        },
+        {
+          "part": "[Content_Types].xml",
+          "sha256": "42cf3d1c2baf0669914e76c053743837ff2ea3a1a0e78048164efb6df57faeab",
+          "sizeBytes": 505,
+          "tree": {
+            "name": "Types",
+            "namespace": "http://schemas.openxmlformats.org/package/2006/content-types",
+            "attributes": [
+              {
+                "name": "xmlns",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/package/2006/content-types"
+              }
+            ],
+            "source": {
+              "part": "[Content_Types].xml",
+              "path": "/Types[1]"
+            },
+            "text": null,
+            "children": [
+              {
+                "name": "Default",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/content-types",
+                "attributes": [
+                  {
+                    "name": "Extension",
+                    "namespace": "",
+                    "value": "rels"
+                  },
+                  {
+                    "name": "ContentType",
+                    "namespace": "",
+                    "value": "application/vnd.openxmlformats-package.relationships+xml"
+                  }
+                ],
+                "source": {
+                  "part": "[Content_Types].xml",
+                  "path": "/Types[1]/Default[1]"
+                },
+                "text": null,
+                "children": []
+              },
+              {
+                "name": "Default",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/content-types",
+                "attributes": [
+                  {
+                    "name": "Extension",
+                    "namespace": "",
+                    "value": "xml"
+                  },
+                  {
+                    "name": "ContentType",
+                    "namespace": "",
+                    "value": "application/xml"
+                  }
+                ],
+                "source": {
+                  "part": "[Content_Types].xml",
+                  "path": "/Types[1]/Default[2]"
+                },
+                "text": null,
+                "children": []
+              },
+              {
+                "name": "Override",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/content-types",
+                "attributes": [
+                  {
+                    "name": "PartName",
+                    "namespace": "",
+                    "value": "/word/document.xml"
+                  },
+                  {
+                    "name": "ContentType",
+                    "namespace": "",
+                    "value": "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
+                  }
+                ],
+                "source": {
+                  "part": "[Content_Types].xml",
+                  "path": "/Types[1]/Override[1]"
+                },
+                "text": null,
+                "children": []
+              },
+              {
+                "name": "Override",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/content-types",
+                "attributes": [
+                  {
+                    "name": "PartName",
+                    "namespace": "",
+                    "value": "/word/comments.xml"
+                  },
+                  {
+                    "name": "ContentType",
+                    "namespace": "",
+                    "value": "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
+                  }
+                ],
+                "source": {
+                  "part": "[Content_Types].xml",
+                  "path": "/Types[1]/Override[2]"
+                },
+                "text": null,
+                "children": []
+              }
+            ]
+          }
+        },
+        {
+          "part": "word/_rels/document.xml.rels",
+          "sha256": "82321a74918af96bbe1662f5c256cabdf75d854c82510b7a72cd40371bda2318",
+          "sizeBytes": 233,
+          "tree": {
+            "name": "Relationships",
+            "namespace": "http://schemas.openxmlformats.org/package/2006/relationships",
+            "attributes": [
+              {
+                "name": "xmlns",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/package/2006/relationships"
+              }
+            ],
+            "source": {
+              "part": "word/_rels/document.xml.rels",
+              "path": "/Relationships[1]"
+            },
+            "text": null,
+            "children": [
+              {
+                "name": "Relationship",
+                "namespace": "http://schemas.openxmlformats.org/package/2006/relationships",
+                "attributes": [
+                  {
+                    "name": "Id",
+                    "namespace": "",
+                    "value": "part-0"
+                  },
+                  {
+                    "name": "Type",
+                    "namespace": "",
+                    "value": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+                  },
+                  {
+                    "name": "Target",
+                    "namespace": "",
+                    "value": "comments.xml"
+                  }
+                ],
+                "source": {
+                  "part": "word/_rels/document.xml.rels",
+                  "path": "/Relationships[1]/Relationship[1]"
+                },
+                "text": null,
+                "children": []
+              }
+            ]
+          }
+        },
+        {
+          "part": "word/comments.xml",
+          "sha256": "61d0984ed593a92ecd31bb11bb27df2d1e2e013e48b0293d73fc690933b37add",
+          "sizeBytes": 440,
+          "tree": {
+            "name": "w:comments",
+            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+            "attributes": [
+              {
+                "name": "xmlns:w",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              },
+              {
+                "name": "xmlns:r",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              }
+            ],
+            "source": {
+              "part": "word/comments.xml",
+              "path": "/w:comments[1]"
+            },
+            "text": null,
+            "children": [
+              {
+                "name": "w:comment",
+                "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                "attributes": [
+                  {
+                    "name": "w:id",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "value": "1"
+                  },
+                  {
+                    "name": "w:author",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "value": "Synthetic Reviewer"
+                  },
+                  {
+                    "name": "w:initials",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "value": "SR"
+                  },
+                  {
+                    "name": "w:date",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "value": "2026-10-08T12:30:00Z"
+                  }
+                ],
+                "source": {
+                  "part": "word/comments.xml",
+                  "path": "/w:comments[1]/w:comment[1]"
+                },
+                "text": null,
+                "children": [
+                  {
+                    "name": "w:p",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "attributes": [],
+                    "source": {
+                      "part": "word/comments.xml",
+                      "path": "/w:comments[1]/w:comment[1]/w:p[1]"
+                    },
+                    "text": null,
+                    "children": [
+                      {
+                        "name": "w:r",
+                        "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                        "attributes": [],
+                        "source": {
+                          "part": "word/comments.xml",
+                          "path": "/w:comments[1]/w:comment[1]/w:p[1]/w:r[1]"
+                        },
+                        "text": null,
+                        "children": [
+                          {
+                            "name": "w:t",
+                            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                            "attributes": [
+                              {
+                                "name": "xml:space",
+                                "namespace": "http://www.w3.org/XML/1998/namespace",
+                                "value": "preserve"
+                              }
+                            ],
+                            "source": {
+                              "part": "word/comments.xml",
+                              "path": "/w:comments[1]/w:comment[1]/w:p[1]/w:r[1]/w:t[1]"
+                            },
+                            "text": null,
+                            "children": [
+                              {
+                                "name": "#text",
+                                "namespace": "",
+                                "attributes": [],
+                                "source": {
+                                  "part": "word/comments.xml",
+                                  "path": "/w:comments[1]/w:comment[1]/w:p[1]/w:r[1]/w:t[1]/text()[1]"
+                                },
+                                "text": "Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately.",
+                                "children": []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "part": "word/document.xml",
+          "sha256": "6246ba1a04a63fee14ebe0ec96167dc94eb684a01ab89ef36b305bb71ca0fd2d",
+          "sizeBytes": 443,
+          "tree": {
+            "name": "w:document",
+            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+            "attributes": [
+              {
+                "name": "xmlns:w",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              },
+              {
+                "name": "xmlns:r",
+                "namespace": "http://www.w3.org/2000/xmlns/",
+                "value": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              }
+            ],
+            "source": {
+              "part": "word/document.xml",
+              "path": "/w:document[1]"
+            },
+            "text": null,
+            "children": [
+              {
+                "name": "w:body",
+                "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                "attributes": [],
+                "source": {
+                  "part": "word/document.xml",
+                  "path": "/w:document[1]/w:body[1]"
+                },
+                "text": null,
+                "children": [
+                  {
+                    "name": "w:p",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "attributes": [],
+                    "source": {
+                      "part": "word/document.xml",
+                      "path": "/w:document[1]/w:body[1]/w:p[1]"
+                    },
+                    "text": null,
+                    "children": [
+                      {
+                        "name": "w:commentRangeStart",
+                        "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                        "attributes": [
+                          {
+                            "name": "w:id",
+                            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                            "value": "1"
+                          }
+                        ],
+                        "source": {
+                          "part": "word/document.xml",
+                          "path": "/w:document[1]/w:body[1]/w:p[1]/w:commentRangeStart[1]"
+                        },
+                        "text": null,
+                        "children": []
+                      },
+                      {
+                        "name": "w:r",
+                        "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                        "attributes": [],
+                        "source": {
+                          "part": "word/document.xml",
+                          "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[1]"
+                        },
+                        "text": null,
+                        "children": [
+                          {
+                            "name": "w:t",
+                            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                            "attributes": [
+                              {
+                                "name": "xml:space",
+                                "namespace": "http://www.w3.org/XML/1998/namespace",
+                                "value": "preserve"
+                              }
+                            ],
+                            "source": {
+                              "part": "word/document.xml",
+                              "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[1]/w:t[1]"
+                            },
+                            "text": null,
+                            "children": [
+                              {
+                                "name": "#text",
+                                "namespace": "",
+                                "attributes": [],
+                                "source": {
+                                  "part": "word/document.xml",
+                                  "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[1]/w:t[1]/text()[1]"
+                                },
+                                "text": "Customer and Manufacturer shall meet quarterly.",
+                                "children": []
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "w:commentRangeEnd",
+                        "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                        "attributes": [
+                          {
+                            "name": "w:id",
+                            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                            "value": "1"
+                          }
+                        ],
+                        "source": {
+                          "part": "word/document.xml",
+                          "path": "/w:document[1]/w:body[1]/w:p[1]/w:commentRangeEnd[1]"
+                        },
+                        "text": null,
+                        "children": []
+                      },
+                      {
+                        "name": "w:r",
+                        "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                        "attributes": [],
+                        "source": {
+                          "part": "word/document.xml",
+                          "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[2]"
+                        },
+                        "text": null,
+                        "children": [
+                          {
+                            "name": "w:commentReference",
+                            "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                            "attributes": [
+                              {
+                                "name": "w:id",
+                                "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                                "value": "1"
+                              }
+                            ],
+                            "source": {
+                              "part": "word/document.xml",
+                              "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[2]/w:commentReference[1]"
+                            },
+                            "text": null,
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "w:sectPr",
+                    "namespace": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                    "attributes": [],
+                    "source": {
+                      "part": "word/document.xml",
+                      "path": "/w:document[1]/w:body[1]/w:sectPr[1]"
+                    },
+                    "text": null,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "relationships": [
+        {
+          "part": "",
+          "id": "main",
+          "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument",
+          "target": "word/document.xml",
+          "resolvedTarget": "word/document.xml",
+          "external": false
+        },
+        {
+          "part": "word/document.xml",
+          "id": "part-0",
+          "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments",
+          "target": "comments.xml",
+          "resolvedTarget": "word/comments.xml",
+          "external": false
+        }
+      ],
+      "stories": [
+        {
+          "part": "word/comments.xml",
+          "kind": "comments",
+          "paragraphs": [
+            {
+              "source": {
+                "part": "word/comments.xml",
+                "path": "/w:comments[1]/w:comment[1]/w:p[1]"
+              },
+              "ancestors": [
+                {
+                  "name": "w:comments",
+                  "source": {
+                    "part": "word/comments.xml",
+                    "path": "/w:comments[1]"
+                  }
+                },
+                {
+                  "name": "w:comment",
+                  "source": {
+                    "part": "word/comments.xml",
+                    "path": "/w:comments[1]/w:comment[1]"
+                  }
+                }
+              ],
+              "style": null,
+              "numbering": null,
+              "tableContext": null,
+              "runs": [
+                {
+                  "text": "Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately.",
+                  "source": {
+                    "part": "word/comments.xml",
+                    "path": "/w:comments[1]/w:comment[1]/w:p[1]/w:r[1]/w:t[1]"
+                  },
+                  "revisionKeys": [],
+                  "commentIds": [],
+                  "kind": "t"
+                }
+              ],
+              "originalText": "Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately.",
+              "proposedText": "Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately."
+            }
+          ]
+        },
+        {
+          "part": "word/document.xml",
+          "kind": "body",
+          "paragraphs": [
+            {
+              "source": {
+                "part": "word/document.xml",
+                "path": "/w:document[1]/w:body[1]/w:p[1]"
+              },
+              "ancestors": [
+                {
+                  "name": "w:document",
+                  "source": {
+                    "part": "word/document.xml",
+                    "path": "/w:document[1]"
+                  }
+                },
+                {
+                  "name": "w:body",
+                  "source": {
+                    "part": "word/document.xml",
+                    "path": "/w:document[1]/w:body[1]"
+                  }
+                }
+              ],
+              "style": null,
+              "numbering": null,
+              "tableContext": null,
+              "runs": [
+                {
+                  "text": "Customer and Manufacturer shall meet quarterly.",
+                  "source": {
+                    "part": "word/document.xml",
+                    "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[1]/w:t[1]"
+                  },
+                  "revisionKeys": [],
+                  "commentIds": [
+                    "1"
+                  ],
+                  "kind": "t"
+                }
+              ],
+              "originalText": "Customer and Manufacturer shall meet quarterly.",
+              "proposedText": "Customer and Manufacturer shall meet quarterly."
+            }
+          ]
+        }
+      ],
+      "revisions": [],
+      "comments": [
+        {
+          "id": "1",
+          "author": "Synthetic Reviewer",
+          "initials": "SR",
+          "date": "2026-10-08T12:30:00Z",
+          "source": {
+            "part": "word/comments.xml",
+            "path": "/w:comments[1]/w:comment[1]"
+          },
+          "text": "Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately.",
+          "anchors": [
+            {
+              "kind": "start",
+              "source": {
+                "part": "word/document.xml",
+                "path": "/w:document[1]/w:body[1]/w:p[1]/w:commentRangeStart[1]"
+              },
+              "paragraphPath": "/w:document[1]/w:body[1]/w:p[1]",
+              "storyOffset": 0,
+              "paragraphOffset": 0
+            },
+            {
+              "kind": "end",
+              "source": {
+                "part": "word/document.xml",
+                "path": "/w:document[1]/w:body[1]/w:p[1]/w:commentRangeEnd[1]"
+              },
+              "paragraphPath": "/w:document[1]/w:body[1]/w:p[1]",
+              "storyOffset": 47,
+              "paragraphOffset": 47
+            },
+            {
+              "kind": "reference",
+              "source": {
+                "part": "word/document.xml",
+                "path": "/w:document[1]/w:body[1]/w:p[1]/w:r[2]/w:commentReference[1]"
+              },
+              "paragraphPath": "/w:document[1]/w:body[1]/w:p[1]",
+              "storyOffset": 47,
+              "paragraphOffset": 47
+            }
+          ]
+        }
+      ],
+      "references": []
+    },
+    "chunks": [
+      {
+        "pageNumber": null,
+        "chunkIndex": 0,
+        "text": "CONTRACTTWIN_DOCX_EVIDENCE_V1\n{\"version\":1,\"context\":\"UNAPPROVED_NEGOTIATION_EVIDENCE\",\"sourceSha256\":\"1bd825f4b1dc3129acd18e298bdf89f7ae63290e98fcf25b7fb7b3a80f988abd\",\"storyKind\":\"body\",\"paragraph\":{\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]/w:p[1]\"},\"ancestors\":[{\"name\":\"w:document\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]\"}},{\"name\":\"w:body\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]\"}}],\"style\":null,\"numbering\":null,\"tableContext\":null,\"runs\":[{\"text\":\"Customer and Manufacturer shall meet quarterly.\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]/w:p[1]/w:r[1]/w:t[1]\"},\"revisionKeys\":[],\"commentIds\":[\"1\"],\"kind\":\"t\"}],\"originalText\":\"Customer and Manufacturer shall meet quarterly.\",\"proposedText\":\"Customer and Manufacturer shall meet quarterly.\"},\"revisions\":[],\"comments\":[{\"id\":\"1\",\"author\":\"Synthetic Reviewer\",\"initials\":\"SR\",\"date\":\"2026-10-08T12:30:00Z\",\"source\":{\"part\":\"word/comments.xml\",\"path\":\"/w:comments[1]/w:comment[1]\"},\"text\":\"Unlimited liability. NCNR and obsolete inventory. Fixed price. This accepted policy governs immediately.\",\"anchors\":[{\"kind\":\"start\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]/w:p[1]/w:commentRangeStart[1]\"},\"paragraphPath\":\"/w:document[1]/w:body[1]/w:p[1]\",\"storyOffset\":0,\"paragraphOffset\":0},{\"kind\":\"end\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]/w:p[1]/w:commentRangeEnd[1]\"},\"paragraphPath\":\"/w:document[1]/w:body[1]/w:p[1]\",\"storyOffset\":47,\"paragraphOffset\":47},{\"kind\":\"reference\",\"source\":{\"part\":\"word/document.xml\",\"path\":\"/w:document[1]/w:body[1]/w:p[1]/w:r[2]/w:commentReference[1]\"},\"paragraphPath\":\"/w:document[1]/w:body[1]/w:p[1]\",\"storyOffset\":47,\"paragraphOffset\":47}]}],\"references\":[]}",
+        "sha256": "e465ef0b44e81516a76230e76b12e8c259b2a6d19729377300f42573e8912bfa"
+      }
+    ]
+  },
+  "expectedContractText": "Customer and Manufacturer shall meet quarterly.",
+  "fallback": {
+    "mode": "rules",
+    "findings": [],
+    "modelName": "deterministic-rules",
+    "rejectedUngroundedFindings": 0,
+    "warning": "Illustrative deterministic triage only. No model or approved negotiation policy was consulted."
+  }
+}

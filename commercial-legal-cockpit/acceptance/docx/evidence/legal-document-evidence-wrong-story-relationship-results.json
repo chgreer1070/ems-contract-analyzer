@@ -1,0 +1,22 @@
+{
+  "baselineCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceSha256": "641a26386b75575ffd7ac5652ae9eb09a4c8db3fc7b470409c430ef8ca498613",
+  "syntheticOnly": true,
+  "wordRendererExecuted": false,
+  "relationshipType": "comments",
+  "sectionReferenceType": "headerReference",
+  "baseline": {
+    "analysisEligible": true,
+    "reexecuted": false,
+    "evidence": "legal-document-evidence-second-cycle-wrong-story-baseline.json"
+  },
+  "current": {
+    "head": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+    "extractorFileSha256": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7",
+    "analysisEligible": false,
+    "blockingCodes": [
+      "STORY_RELATIONSHIP_MISMATCH",
+      "UNACTIVATED_HEADER_FOOTER"
+    ]
+  }
+}

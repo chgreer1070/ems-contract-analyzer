@@ -1,0 +1,153 @@
+{
+  "observedAt": "2026-10-09T12:32:10.570Z",
+  "candidateSha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "checks": [
+    {
+      "id": 113781105332,
+      "name": "Vercel preview",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660196/job/113781105332",
+      "title": null
+    },
+    {
+      "id": 113781104965,
+      "name": "Approval-gated Vercel production",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660196/job/113781104965",
+      "title": null
+    },
+    {
+      "id": 113781102624,
+      "name": "CodeQL",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "neutral",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/runs/113781102624",
+      "title": "Error when processing the SARIF file"
+    },
+    {
+      "id": 113780969207,
+      "name": "Exact release CodeQL",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660196/job/113780969207",
+      "title": null
+    },
+    {
+      "id": 113780967971,
+      "name": "Release preflight",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660196/job/113780967971",
+      "title": null
+    },
+    {
+      "id": 113780966589,
+      "name": "Cockpit validation",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660110/job/113780966589",
+      "title": null
+    },
+    {
+      "id": 113780966417,
+      "name": "Verify committed package-lock.json",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660093/job/113780966417",
+      "title": null
+    },
+    {
+      "id": 113780966309,
+      "name": "CodeQL JavaScript / TypeScript",
+      "head_sha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/chgreer1070/ems-contract-analyzer/actions/runs/37918660106/job/113780966309",
+      "title": null
+    }
+  ],
+  "logs": [
+    {
+      "jobId": 113780966417,
+      "diagnostics": [
+        "2026-10-09T10:36:48.2217570Z npm error code EUSAGE",
+        "2026-10-09T10:36:48.2219092Z npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "2026-10-09T10:36:48.2220662Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2221108Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2221552Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2222061Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2222536Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2223345Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2223778Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2224191Z npm error Missing: chokidar@5.0.0 from lock file",
+        "2026-10-09T10:36:48.2224615Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:36:48.2225057Z npm error Missing: readdirp@5.1.1 from lock file",
+        "2026-10-09T10:36:48.2609089Z ##[error]Process completed with exit code 1."
+      ]
+    },
+    {
+      "jobId": 113780966589,
+      "diagnostics": [
+        "2026-10-09T10:37:06.8449712Z npm error code EUSAGE",
+        "2026-10-09T10:37:06.8450666Z npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "2026-10-09T10:37:06.8451498Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8451736Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8451960Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8452275Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8452492Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8452706Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8452930Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8453141Z npm error Missing: chokidar@5.0.0 from lock file",
+        "2026-10-09T10:37:06.8453371Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:06.8453582Z npm error Missing: readdirp@5.1.1 from lock file",
+        "2026-10-09T10:37:06.8812338Z ##[error]Process completed with exit code 1."
+      ]
+    },
+    {
+      "jobId": 113780966309,
+      "diagnostics": [
+        "2026-10-09T10:37:05.1032283Z npm error code EUSAGE",
+        "2026-10-09T10:37:05.1033648Z npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "2026-10-09T10:37:05.1035480Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1035968Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1036382Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1037050Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1037447Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1037851Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1038249Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1038630Z npm error Missing: chokidar@5.0.0 from lock file",
+        "2026-10-09T10:37:05.1039026Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:05.1039404Z npm error Missing: readdirp@5.1.1 from lock file",
+        "2026-10-09T10:37:05.1425233Z ##[error]Process completed with exit code 1.",
+        "2026-10-09T10:37:12.6375081Z Successfully uploaded a SARIF file for the unsuccessful execution. Received expected \"unsuccessful execution\" processing error, and no other errors."
+      ]
+    },
+    {
+      "jobId": 113780967971,
+      "diagnostics": [
+        "2026-10-09T10:37:04.0555292Z npm error code EUSAGE",
+        "2026-10-09T10:37:04.0556055Z npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "2026-10-09T10:37:04.0556613Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0556830Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0557038Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0557307Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0557509Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0557714Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0557921Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0558118Z npm error Missing: chokidar@5.0.0 from lock file",
+        "2026-10-09T10:37:04.0558335Z npm error Missing: @swc/helpers@0.5.23 from lock file",
+        "2026-10-09T10:37:04.0558535Z npm error Missing: readdirp@5.1.1 from lock file",
+        "2026-10-09T10:37:04.0866075Z ##[error]Process completed with exit code 1."
+      ]
+    }
+  ]
+}

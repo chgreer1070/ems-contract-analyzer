@@ -1,0 +1,170 @@
+{
+  "observedAt": "2026-10-09T12:40:45.655284+00:00",
+  "originalSha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "proposedSha": "fd56950ad7692b5ac92338367983d541538ef014",
+  "scope": "isolated local engineering; not remote CI, live target or production",
+  "runtime": {
+    "node": "22.23.3",
+    "npm": "10.9.9"
+  },
+  "cleanInstall": {
+    "command": "npm ci --no-audit --no-fund",
+    "exitCode": 0,
+    "runtime": "Node22.23.3/npm10.9.9",
+    "lockBefore": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684",
+    "lockAfter": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684",
+    "lockUnchanged": true,
+    "observedAt": "2026-10-09T12:39:15.990025+00:00"
+  },
+  "checks": [
+    {
+      "command": "npm run test:controls",
+      "exitCode": 0,
+      "log": "docx-dependency-test-controls.log",
+      "observedAt": "2026-10-09T12:37:11.846925+00:00"
+    },
+    {
+      "command": "npm run test:corpus",
+      "exitCode": 0,
+      "log": "docx-dependency-test-corpus.log",
+      "observedAt": "2026-10-09T12:37:15.419846+00:00"
+    },
+    {
+      "command": "npm run test:economics",
+      "exitCode": 0,
+      "log": "docx-dependency-test-economics.log",
+      "observedAt": "2026-10-09T12:37:19.135621+00:00"
+    },
+    {
+      "command": "npm run db:check",
+      "exitCode": 0,
+      "log": "docx-dependency-db-check.log",
+      "observedAt": "2026-10-09T12:37:23.153540+00:00"
+    }
+  ],
+  "typecheckExitCode": 0,
+  "buildExitCode": 0,
+  "productionAuditExitCode": 0,
+  "fullAuditExitCode": 0,
+  "logs": {
+    "lockRepairCi": {
+      "sha256": "55fcaf87d54ab6589f2153ca9bb9123ce409ff885ab5c1be71a52df435f6aae1",
+      "bytes": 301,
+      "boundedSummary": [
+        "added 556 packages in 13s"
+      ]
+    },
+    "securityCleanCi": {
+      "sha256": "8520500bf23224b6d61cfa3cc8f1d92e45620a116b8f92969e78bc7acb1eeccf",
+      "bytes": 301,
+      "boundedSummary": [
+        "added 530 packages in 11s"
+      ]
+    },
+    "controls": {
+      "sha256": "d151e77b445864326ef89ccdde98cfdfce50662716d2975a040029a86c619c2f",
+      "bytes": 11478,
+      "boundedSummary": [
+        "Processing-job lease fencing and retry controls passed.",
+        "> ems-commercial-legal-cockpit@0.3.0 test:workspace-evidence-ui",
+        "> node scripts/workspace-evidence-ui-check.mjs",
+        "Matter-workspace evidence and authority UI checks passed.",
+        "> ems-commercial-legal-cockpit@0.3.0 test:docx",
+        "> node scripts/docx-extraction-check.mjs && node scripts/docx-pipeline-check.mjs",
+        "PASS replacement retains both wordings, authors, dates and source hashes",
+        "PASS overlapping and cross-paragraph comments retain exact range/reference anchors",
+        "PASS point comments, empty comments and author metadata are preserved",
+        "PASS headers, footers, notes and note targets are retained",
+        "PASS tables preserve cell ancestry, grid spans, merges and row/header context",
+        "PASS namespace aliases, literal whitespace and UTF-16 XML are supported",
+        "PASS metadata cannot ground a contract quote; deleted text cannot become a current candidate term",
+        "PASS receipt rejects missing, stale, tampered, omitted, duplicate and reordered evidence",
+        "PASS conflicting revision identity and inconsistent table merges block",
+        "PASS broken, missing, duplicate and orphan comment anchors block extraction",
+        "PASS revision metadata gaps and structural/property revisions are preserved and blocked",
+        "PASS unsupported fields blocks without publishing partial chunks",
+        "PASS unsupported complex fields blocks without publishing partial chunks",
+        "PASS unsupported drawings blocks without publishing partial chunks",
+        "PASS unsupported content controls blocks without publishing partial chunks",
+        "PASS unsupported custom XML blocks without publishing partial chunks",
+        "PASS unsupported tracked moves blocks without publishing partial chunks",
+        "PASS unsupported hidden text blocks without publishing partial chunks",
+        "PASS unsupported numbering blocks without publishing partial chunks",
+        "PASS unsupported unknown content blocks without publishing partial chunks",
+        "PASS unsupported alternate content blocks without publishing partial chunks",
+        "PASS unused styles are retained; used inherited numbering and style cycles block",
+        "PASS ignorable declarations alone do not hide content; unknown extensions block",
+        "PASS missing parts, external content, embeddings and unsupported XML block",
+        "PASS external hyperlinks preserve targets, without fetching them",
+        "PASS malformed XML, DTD/entity expansion, strict namespace and uncovered text block",
+        "PASS ZIP corruption, duplicate/unsafe names, encryption and expansion bounds fail closed",
+        "PASS oversized clause and extreme XML nesting block rather than truncate",
+        "PASS extractDocument routes DOCX to evidence, keeps TXT behavior and never flattens invalid DOCX",
+        "DOCX evidence regression checks passed: 29 synthetic scenarios. No external AI, customer source, database or deployment was used.",
+        "PASS worker stores a complete receipt and source mappings without rewriting original bytes",
+        "PASS unsupported and empty DOCX publish a terminal blocked receipt, with no chunks or OCR",
+        "PASS legacy raw-text DOCX cannot reach clause or term analysis",
+        "PASS missing, unfinished and tampered receipts stop model calls and publication",
+        "PASS supported evidence can advance through clause analysis; resulting objects remain unapproved",
+        "PASS OCR cannot replace DOCX negotiation evidence, including a manually queued job",
+        "PASS actual term adapter rejects original-only quotes and enforces proposal labeling",
+        "PASS evidence route authorizes before reading, keeps receipt private and reports missing receipts",
+        "DOCX pipeline checks passed: 8 executable synthetic scenarios with mocked database/storage/model boundaries. These are not live-environment acceptance."
+      ]
+    },
+    "corpus": {
+      "sha256": "f1e2847b48ba04bc6ac92cdf02fa2d9434eaea7ef32fcfc0fa6d006ec29292af",
+      "bytes": 594,
+      "boundedSummary": [
+        "> ems-commercial-legal-cockpit@0.3.0 test:corpus",
+        "> node scripts/corpus-check.mjs",
+        "Corpus check passed: 24 frozen synthetic EMS cases (0.3.0)."
+      ]
+    },
+    "economics": {
+      "sha256": "ff15cdb2a3f3ff39d5a9bd56430c414adf509726fa5bbcde2c46b66a2580715f",
+      "bytes": 813,
+      "boundedSummary": [
+        "> ems-commercial-legal-cockpit@0.3.0 test:economics",
+        "> node scripts/economics-check.mjs"
+      ]
+    },
+    "schema": {
+      "sha256": "d28d06a85a37b6e124a28453acc18f9d6c54b5a2bb192f4d2192377a32381931",
+      "bytes": 659,
+      "boundedSummary": [
+        "> ems-commercial-legal-cockpit@0.3.0 db:check",
+        "> node scripts/schema-check.mjs",
+        "Schema check passed: 32 required tables and legal-control fields present; 14 canonical-LF migration receipts match manifest v2."
+      ]
+    },
+    "typecheck": {
+      "sha256": "a4b509c1306cb84b7abcbc40c25ca42c4a470bcef1a9ae7e67c0a275f2284cf0",
+      "bytes": 648,
+      "boundedSummary": [
+        "> ems-commercial-legal-cockpit@0.3.0 typecheck",
+        "> next typegen && tsc --noEmit",
+        "workflows build complete (15 steps, 3 workflows, time 76ms)",
+        "Generating route types...",
+        "\u2713 Types generated successfully"
+      ]
+    },
+    "build": {
+      "sha256": "c5562f49591aad55a2f7389c4d6b37ec23a3dc3dc24efb10ac27026e3c94ec69",
+      "bytes": 5130,
+      "boundedSummary": [
+        "> ems-commercial-legal-cockpit@0.3.0 build",
+        "> next build",
+        "workflows build complete (15 steps, 3 workflows, time 68ms)",
+        "\u2713 Running next.config.ts took 367ms",
+        "\u2713 Compiled successfully in 6.7s",
+        "\u2713 Generating static pages using 8 workers (27/27) in 287ms"
+      ]
+    }
+  },
+  "artifactHashes": {
+    "package.json": "4044ff6c0996b0e778e175778ba28a527a5cf5534b8327eff85d480303bd1b40",
+    "package-lock.json": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684",
+    "dependency-ci-remediation.patch": "31bd4ac69ad3660e4a0e276bbe295633dba33e70d2bd203b65d244ec5465d1be"
+  }
+}

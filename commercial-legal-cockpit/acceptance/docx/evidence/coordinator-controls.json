@@ -1,0 +1,6 @@
+{
+  "command": "npm run test:controls",
+  "exitCode": 0,
+  "elapsedSeconds": 14.727,
+  "scope": "synthetic and source controls; no live acceptance"
+}

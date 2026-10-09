@@ -1,0 +1,1034 @@
+{
+  "schema_version": "1.0",
+  "revision": "cb3a1a9f8ec981829c07fbdc295a017a40135d57d5e41b5c8d3320c4989ea782",
+  "profile": "enterprise-live",
+  "evidence_scope": "synthetic",
+  "release_artifacts": [
+    {
+      "path": ".env.example",
+      "sha256": "a7b79d91460a0c1ae4bac8a8f76d23fda170baa6a0d28b64b79b04c6bbc8240c"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "9902e810cc2c43cf935ae7aab4098853d9ad871282f4e9f0739a8a681eaa1ee5"
+    },
+    {
+      "path": ".github/workflows/commercial-legal-cockpit-codeql.yml",
+      "sha256": "ee64d83aa256d18b44132297e50c789bcd3429d8e2d92b8a9b7c234a5783d0c2"
+    },
+    {
+      "path": ".github/workflows/commercial-legal-cockpit-lock.yml",
+      "sha256": "e992dd8e7a077c60627a1c2b1e737b625c509bdfce3c0b0a4dae93904e85fd1c"
+    },
+    {
+      "path": ".github/workflows/commercial-legal-cockpit-vercel.yml",
+      "sha256": "e00cfbd818d475a5cd442c0f9b22e2f85bbbf750550a986c6adee27f797aa49f"
+    },
+    {
+      "path": ".github/workflows/commercial-legal-cockpit.yml",
+      "sha256": "2a1acc98ea336f8b6211539a65b4d4a38a7d9b64593bb8597d87b6a248177dec"
+    },
+    {
+      "path": ".github/workflows/contracttwin-production-target-bootstrap.yml",
+      "sha256": "57ec8f6dfb050eb3285b1aa910cb2b7561af9f792b32cda07b3c426a70fdc2cc"
+    },
+    {
+      "path": ".github/workflows/contracttwin-release-attestation.yml",
+      "sha256": "9f227a7fe3af82e030ff9232309b6e250d900c9506a5306f0df1183bcfac86d0"
+    },
+    {
+      "path": ".github/workflows/contracttwin-release-diagnostics.yml",
+      "sha256": "8dd01bfe66694f845039f5ffc7227ba1fbdc76553f885295f7b8715547140ef1"
+    },
+    {
+      "path": ".github/workflows/contracttwin-release-observer.yml",
+      "sha256": "5144984e8afc229c78a6abe8196a63d83f8682bab88b08b2f58852aa0d6fa3ae"
+    },
+    {
+      "path": ".github/workflows/contracttwin-release-pr-status.yml",
+      "sha256": "0325672ed7fea7ce7c6b54662e51c7dc6e86c0b0acd70d186265e4f1cf1d4254"
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "sha256": "63a2e973a43182e6663724cb908b2847d15ba167ac62f7cc95376729cc349786"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "6b0d4f73a96f5bdbdd8b3bcc3bb168ed48a4e126e7d627d678b415ed355d5ade"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "86964e494e36a196d1a48a99d561d7d8a29f8c5924dfc2209de4ab2af4129e0b"
+    },
+    {
+      "path": "README.md",
+      "sha256": "988d45ef88dc2231f7922ffb96514e0d6907377b02bdee53012bdae95aae9710"
+    },
+    {
+      "path": "analyzer.py",
+      "sha256": "852831d87d73a77eff66e6983966d4b49ec1d996e62aef2e3c745338c9c3def7"
+    },
+    {
+      "path": "app.py",
+      "sha256": "0da7c5136364840eb9fb41fe4e3d57c678ca82c5d22755d3e22206d7b20b11b5"
+    },
+    {
+      "path": "clause_dependency_matrix.py",
+      "sha256": "5718d3c959faefc77beb5d8df4e6f43286e97a15a9af688aef4b3ee101fcf08b"
+    },
+    {
+      "path": "commercial-legal-cockpit/.env.example",
+      "sha256": "50f45149b25283a986fbea3889dd94cd74b76eddc62761b69a647af0131e8cc5"
+    },
+    {
+      "path": "commercial-legal-cockpit/.gitignore",
+      "sha256": "f07f677d26ddc91361d6350ed3d0bea535d6e8c0a99911d5d8a82b216970b9e5"
+    },
+    {
+      "path": "commercial-legal-cockpit/ARCHITECTURE.md",
+      "sha256": "5a2b105f8575b829e0d17ce63e5a2d22a864d9b3ac67070a4c87eda85756fba5"
+    },
+    {
+      "path": "commercial-legal-cockpit/DOCX_INGESTION.md",
+      "sha256": "9dac9c4fa776537d0590bdb594a7007b66e1a24864e2f9b6880848b21569812d"
+    },
+    {
+      "path": "commercial-legal-cockpit/DOCX_VALIDATION.md",
+      "sha256": "e7cd4f90d081d3a7808beb8c11bee78ffa1d2980a14d2edbc8b41a294656ba05"
+    },
+    {
+      "path": "commercial-legal-cockpit/OPERATIONS_RUNBOOK.md",
+      "sha256": "e7d6db6f0d1336ec799460e8938ab5c6142b8d1aec4c411f4db5bc737dc952f6"
+    },
+    {
+      "path": "commercial-legal-cockpit/PRODUCTION_READINESS.md",
+      "sha256": "ae5e5cba54a79402ae361e23f2beb110ffb19268144323351a9e8ed4cb7a4ded"
+    },
+    {
+      "path": "commercial-legal-cockpit/README.md",
+      "sha256": "d58d6edc5b26ad47f60048c7ab6b2cfd7a96eef7b1aa0df0c89743f552fca980"
+    },
+    {
+      "path": "commercial-legal-cockpit/RELEASE_FREEZE.md",
+      "sha256": "6c3f5408581e172f46f16025cbbf7672ba0c6d80994c7775acfa3aceeac5d641"
+    },
+    {
+      "path": "commercial-legal-cockpit/SECURITY.md",
+      "sha256": "17bede4993dcf8e7e5c2cc6d8b2ae361567bc2060b542938d1049ec256ccee2e"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/admin/page.tsx",
+      "sha256": "86ae3cdad972606251814d5bf104963af87685eda17daecc538f4af263c043ab"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/admin/bootstrap/route.ts",
+      "sha256": "dea1955333906e45979ddb2151ff9286d8672da772b98ebc9b40cbcc80267799"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/admin/capabilities/route.ts",
+      "sha256": "152b8809fb9e702a32df075fdae9841ad45a09d0aa0852657d83907684f62c1f"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/admin/purge-requests/route.ts",
+      "sha256": "bc71fd7fe4601497952fbd6dde718585b5bfc61e9edcb929b999e5c7b3f36624"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/admin/roles/route.ts",
+      "sha256": "7d9f69be5d964f990507d44f7e67cb0c6f910b261b30057cc9263fefc6677167"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/agreement-versions/[id]/graph/route.ts",
+      "sha256": "252a35b59a9bb43e0b4369aa74cabc2ab6d0c5dfb1933eb0c56875c0665c1ac1"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/agreement-versions/[id]/status/route.ts",
+      "sha256": "c921e50be14462864da417da1fddf08dc7c5d2ddd3218584b4bc199f4cf4c008"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/analysis-attestations/route.ts",
+      "sha256": "f5f44eced568a41e5722ef20c12bff39b25cc35c0607a6029acdc7a75d22fe62"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/analyze/route.ts",
+      "sha256": "7021e9ba07a7be062ca6806235023b708efc5a752fa0eb7a31fc43f3933409aa"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/audit/route.ts",
+      "sha256": "a0060294ba57f941c220864f53dfacd7da6da36b6fb6f710408b077d0622589d"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/auth/[...all]/route.ts",
+      "sha256": "930a263208969911614599584dca23ff1cac97342acbf777d60eb4c5fefef066"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/decision-conditions/[id]/route.ts",
+      "sha256": "9c9f043f7eaf0ba3781a49d71fe1ebe20f12251755e83748e4017f2cd07ac924"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/decision-requests/route.ts",
+      "sha256": "5eee7b0cd9344f76b575d3e733b46bec8bef9809c9e779da07359ea7cc6fb444"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/decisions/[id]/route.ts",
+      "sha256": "6ce186605ec53ec54af64c1c7afb91c3bc487bdcaee8f2c1f43a65e964f70715"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/decisions/route.ts",
+      "sha256": "7a1061c217aa80a0830ada52979cdc6057b347509d08a6e7421c4535ec891535"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/analyze/route.ts",
+      "sha256": "f3e7180fb98fd330e993ee4ae54af50c8e3640719164e283bfc7f0152ab4f8a9"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/content/route.ts",
+      "sha256": "b73b822dfaacf74058dbbb7dac2d20161dbf5a654377510ad124669b19dc61bb"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/evidence/route.ts",
+      "sha256": "2fabf6b2bfda6ee4f756ad8b4c937ee70a7603451bb6108383be63b0b30736ab"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/extract/route.ts",
+      "sha256": "255d2e43dd41a8e1d62cdfa9d6c7dba617d57c50ccd854529d3690f015767196"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/pipeline/route.ts",
+      "sha256": "95cd75cbaa968e5ddde976a3094f7ae6a0fce34dfc202c275d28e0689f4120b5"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/[id]/purge/route.ts",
+      "sha256": "22cab0f87e173d874aeebfde4925a999f06dede95867d2ba7938f05d325f6cc2"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/documents/upload/route.ts",
+      "sha256": "9cca02e2006693501d7f5b9415e2715b46de2db709f57280ce1303b08b146a82"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/economics/[id]/review/route.ts",
+      "sha256": "f7833e90205d8d589cc05308e5f6954a61f73e9af8efae8bcea03c84bc645add"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/economics/route.ts",
+      "sha256": "cd4b53f266996dc27458756153b228ae9f679b4a6857e7d98c71726976ae8057"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/findings/[id]/review/route.ts",
+      "sha256": "6ba23c1b7dbca8757f24ff8bbc8fa489e56fac3f435f9670f09bdb4b58434c0b"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/graph/review/route.ts",
+      "sha256": "d27a1ed22f2dbaf58bcb9c39a3fa8424c529c376f60e6ec3c6011eff7bfc84c2"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/health/release/route.ts",
+      "sha256": "3bd7cc054ee4778eca2f717cb76e4a102c933307557252e003a6b961172f09e7"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/health/route.ts",
+      "sha256": "7fb423cd27bc80029b40270eecadbdb84a7f7e97da3dceb56dcd13fdb635d614"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/documents/route.ts",
+      "sha256": "d799c1da436528c085796568a8887225a12d3012ee8c16f4b5510aab0d7d8ea0"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/findings/route.ts",
+      "sha256": "87fc4bc1d92c16e971fc49c13bd0a6200433c569fcbdf641c51172de2d3bad52"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/governance/route.ts",
+      "sha256": "a658e50f2e3a26ab7ed1e7ad13f9dd2a5b9cae04ccb70acf7f946dc4ca298152"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/graph/route.ts",
+      "sha256": "05c14a48da73686666a97696e5282c47cec14224d76ae9572e3888636d8747b4"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/members/route.ts",
+      "sha256": "0ad30ef803018304bb39dcc55ac298cf78c1748f5b69b16da8c30239c5209bba"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/relations/route.ts",
+      "sha256": "ebc1e71b1a9b6a3f54b805aea64f8e7675f90e395cb642bebc975bf880eb4b85"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/snapshots/route.ts",
+      "sha256": "a1fb0b7aafea27905c20e97c38fe7a1ada0b88407d397f0646577b4c7624f924"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/versions/route.ts",
+      "sha256": "cf45064018ea5efd18d54af6f303eaece9b26f16f50969b3ee46b3e4a3944f02"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/[id]/workspace/route.ts",
+      "sha256": "3c7f5f665acdea3e045b329b5f0858404943d483e844443546bafdfbcb74b43b"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/matters/route.ts",
+      "sha256": "bc9e0cdae400942200a2faff480e574d9dc314c971ea24b0d7eb854d4c72c2c3"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/purge-requests/[id]/route.ts",
+      "sha256": "2c9cb91a4c3c708522c4e5489d7495f63d87c565dba51703cf58216e6a25be46"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/readiness/route.ts",
+      "sha256": "9a36efd0225181caec5d8783968636e121cf4b9987e621cb2a081411ecb09546"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/standards/[id]/activate/route.ts",
+      "sha256": "51204ec7a0ee67db409642f2e6012d0ea7f63e20c1e46e89c0d3fa6779447c55"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/standards/route.ts",
+      "sha256": "652b17b2ccf45384e2a19a84543e8fa46540b0a4cf7562402d38a16b80dd8c27"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/validation/latest/route.ts",
+      "sha256": "b9a979db6827fa0cf8c96c841a9a92fc21772dc648783023b3deb98cc8a46a3c"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/api/validation/run/route.ts",
+      "sha256": "d48c8ce7341b1ff5c81327f95f3c5c995024ab8a435619b37a42d567dfcee46d"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/bootstrap-admin/page.tsx",
+      "sha256": "6bd763d0dc653acb3cf2c1343182874e12107a35d63d2a30e3e6dce7506460f0"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/cockpit-v2.css",
+      "sha256": "1d16605bf9151c4be0e4b4d4f4ab3f00bf0f0145a274fa27acb3bbb1dc0f30e9"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/globals.css",
+      "sha256": "9be44c902335dcc4e27c6341b72a235be0805b3c8b5c52a6ca6864f5495fe08c"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/icon.svg",
+      "sha256": "557b2e108644f0ae1aecb98f81f409455b2d7abbcdb95790aec4d564f815caeb"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/layout.tsx",
+      "sha256": "958b69965521bd5f76e90dde85224bca4c29415ba9f272b2464adc9e9ce49d82"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/matters/[id]/executive-summary/layout.tsx",
+      "sha256": "91638259e9d8559da54145dd3e64a71d9ddb81ccd24477e1b6b63e5233671caa"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/matters/[id]/executive-summary/page.tsx",
+      "sha256": "3a8148f1e76f13803f806499f1d295205c015f98cf8b9a7d3fd88d2590a4b5c8"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/matters/[id]/layout.tsx",
+      "sha256": "8eb83290704c4987d058af75b80c046f13bb78ddf0bfd9c90e6fb9caff2447fb"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/matters/[id]/page.tsx",
+      "sha256": "197f243cbfa147d4433c91ce308c32d11e74391462c09b854be723fa2492e683"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/page.tsx",
+      "sha256": "87b4b4371b64f58d419f8b5ccd2eb64f01a922346df4c7136ebf71b0db743afb"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/sign-in/page.tsx",
+      "sha256": "7918f6a3e012862caa11972ffeadc888083d78b79c5de79f397a90a1c68b00cb"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/v2-a.css",
+      "sha256": "ce0a46687d745b859c1553c11f101c2c917c417b368e00f6c609ed059396da74"
+    },
+    {
+      "path": "commercial-legal-cockpit/app/v2-b.css",
+      "sha256": "d8da0cf57277825e150dbb215052ea70e64212ebb927320b96809fd3599e5eeb"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/AdminConsole.tsx",
+      "sha256": "1635136830c7757c6ca26e6c6dff74278199ed05a6d46bcb7aa700c280b299f5"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/AdminOperations.tsx",
+      "sha256": "ce2ccf6ddec687a0743ff504936fc93a8ee1ed6ea35c365d9fe77b349536ed30"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/Cockpit.tsx",
+      "sha256": "9a8c7aabfc3820d11043a9a73f21284f2c32297ca7195e18d541335a008a7101"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/CockpitV2.tsx",
+      "sha256": "2a97b31f673793a876727f6ed3201948806c2fe35502eec0608fa6acb7b901e8"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/DecisionRequestPanel.tsx",
+      "sha256": "e326904e89763bb31da70bd9ec536b5e669027078d4f6a8353969687bc90f0e3"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/DocumentUploadPanel.tsx",
+      "sha256": "0619b4b9b7980162d02711c028ce6a233fd9b333154f51a38597ca77373e073a"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/EconomicsRunPanel.tsx",
+      "sha256": "dabe566c7e14a7a15358b4dc40687299a9a257388e83537c35706f166cfbd0b7"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/ExecutiveSummary.module.css",
+      "sha256": "99786c7b6257ffd738adda63aacf181e20696d41de37bfd1838f4d7be63efbed"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/ExecutiveSummary.tsx",
+      "sha256": "30f03b464b456313dfb8a94378910a36db8481c272aed78a8d5af055d6fccefa"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/GovernancePanel.tsx",
+      "sha256": "12a073dd42523da92412a32e2642cfba40d7bcba028aa98ca066c7938cec48bc"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/MatterAccessPanel.tsx",
+      "sha256": "d2d773fae8e7aa9cd7480e2d5ca6a7d9bd5779a0d5829b984d79673a31ef2d45"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/MatterWorkspace.module.css",
+      "sha256": "f3e2384a1bee61bdcf91e8a116b8f30188454bbcf186d9d23502a6405eab12ea"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/MatterWorkspace.tsx",
+      "sha256": "39d9cb6223488ce33f104029ee367fd6e8b673a07c49bdaaecdd979ddae5fe7d"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/MicrosoftSignInButton.tsx",
+      "sha256": "1a7850028c8cfb8a98bb4cb3475f43f2bc9e34d02da86555c27c85c2595f8a64"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/SignInClient.tsx",
+      "sha256": "b77e1facfb14a464455cb00a478ac536790f57c00dd3c63b57c43f66a4ac29a6"
+    },
+    {
+      "path": "commercial-legal-cockpit/components/SourceRecordsPanel.tsx",
+      "sha256": "74b8b06a86d873c9aa048f678ef993c90d049f3b5d71c9c4700dfdffd12b4834"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/001_app.sql",
+      "sha256": "8714b394eb0b561dcc21f9f6bc6af306de98254be837160d200ae2f7815686ec"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/002_contract_twin_graph.sql",
+      "sha256": "7e8f53219e59eec1a355b042f95b9c48308b073149512b0117e97fac77c3628f"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/003_records_governance.sql",
+      "sha256": "4d86d71a7846b1d36cc1a387210ad3ab49f4de78a5176cb6a47f0f78de05afa7"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/004_graph_idempotency.sql",
+      "sha256": "536a9038f94c763910e5e4f3ea160d3b23c766706d617d21900e7a58851711a7"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/005_api_rate_limits.sql",
+      "sha256": "525b47bb6fe67002e5dbba159bf958a5c91af5990897254c4747e7ce3c1a1545"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/006_source_and_run_hardening.sql",
+      "sha256": "0fe9590bca0db17c8091fcd612cd70a1e5dbae7307fab47790046dc3846c3a91"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/007_version_scoped_lifecycle.sql",
+      "sha256": "6f2093367d81d9193ef3ceef9fc1e1e25e5dc2fc9497f31c2aff4553275aaf4b"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/008_analysis_review_attestations.sql",
+      "sha256": "0e265ef73cfb3e515af67ea92fda0458120ce25bce85f77ab70d06bae45bddee"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/009_executive_snapshot_receipts.sql",
+      "sha256": "9f7d6e67a1d9f9bb73d2a13e8d3f84aa398f2a2479780615a5b285c4feb9ca3f"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/010_release_target_binding.sql",
+      "sha256": "6e91ce24ddece5e58a25075a36b38b9b043b4af4026a258d1161e6198e21d8f0"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/011_authority_evidence_hardening.sql",
+      "sha256": "f3c975d5201e6591287f028425568a8d780b8e49895cc22fcf3c84cae6e83b9c"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/012_processing_job_lease_fencing.sql",
+      "sha256": "3effd8f180b433311984ed0a279774ad6c0b627a21c3280993ecb60eb858bbb6"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/013_decision_economics_evidence.sql",
+      "sha256": "e4575582695f308b017b30f5fba80fd0868e26276c3cb6568d1d43dbf1f68928"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/migrations/014_release_database_external_identity.sql",
+      "sha256": "90b4ba8a08063864551eac1b7a0a03e9f22ee97374dde1bd0feb11e09cd9b8e0"
+    },
+    {
+      "path": "commercial-legal-cockpit/db/seeds/illustrative-standards.sql",
+      "sha256": "f5deaf7760651bb653f0293bde7b6c4dc62d1b375abd4709088ae02efa364063"
+    },
+    {
+      "path": "commercial-legal-cockpit/docs/adr/ADR-0001-private-core-and-provider-adapters.md",
+      "sha256": "f06b15daf239e78af13e0032a36c87b3c2b11a08a4b37f7fb91274c61eef0595"
+    },
+    {
+      "path": "commercial-legal-cockpit/docs/adr/ADR-0002-single-enterprise-privilege-and-authority.md",
+      "sha256": "98a3dd41cc77cb02ddb1b08c2d6f7b773ab221b436eee5390829ac9cf35d2184"
+    },
+    {
+      "path": "commercial-legal-cockpit/docs/adr/ADR-0003-agreement-lifecycle-vocabulary.md",
+      "sha256": "122bbade20178c6f5d5fdaf4af17f6b5c45bd8f8287a673bcbb80ec86646d5bc"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/access.ts",
+      "sha256": "0680b2020f056b611837bdec99cfc85468bbbe2c3304d0806ea836499b3567d2"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/analysisEngine.ts",
+      "sha256": "6914fd55247e71ccb9805c7cb9558f80242bed42b4437be80c97db9999e6d035"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/audit.ts",
+      "sha256": "037fbacb1acb404c491362eaa766249225c7a8960b0de6e973652d8e1cd655b7"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/auth-client.ts",
+      "sha256": "d0220af72048a012cc3987c11857ec2600ee42405e68e124f54c68112ed58b45"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/auth.ts",
+      "sha256": "ecca3cc9d94e64fc596308f9f3715de6bf9cc59e2657921653904087c6081d57"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/chunking.ts",
+      "sha256": "5fef53630e688e3f8cc95cba68a42eba68086c21e090ea8cd052267c9d0f78d4"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/critical-database-controls.json",
+      "sha256": "e2e5484173cefcfca8904ce024d87d809dc54347d31370182315be92e4002f23"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/databaseConnection.ts",
+      "sha256": "81709dc4ac760501925760bce6621e952b1a67136d3872e3f77ef0db3c02aefb"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/databaseControls.ts",
+      "sha256": "5a5f3f5350f1a9d7674e62109a7b7965c0daeb230a92cbb6e27c647d9d8306f2"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/db.ts",
+      "sha256": "14027c37cca5d5953a4cf0f52ebf6ee2144b12066f3d262254e2200cf16fd4c8"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/decisionPolicy.ts",
+      "sha256": "bc1f590289bc68b1732e68da42b233d1b5eae06ae0bf3fc786a88e84b2e997ec"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/dependencyEngine.ts",
+      "sha256": "3653b9b95211f3550ebbc396117fe153136045fa58956667c982444eb9fd6491"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/documentExtraction.ts",
+      "sha256": "087bf1a3971674a46b7e1757c2a0e013693ace9ea8c24cbddb221ba21cdaa108"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/docxEvidence.ts",
+      "sha256": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/docxExtraction.ts",
+      "sha256": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/docxPackage.ts",
+      "sha256": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/docxReceipt.ts",
+      "sha256": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/economics.ts",
+      "sha256": "a33e6f278d2d3e28cbcc18b19b1bd2e587ed70ffbcecc9b70a19f2f6cf87b0cf"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/engineManifest.ts",
+      "sha256": "5d2b3b8a678e47ab406627e311ec8d79f528bcccb4ec6d58214f8e35eb226529"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/engineVersions.ts",
+      "sha256": "aad8a4118beb9f2192f5facd3cca25a6a002320f41b7253538a78ddb30d269fb"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/evidence-kernel-blockers.json",
+      "sha256": "a5cbc512bdf36799616fdde96a594f072c68a0325dfa30ec85ab6051ab3aab52"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/findings.ts",
+      "sha256": "e328debdc7d52d37d36d4c339ce18f62ab0969aee260d905e1c0418dde6cff69"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/jobLease.ts",
+      "sha256": "25b701412eaab0aa21062136d6d79d3fbab4be2b7d523bc01322decac8b20ef0"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/jobProcessor.ts",
+      "sha256": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/jobRuntime.ts",
+      "sha256": "d60f321ff20b4462b8b5be3c6df68c4c598fc04c5653497e0f1ff39c3f368fdd"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/jobs-internal.ts",
+      "sha256": "6486adecd7aab76c023c7dbd452902ec02e58a01b2647690091ca12a9b19e4c6"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/jobs.ts",
+      "sha256": "522fddd4b08da319b0edc74c6da8461a6cc2ec8e506c46c30a8067966fef90b0"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/malwareScan.ts",
+      "sha256": "03d77a074315b1924795081a8aa206dccf36d3d5567c70e27da2f232898d2fd8"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/ocr.ts",
+      "sha256": "1d4b9bf112b689f8e4abf5ed74bcf70aa31ba86eae67e9b246de18575a992205"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/pipelineVersions.ts",
+      "sha256": "21161190a24839a00d7a94add6cd93d4107fa9ab2f8d0d3dffa5b0848cc7aa97"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/precedenceEngine.ts",
+      "sha256": "cbd31cbc99cf94dc69846d35469f5e1a1c84b40142c626a4530015054f78f02a"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/rateLimit.ts",
+      "sha256": "f27ce1b2b1964b84bd17e8ac5aa805bc766e7da6bd539711e0767d8d24850ffe"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/readiness.ts",
+      "sha256": "045e2878b6a2033c8a8175ac9eba21b82fed73e3b75d1fbdc409669c4aa7930f"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/riskRules.ts",
+      "sha256": "c9b9418ebdf90c541d7dd9196d90737ec0044a1fe35ed1cd344cdae17cc468e1"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/runtimeDatabasePrincipal.ts",
+      "sha256": "ae96e8e8c8d00b675c6d8d2395770f42b6a61810deae1fb478bfec1794520a14"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/safeErrors.ts",
+      "sha256": "7507e6e6bdbd14ea7b5071ffb7ec87014d5b4c36afb07fc39c57f5da7a016315"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/schema-migration-manifest.json",
+      "sha256": "f2000de4c35bc94269988aec4667098a107f107471a96bb905b922f263544707"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/schemaMigrationManifest.ts",
+      "sha256": "5f65138870d02b0cdca66d5d4924523fcc6755cc76f960290da28c42c93f476c"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/standards.ts",
+      "sha256": "7fe6ae9cce8cf5f7f613b9e5e23f416cacf3d642659342de359605fda903d35e"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/stateHash.ts",
+      "sha256": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/termEngine.ts",
+      "sha256": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11"
+    },
+    {
+      "path": "commercial-legal-cockpit/lib/validation.ts",
+      "sha256": "029d29c4974b90c36db4ac87ab58dfa9458c09ee61f58f9ae69dd89c45fd414e"
+    },
+    {
+      "path": "commercial-legal-cockpit/next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "commercial-legal-cockpit/next.config.ts",
+      "sha256": "6d47e5ea174e5ce2fecb8e9933ef593a2aacf4e7e41d1c8dcb3458ab82860c0b"
+    },
+    {
+      "path": "commercial-legal-cockpit/package-lock.json",
+      "sha256": "92445a662288c1ae290a2749fefa2fee539c1f03b3c20b4c6eea3a3a025efabd"
+    },
+    {
+      "path": "commercial-legal-cockpit/package.json",
+      "sha256": "30c566ad22b847590fb64a23a1cfdf1cadeaea7cd8d36f7c20dacc2b01b31d74"
+    },
+    {
+      "path": "commercial-legal-cockpit/proxy.ts",
+      "sha256": "5282b425038359eb9fa7f36478184fa1ba580ad425ff7c5c1e547befcd0bb4e9"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/access-control-check.mjs",
+      "sha256": "8a2175f98a33c38f4ca4fd8848520a6bed0f49753b04734d0b7a1777be195eda"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/auth-migrate.mjs",
+      "sha256": "d76e239cb41f2678dfbf28c5dd57ae0772caf9181d9633800c7d1d1b2b16b4e6"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/corpus-check.mjs",
+      "sha256": "a288d0d0b845764c3197df5938d9b60a5a48b379691bae8eefd08df6abd4c4d3"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/counsel-capability-check.mjs",
+      "sha256": "4c28bbc3c24a867a78c0465b5b5a528a2005125d85e26718ba7f687b1379134f"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/critical-database-controls.mjs",
+      "sha256": "d80cae6ea797653a95735c7308d96fa3a4a43c9138614653a86b5a9781844ba7"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/database-connection-config.mjs",
+      "sha256": "39af42ab4a926ba55b85898159c623cf8781a80d018bbf2e014b37f4c409accf"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/db-control-acceptance-check.mjs",
+      "sha256": "58bc6fddf7e21e57b7e8d6c98f8816526088811b6dfbd92727d2f8fa4dc19113"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/db-integration-check.mjs",
+      "sha256": "11c4d24949cabba1571d50bab1b9fa4e65193dcfa540a527b4d08c41932e937f"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/docx-extraction-check.mjs",
+      "sha256": "4f44a970d6878e1811d8946c6beb7f5da0d9e15716d1f9200309da34edd24f2e"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/docx-pipeline-check.mjs",
+      "sha256": "2801832bd3bd653b8d466dc5fcf4623e130f46107bf0da30dbda625096a699ef"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/economics-check.mjs",
+      "sha256": "a6d57180bda16bb13e703fbf37983f68c2bd300798491d82cb1e1d073cd806e2"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/error-boundary-check.mjs",
+      "sha256": "627396447b1690ac9d9ff1bc2be55bb3fadc5cf1973c061a135d4c00c59fad3e"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/job-lease-check.mjs",
+      "sha256": "989b742224d756ec70e037d4f190b6a376be0283fdee2711ba1fbc2c560dec47"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/job-lease-integration-check.mjs",
+      "sha256": "16b768cf08c3987811096498495ef4b84d06432a128320834ec56e093530e7f1"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/lifecycle-controls-check.mjs",
+      "sha256": "b1fb2ad18951eb1b0dfdeff5a2ec2cf8a14e645b7f4ae068dff048aeceeaa8b5"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/migrate.mjs",
+      "sha256": "3d3bd41e8ceddbd2de6b388a1ea1c431acf17939a406e42dfdfc6e9d3a2f24dd"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/migration-prefix-upgrade-integration-check.mjs",
+      "sha256": "679ac4daa2d75a92df85da04558bd716f483f6f48b062695d4c1646d8e10fbf7"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/migration-preflight.mjs",
+      "sha256": "baa5dae14cc0c6d842a22f13f7824bd9c92475b953ef69bf1d0e5f3375987d7b"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/migration-source-check.mjs",
+      "sha256": "4b89eeced87e5df629606c1d90a2e968b4ec1563d6bd8002ec8295042b02b5c4"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/migration-source.mjs",
+      "sha256": "d701a94e2128c8472c5daf258591c6c763cfe8dc077d4fe2abc39b00bf940678"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/persistence-boundary-check.mjs",
+      "sha256": "64a22c467fc841b78f3447d0c4a422490dcc5bda6ed3ed4a0fda9a4dc8981865"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/pre-migration-target-binding-integration-check.mjs",
+      "sha256": "e122a89d4ada9a81db8bce0ca9919e22280f7ab94d55803e2cea469d0f934cd6"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-env-check.mjs",
+      "sha256": "9b589c9f0b20236eb1e95bad0cfbf4e92a2aff964eb4742ffd43148594692ffb"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-postdeploy-check.mjs",
+      "sha256": "f0d060396c811dd6ce2686b31acd2cce8d0c93502aa509a96629ff1c7aafc637"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-schema-gate.mjs",
+      "sha256": "95f0771134f8125a79777cc7b79b10a056afd98d3ef7863f6233933a61d62f91"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-source-eligibility-check.mjs",
+      "sha256": "35766acd45f0c4754ba918e10b86ad3d7595fa20c503119714f796ba3ecd1529"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-target-anchor-check.mjs",
+      "sha256": "c6b85c443d2894490da7e0efbec192adbdbe72b1bd10e0a2386bfffb7f2f9c0d"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-target-anchor-integration-check.mjs",
+      "sha256": "c8f7a451d88e5dc7de7a11c22b3cae8131573e92c8c0fb920e42b7b9a04056ea"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-target-anchor.mjs",
+      "sha256": "aa21e18a8243d76f2b09e5ed10de94f9ccc7fd4fa4d88d318354b85e296c835c"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/production-target-bootstrap.mjs",
+      "sha256": "7c487b3307cf454b1b38af6d5a9d2b9b612bc10886a102ef87f2e5405acb535c"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/provision-ci-runtime-role.mjs",
+      "sha256": "597a2cf5bbff71657cbbf7b6eea7abdafb98ffd6ada8cf298706fc762a967661"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/release-target-binding.mjs",
+      "sha256": "5743eed5df4d753e9ab0f8d9d1d7a3f60f968e8c89e82e66305f38403845aaa6"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/runtime-database-principal-integration-check.mjs",
+      "sha256": "da477eca60ee3bedfa853fed2f2d0aaec1038d570ad55d90cf60e430a869ddbc"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/runtime-database-principal.mjs",
+      "sha256": "17b9d0997873ca597a8e31cc5cfb12e8f2997c0bf11a0f63c4eb1bd08878c2c7"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/schema-check.mjs",
+      "sha256": "92cd065aa16be381156d727837d9101173505d2bc9303975485ef01a327468d4"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/schema-migration-manifest.mjs",
+      "sha256": "ef70f53328954d8ba6419cd37da21e8e6048df5f92989425a4b293d319a44641"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/security-boundary-check.mjs",
+      "sha256": "8a0b50c63a045600ab99b6c0f19c7a83019b355ceef9cbf1c1c1989a4b7fbb50"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/target-schema-drift-check.mjs",
+      "sha256": "15d1b3d42885e8f137a575a73bdc7739d7288db39ff87d10b2b728b39916bcfa"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/ts-test-loader.mjs",
+      "sha256": "8cfe7bbcdd1b91f9c0f3f10e1f021f0ff513f5e6849efa31f21a34889596193a"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/validation-readiness-check.mjs",
+      "sha256": "5aececc0d0609ea1455a29b0fbf0c64252d7543345db8b1da03d11237193c86a"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/verify-database-transport.mjs",
+      "sha256": "a05bca44f026ab116ca7cb5bcfa4fe80ee83dca86ddc26fb9e0076b0d17396cf"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/verify-target-schema.mjs",
+      "sha256": "45994ac204075bfaf1889bfd581df85c7241cbb594055c7a2c1e18f20410a484"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/workflow-action-pin-check.mjs",
+      "sha256": "f67ca709948c231ec2a7f3ae2443a9cdbee77780201cd9edb72daf52025908b4"
+    },
+    {
+      "path": "commercial-legal-cockpit/scripts/workspace-evidence-ui-check.mjs",
+      "sha256": "95a7ed2e18c178cc567cf57aaf888a1aee5f6c8b29205ddf03225471ad2abce5"
+    },
+    {
+      "path": "commercial-legal-cockpit/tsconfig.json",
+      "sha256": "0dd6cb258725005dbd422bda52293e7bb7abb3785b2420b75fe83afbfcc71d08"
+    },
+    {
+      "path": "commercial-legal-cockpit/validation/docx/fixtures.mjs",
+      "sha256": "6c76f6cd4941b8de8f417544b6dde65d4aac52238f722dc7d806981cab765d31"
+    },
+    {
+      "path": "commercial-legal-cockpit/validation/frozen-ems-regression.json",
+      "sha256": "13008385d367735511174169cb5975cedc28c6823364f5901370cc57d3423b9e"
+    },
+    {
+      "path": "commercial-legal-cockpit/vercel.json",
+      "sha256": "935760b628c8a7829ef966c26fc11072c73dedab37290396e18b8a5f591fe1db"
+    },
+    {
+      "path": "commercial-legal-cockpit/workflows/contract-processing.ts",
+      "sha256": "20a49076b0790c658325a663a055157f05d4bcf3d373d472e8364d58ae2e2cac"
+    },
+    {
+      "path": "commercial-legal-cockpit/workflows/full-contract-pipeline.ts",
+      "sha256": "670080eeb904d8d70d677141c7159e882816daebf0d4c52ad9fe1ecaa98dab01"
+    },
+    {
+      "path": "commercial-legal-cockpit/workflows/legal-validation.ts",
+      "sha256": "1f8cc3041e19eb3b56beddbeb13084941af44bd54c86ebc7d8f2ce4a3779bbcb"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "69933dd5813ce72fbbffe697df34d3950e190847f32bfbe661c52dbf591b6dfa"
+    },
+    {
+      "path": "research/flex_itar_acquisition_opportunities_us.md",
+      "sha256": "e0cb86c88577be60905ba2048d066a1383fbeb1084c0b78f4b37bfabcb3edc7c"
+    },
+    {
+      "path": "sample_contract.txt",
+      "sha256": "dc5ceb523252662b02eb08b776da643e72f9c3a6e40194ba0ed44c3bfb5b50fa"
+    },
+    {
+      "path": "sample_ems_contract.txt",
+      "sha256": "a1926ab78c4da7ebccc5864748f07fb48b8365ecad4f866f1ab44adc2589aae6"
+    },
+    {
+      "path": "templates/index.html",
+      "sha256": "cd3ffc42567b13f440ac5bbad5d8027f398a9242de377f93ec50f91d06a35bca"
+    },
+    {
+      "path": "tests.py",
+      "sha256": "77ba0dc257db18d654dddc61237f2a48f9fcfa9fd56c3a520497df8225e14fe7"
+    }
+  ],
+  "gates": [
+    {
+      "id": "source_grounding",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "interpretation_precedence",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "economics_pricing",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "economics_ncnr",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "economics_eo",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "notice_deadlines",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "action_authorization",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "four_pillar_traceability",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "audit_integrity",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "workflow_integration",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "independent_adversarial",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "build_runtime",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "release_reproducibility",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "enterprise_identity",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "tenant_isolation",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "data_classification",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "integration_reconciliation",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "concurrency",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "backup_restore",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "monitoring_runbook",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "business_uat",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "rollback",
+      "required": true,
+      "status": "blocked",
+      "evidence": []
+    }
+  ]
+}

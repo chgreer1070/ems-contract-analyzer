@@ -23,7 +23,7 @@
     "test:workspace-evidence-ui": "node scripts/workspace-evidence-ui-check.mjs",
     "production:source-eligibility": "node scripts/production-source-eligibility-check.mjs",
     "test:runtime-db-principal": "node scripts/runtime-database-principal-integration-check.mjs",
-    "test:controls": "npm run test:access && npm run test:persistence-boundaries && npm run test:validation-controls && npm run test:security-boundaries && npm run test:lifecycle-controls && npm run test:counsel-capability && npm run test:error-boundaries && npm run test:workflow-pins && npm run test:migration-sources && npm run test:production-target-anchor && npm run test:job-leases && npm run test:workspace-evidence-ui",
+    "test:controls": "npm run test:access && npm run test:persistence-boundaries && npm run test:validation-controls && npm run test:security-boundaries && npm run test:lifecycle-controls && npm run test:counsel-capability && npm run test:error-boundaries && npm run test:workflow-pins && npm run test:migration-sources && npm run test:production-target-anchor && npm run test:job-leases && npm run test:workspace-evidence-ui && npm run test:docx",
     "test:db-controls": "node scripts/db-control-acceptance-check.mjs",
     "db:check": "node scripts/schema-check.mjs",
     "db:migrate:preflight": "node scripts/migration-preflight.mjs",
@@ -34,31 +34,35 @@
     "db:verify-migration-transport": "node scripts/verify-database-transport.mjs DATABASE_URL",
     "db:verify-runtime-transport": "node scripts/verify-database-transport.mjs RUNTIME_DATABASE_URL",
     "db:verify-target": "node scripts/verify-target-schema.mjs",
-    "db:verify-runtime-principal": "node scripts/runtime-database-principal.mjs"
+    "db:verify-runtime-principal": "node scripts/runtime-database-principal.mjs",
+    "test:docx": "node scripts/docx-extraction-check.mjs && node scripts/docx-pipeline-check.mjs && npm run test:docx:acceptance",
+    "test:docx:acceptance": "node acceptance/docx/evidence/legal-document-evidence-repair-check.mjs --current-only && node acceptance/docx/evidence/legal-model-controls-regression.mjs && node acceptance/docx/scripts/parser-security-load-integrity-check.mjs"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
+    "@xmldom/xmldom": "0.8.15",
     "better-auth": "1.6.25",
-    "mammoth": "1.12.0",
-    "next": "16.3.0",
+    "next": "16.3.8",
     "pg": "8.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "unpdf": "1.6.2",
-    "workflow": "4.8.1"
+    "workflow": "4.8.13"
   },
   "devDependencies": {
     "@types/node": "24.0.0",
     "@types/pg": "8.20.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
+    "jszip": "3.10.1",
     "typescript": "5.8.3"
   },
   "overrides": {
     "nanoid": "5.1.16",
-    "undici": "7.29.0"
+    "undici": "7.29.1",
+    "devalue": "5.9.3"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.0.0"
   }
 }

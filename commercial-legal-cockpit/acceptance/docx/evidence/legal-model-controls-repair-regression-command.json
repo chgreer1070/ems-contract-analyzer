@@ -1,0 +1,8 @@
+{
+  "command": "env -u OPENAI_API_KEY -u OPENAI_MODEL LEGAL_RELIANCE_ENABLED=false node acceptance/docx/evidence/legal-model-controls-regression.mjs",
+  "chunk_id": "ca1d18",
+  "wall_time_seconds": 0.596593817,
+  "exit_code": 0,
+  "original_token_count": 63,
+  "output": "Legal DOCX control repair regressions passed: comments excluded from fallback/quotes; deterministic and AI view/uncertainty labels; exact clause/term quotes; original-only terms and metadata rejected. Provider is doubled; no network or legal approval.\n"
+}

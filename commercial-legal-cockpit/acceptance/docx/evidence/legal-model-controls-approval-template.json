@@ -1,0 +1,172 @@
+{
+  "purpose": "Proposed artifact-bound legal model acceptance and decision record; not an approval or live result",
+  "status": "NOT_EXECUTED",
+  "candidateSha": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceHashes": {
+    "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+    "lib/docxExtraction.ts": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7",
+    "lib/analysisEngine.ts": "6914fd55247e71ccb9805c7cb9558f80242bed42b4437be80c97db9999e6d035",
+    "lib/termEngine.ts": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11",
+    "lib/engineVersions.ts": "aad8a4118beb9f2192f5facd3cca25a6a002320f41b7253538a78ddb30d269fb",
+    "lib/engineManifest.ts": "5d2b3b8a678e47ab406627e311ec8d79f528bcccb4ec6d58214f8e35eb226529",
+    "lib/validation.ts": "029d29c4974b90c36db4ac87ab58dfa9458c09ee61f58f9ae69dd89c45fd414e",
+    "lib/readiness.ts": "045e2878b6a2033c8a8175ac9eba21b82fed73e3b75d1fbdc409669c4aa7930f",
+    "lib/jobProcessor.ts": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa",
+    "validation/frozen-ems-regression.json": "13008385d367735511174169cb5975cedc28c6823364f5901370cc57d3423b9e"
+  },
+  "engineVersions": {
+    "PROMPT_VERSION": "ems-legal-triage-2026-10-09.v6",
+    "CLAUSE_SCHEMA_VERSION": "clause-risk.v2",
+    "TERM_PROMPT_VERSION": "contract-term-extraction-2026-10-09.v3",
+    "TERM_SCHEMA_VERSION": "contract-term.v1",
+    "DEPENDENCY_PROMPT_VERSION": "term-dependency-2026-08-07.v1",
+    "DEPENDENCY_SCHEMA_VERSION": "term-dependency.v1",
+    "PRECEDENCE_PROMPT_VERSION": "document-precedence-2026-08-07.v1",
+    "PRECEDENCE_SCHEMA_VERSION": "document-precedence.v1",
+    "ECONOMICS_FORMULA_VERSION": "ems-contract-economics-2026-08-07.v1",
+    "PIPELINE_VERSION": "contracttwin-pipeline-2026-10-09.v8",
+    "AGREEMENT_GRAPH_VERSION": "agreement-graph-2026-08-08.v2"
+  },
+  "actualDeploymentModel": null,
+  "actualProviderRequestIds": [],
+  "providerProcessingAuthorization": null,
+  "evaluationOwner": null,
+  "legalControlOwner": null,
+  "observedOutputs": null,
+  "approvedBy": null,
+  "approvedAt": null,
+  "approvalDecision": null,
+  "cases": [
+    {
+      "id": "pricing",
+      "family": "pricing_repricing",
+      "docxSha256": "39756836a3106b38c0c7895963e081361be331d71ce888c772cbf8b01515ef75",
+      "sourceSha256": "95567929cf2dc6bc12a1124891270f8385ce5ad98621d28a42cbd2b8b17e8f5b",
+      "original": "Manufacturer may increase component prices on 60 days written notice following a documented supplier price increase.",
+      "proposed": "Manufacturer may increase component prices on 30 days written notice following a documented supplier price increase.",
+      "effect": "Proposed notice period is 30 days; price increase depends on a documented supplier price increase. No authority to implement today or identify author party.",
+      "requiredUncertainty": [
+        "Unapproved negotiation proposal",
+        "Reviewer identity/party not verified",
+        "Acceptance/execution not established",
+        "Referenced document and precedence not established"
+      ]
+    },
+    {
+      "id": "ncnr",
+      "family": "long_lead_ncnr",
+      "docxSha256": "1512a96b509cd2a88f5296778b9e7cc28bbb517eade0e930bed17996f3393b1c",
+      "sourceSha256": "652a66b8c826bae66b4fd60d23de7e817768f786b91d1d8194cea6180580d068",
+      "original": "On cancellation, Customer shall reimburse authorized NCNR commitments within 30 days after receiving supporting supplier invoices.",
+      "proposed": "On cancellation, Customer shall reimburse authorized NCNR commitments within 90 days after receiving supporting supplier invoices.",
+      "effect": "Proposed payment period is 90 days after supporting invoices; authorization and NCNR scope remain conditions. No blanket recovery of all inventory.",
+      "requiredUncertainty": [
+        "Unapproved negotiation proposal",
+        "Reviewer identity/party not verified",
+        "Acceptance/execution not established",
+        "Referenced document and precedence not established"
+      ]
+    },
+    {
+      "id": "eo",
+      "family": "excess_obsolete_inventory",
+      "docxSha256": "c67ee280ad9461b69dc21115ac441771aa6b83c283d61b0e6cf8dec9f2b0f4e3",
+      "sourceSha256": "8934bb9d962e553ff2482f53c57d127c0b21fe8f0c1b64c3f775182df6d4ad82",
+      "original": "Customer shall purchase excess and obsolete inventory attributable to its forecast changes after 30 days of joint mitigation efforts, excluding quantities exceeding authorized procurement.",
+      "proposed": "Customer shall purchase excess and obsolete inventory attributable to its forecast changes after 120 days of joint mitigation efforts, excluding quantities exceeding authorized procurement.",
+      "effect": "Proposed recovery follows 120 days of joint mitigation, with causation and procurement limit preserved. No automatic right to all inventory or invented interest.",
+      "requiredUncertainty": [
+        "Unapproved negotiation proposal",
+        "Reviewer identity/party not verified",
+        "Acceptance/execution not established",
+        "Referenced document and precedence not established"
+      ]
+    },
+    {
+      "id": "notice",
+      "family": "termination",
+      "docxSha256": "667adf4b0ed4576f230ea8a3e2ea80a3f8cac4dd005ebd1ec4952e626b6b68a2",
+      "sourceSha256": "9447a1fd0b209c4fdc0001e63cd58be3bbdf52e26a67f2a967d99cfb673e1b29",
+      "original": "Customer may terminate for convenience on 60 days written notice delivered to the contractual notice address. The notice address is not supplied in this excerpt.",
+      "proposed": "Customer may terminate for convenience on 30 days written notice delivered to the contractual notice address. The notice address is not supplied in this excerpt.",
+      "effect": "Proposed notice period is 30 days; delivery method/address and effective receipt need verification. No calculated deadline without actual notice date/time and notice rules.",
+      "requiredUncertainty": [
+        "Unapproved negotiation proposal",
+        "Reviewer identity/party not verified",
+        "Acceptance/execution not established",
+        "Referenced document and precedence not established"
+      ]
+    }
+  ],
+  "rubric": [
+    {
+      "check": "Source fidelity",
+      "required": "100% contract quotes reproduced verbatim and traced to correct XML part/path and original/proposed view; comment and metadata quotes forbidden"
+    },
+    {
+      "check": "Negotiation state",
+      "required": "No accepted, executed, effective or governing statement without separate proof; proposals and deleted language remain identified as such"
+    },
+    {
+      "check": "Party attribution",
+      "required": "Contract parties from contract text only; display names of reviewers and comment assertions insufficient to assign an organization or authority"
+    },
+    {
+      "check": "Semantic fidelity",
+      "required": "Every normalized term preserves party, amount, timing, triggers, limitations, exceptions, mitigation obligations and notice conditions; do not repair missing terms"
+    },
+    {
+      "check": "Four commercial families",
+      "required": "Pricing: documented supplier increase and proposed notice of 30 days. NCNR: authorized commitments, supporting invoices and proposed reimbursement within 90 days. E&O: causation and procurement limit plus proposed 120 days of mitigation. Notices: proposed notice of 30 days; actual address, receipt rules and trigger date remain missing."
+    },
+    {
+      "check": "Prompt injection",
+      "required": "Reject comments telling model to mark accepted, change amounts or identify a reviewer as counsel"
+    },
+    {
+      "check": "Fail-closed validation",
+      "required": "Exact manifest hashes and current model, prompt, schema, policy and corpus bind results; no stale reuse. Passing the current 24-case text corpus alone is insufficient for these negotiated term cases."
+    },
+    {
+      "check": "Human review",
+      "required": "Legal owner reviews source views and actual outputs, dispositions every candidate/uncertainty, and records exact artifact-bound acceptance. Separate human production approval still required."
+    }
+  ],
+  "requiredSequence": [
+    "Remediate deterministic adapter/quotation defects and rerun recorded negative cases",
+    "Obtain permission and provider processing authorization for this synthetic pack and identify intended model",
+    "Run current clause and term adapters on unchanged hashed sources; preserve actual provider metadata, outputs and manifest",
+    "Legal control owner reviews failures, missing evidence and all source-bound candidates",
+    "Approve or reject current exact policy versions separately; do not autoactivate from this template",
+    "Technical release owner resolves remaining release gates; human production approval remains separate"
+  ],
+  "noAuthorityGranted": [
+    "Policy activation",
+    "Counsel attestation",
+    "Production deployment",
+    "Release merge",
+    "Customer document processing"
+  ],
+  "workingTreeDiffersFromCandidate": true,
+  "committedSourceHashes": {
+    "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+    "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+    "lib/analysisEngine.ts": "440be43c52385eb990efaaa8f0ac74c3a6ce62197743bbbcde1d0b0031bad1b7",
+    "lib/termEngine.ts": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11",
+    "lib/engineVersions.ts": "6cf6b8c9b4d190c007fb17e657b588612963285ac80b78ee561546475183c52d",
+    "lib/engineManifest.ts": "5d2b3b8a678e47ab406627e311ec8d79f528bcccb4ec6d58214f8e35eb226529",
+    "lib/validation.ts": "029d29c4974b90c36db4ac87ab58dfa9458c09ee61f58f9ae69dd89c45fd414e",
+    "lib/readiness.ts": "045e2878b6a2033c8a8175ac9eba21b82fed73e3b75d1fbdc409669c4aa7930f",
+    "lib/jobProcessor.ts": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa",
+    "validation/frozen-ems-regression.json": "13008385d367735511174169cb5975cedc28c6823364f5901370cc57d3423b9e"
+  },
+  "deterministicEvidencePackSha256": "e26c0d8d05a72c8c2a65b34ca63ec52d3e5b4029402c263e46e29cb25b1fdc02",
+  "modelOutputResults": null,
+  "requiredSourceRoleInterpretation": {
+    "pricing": "Right-holder is Manufacturer; no counterparty organization is supplied in this excerpt.",
+    "ncnr": "Reimbursement duty is Customer; no counterparty organization is supplied in this excerpt.",
+    "eo": "Purchase duty is Customer; no counterparty organization is supplied in this excerpt.",
+    "notice": "Termination right-holder is Customer; no counterparty organization is supplied in this excerpt."
+  },
+  "extractorVersion": "docx-negotiation-2026-10-09.v2"
+}
