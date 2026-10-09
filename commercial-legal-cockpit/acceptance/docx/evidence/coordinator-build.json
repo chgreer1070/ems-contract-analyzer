@@ -1,0 +1,6 @@
+{
+  "command": "npm run build",
+  "exitCode": 0,
+  "elapsedSeconds": 14.686,
+  "scope": "local synthetic/demo auth build; reliance disabled; no provider/database/deployment"
+}

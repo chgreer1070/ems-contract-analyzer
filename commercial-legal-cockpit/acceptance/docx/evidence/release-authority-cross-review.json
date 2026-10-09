@@ -1,0 +1,133 @@
+{
+  "observedAtUtc": "2026-10-09T12:55:53.020258+00:00",
+  "command": "python3 acceptance/docx/evidence/release-authority-cross-review.py",
+  "runnerSha256": "84adf02a6e4996564c268f0b6707b6959888447931df589ee878a20dcb6cc991",
+  "reviewedSourceSnapshotSha256": "295ad76b8fe514f17e16029c79421d22206f7b96c1e7935ece3ba18c7a8cb1ab",
+  "reviewScope": "Source/artifact hashes and raw diagnostics; not hosted re-fetch, authenticated producer, server concurrency or live acceptance",
+  "results": [
+    {
+      "report": "legal-document-evidence-final-check-output.json",
+      "verifiedCurrentSourceHashReferences": 15,
+      "mismatchedCurrentSourceHashReferences": [],
+      "verifiedPreservedFixtureHashes": 8
+    },
+    {
+      "report": "legal-model-controls-pack.json",
+      "verifiedCurrentSourceHashReferences": 10,
+      "mismatchedCurrentSourceHashReferences": []
+    },
+    {
+      "report": "parser-security-load-results.json",
+      "verifiedCurrentSourceHashReferences": 105,
+      "mismatchedCurrentSourceHashReferences": [],
+      "profileSamples": 14,
+      "burstWorkerSamples": 7,
+      "installedXmlParserVersionVerified": "0.8.15"
+    },
+    {
+      "report": "database-integrity-command-record.json",
+      "verifiedCurrentSourceHashReferences": 5,
+      "mismatchedCurrentSourceHashReferences": [],
+      "verifiedExactBaselineSourceHashReferences": 5
+    },
+    {
+      "report": "database-integrity-evidence-manifest.json",
+      "verifiedArtifactHashes": 7,
+      "diagnosticExitCode": 0,
+      "defects": [
+        "DB-01",
+        "DB-02"
+      ],
+      "acceptedServerConcurrency": false,
+      "acceptedLiveTarget": false
+    },
+    {
+      "report": "dependency-ci-local-validation.json",
+      "verifiedIsolatedGitCommit": "fd56950ad7692b5ac92338367983d541538ef014",
+      "verifiedIsolatedPackageHashes": 2,
+      "integratedLockHashMatches": true,
+      "integratedPackageWiringDiffers": true,
+      "liveOrHostedAcceptance": false
+    },
+    {
+      "report": "coordinator-source-inventory.json",
+      "verifiedCoordinatorScopeSnapshotSha256": "2f5f855f3d62e04948c17aa15fd4cc3cb80acc06f5efbef1637b28416c2139a7",
+      "verifiedCurrentScopeFiles": 10,
+      "definition": "Compact UTF-8 JSON of the listed ten selected source/package files; distinct from full tracked-source snapshot"
+    }
+  ],
+  "reviewedEvidence": [
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/legal-document-evidence-final-check-output.json",
+      "sha256": "b0a21534dae245c5cc3d57bf023249169cdabd4f844c1d31d3b3d66d23e6b030"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/legal-model-controls-pack.json",
+      "sha256": "e26c0d8d05a72c8c2a65b34ca63ec52d3e5b4029402c263e46e29cb25b1fdc02"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/parser-security-load-results.json",
+      "sha256": "1ef18c87f2220b29c09511c41e0a920f28f3a48040996e9d0c28eb43023795d0"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/database-integrity-command-record.json",
+      "sha256": "a1e672657f2dd7742776ee8659c2dd6fa7c65b047994c9b1b65bb0b731d8a3bc"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/database-integrity-evidence-manifest.json",
+      "sha256": "05bb42c26d40af0c7de97d4e4e653e349f40d2f47d14c76ac31f407839adb59c"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/dependency-ci-local-validation.json",
+      "sha256": "c4e64574951525238df612c3e5f12b9ab7e70d489cb9dd7b470f3ab23d2cb4dc"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-source-inventory.json",
+      "sha256": "dac431a3ef0f48d36f52dfb1623047e6829f8f345908604998086954a9dc1fba"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/dependency-ci-checks.json",
+      "sha256": "fb674281d78967a7e4563ae72677b98d3c060712268c63bf419bc414ac8b826c"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-audit.json",
+      "sha256": "00f7b34f04fde87d899af6583eacf837b60f5dcf691495313628a3bbee6cc9e0"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-audit-command.json",
+      "sha256": "766aa52dae69319bc738e90fe310d66068f4cd502fdd69f16788e923f204a265"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-controls.json",
+      "sha256": "3a43da4785268482b8997a963092d7112f6f07654c3227ccb86c7fa6d7116127"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-typecheck.json",
+      "sha256": "1dc93ae260ddeec3de22592e11b68a4d5573c46218cc72ce12d8516ae49fb0b7"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-build.json",
+      "sha256": "cd516d493271ab098370e1b00a5eea5e421f3f735edc8d2722c31a4133cd87c1"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-controls.log",
+      "sha256": "d9720e4a57c936942b53dbd12112a27bd2893ac4caa1fb71fbfa8135a47c47bd"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-typecheck.log",
+      "sha256": "bb95a56dadb2fa3c5f7305bfda099dbc5182eb1d53c8d0abdf9cf31bc0e69f23"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/coordinator-build.log",
+      "sha256": "4bbbee275830227cb8a6e0467a1dc3189e8baaed85a74880f9459dd86b4402cc"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/parser-security-load-run.log",
+      "sha256": "3ce8f6079446ffff3a4ce21a3f2822d3a29c481f8ebc9e444eaa4081d8560b4d"
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/parser-security-load-integrity-check.log",
+      "sha256": "fc628f09cdaaf17b2f8214dc24c654907d8d9b1842a1c25b610bc2ab5583e03f"
+    }
+  ]
+}

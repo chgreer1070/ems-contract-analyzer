@@ -1,0 +1,83 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+workflows build complete (15 steps, 3 workflows, time 58ms)
+✓ Running next.config.ts took 322ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.2s
+  Running TypeScript ...
+  Finished TypeScript in 4.0s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/27) ...
+  Generating static pages using 8 workers (6/27) 
+  Generating static pages using 8 workers (13/27) 
+  Generating static pages using 8 workers (20/27) 
+✓ Generating static pages using 8 workers (27/27) in 304ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /.well-known/workflow/v1/flow
+├ ƒ /.well-known/workflow/v1/step
+├ ƒ /.well-known/workflow/v1/webhook/[token]
+├ ○ /admin
+├ ƒ /api/admin/bootstrap
+├ ƒ /api/admin/capabilities
+├ ƒ /api/admin/purge-requests
+├ ƒ /api/admin/roles
+├ ƒ /api/agreement-versions/[id]/graph
+├ ƒ /api/agreement-versions/[id]/status
+├ ƒ /api/analysis-attestations
+├ ƒ /api/analyze
+├ ƒ /api/audit
+├ ƒ /api/auth/[...all]
+├ ƒ /api/decision-conditions/[id]
+├ ƒ /api/decision-requests
+├ ƒ /api/decisions
+├ ƒ /api/decisions/[id]
+├ ƒ /api/documents/[id]/analyze
+├ ƒ /api/documents/[id]/content
+├ ƒ /api/documents/[id]/evidence
+├ ƒ /api/documents/[id]/extract
+├ ƒ /api/documents/[id]/pipeline
+├ ƒ /api/documents/[id]/purge
+├ ƒ /api/documents/upload
+├ ƒ /api/economics
+├ ƒ /api/economics/[id]/review
+├ ƒ /api/findings/[id]/review
+├ ƒ /api/graph/review
+├ ƒ /api/health
+├ ƒ /api/health/release
+├ ƒ /api/matters
+├ ƒ /api/matters/[id]/documents
+├ ƒ /api/matters/[id]/findings
+├ ƒ /api/matters/[id]/governance
+├ ƒ /api/matters/[id]/graph
+├ ƒ /api/matters/[id]/members
+├ ƒ /api/matters/[id]/relations
+├ ƒ /api/matters/[id]/snapshots
+├ ƒ /api/matters/[id]/versions
+├ ƒ /api/matters/[id]/workspace
+├ ƒ /api/purge-requests/[id]
+├ ƒ /api/readiness
+├ ƒ /api/standards
+├ ƒ /api/standards/[id]/activate
+├ ƒ /api/validation/latest
+├ ƒ /api/validation/run
+├ ○ /bootstrap-admin
+├ ○ /icon.svg
+├ ƒ /matters/[id]
+├ ƒ /matters/[id]/executive-summary
+└ ○ /sign-in
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

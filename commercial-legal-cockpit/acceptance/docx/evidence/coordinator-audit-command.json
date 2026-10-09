@@ -1,0 +1,5 @@
+{
+  "command": "npm audit --omit=dev --audit-level=high --json",
+  "exitCode": 0,
+  "scope": "integrated local locked dependencies"
+}

@@ -1,0 +1,237 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:controls
+> npm run test:access && npm run test:persistence-boundaries && npm run test:validation-controls && npm run test:security-boundaries && npm run test:lifecycle-controls && npm run test:counsel-capability && npm run test:error-boundaries && npm run test:workflow-pins && npm run test:migration-sources && npm run test:production-target-anchor && npm run test:job-leases && npm run test:workspace-evidence-ui && npm run test:docx
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:access
+> node scripts/access-control-check.mjs
+
+Access-control regression checks passed.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:persistence-boundaries
+> node scripts/persistence-boundary-check.mjs
+
+Persistence-boundary checks passed: demo isolation, opaque resource authorization, global-role short-circuit, and route ordering.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:validation-controls
+> node scripts/validation-readiness-check.mjs
+
+Validation/readiness hardening checks passed.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:security-boundaries
+> node scripts/security-boundary-check.mjs
+
+Security-boundary checks passed: malware gate, authority derivation, canonical state hash, durable analysis, controlled purge, snapshot provenance, exact-schema fingerprints, and split least-privilege runtime database identity.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:lifecycle-controls
+> node scripts/lifecycle-controls-check.mjs
+
+Lifecycle-control checks passed: exact version binding, one-time economics review, structured condition evidence, fail-closed execution, successor lifecycle, and receipt-bound snapshot provenance.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:counsel-capability
+> node scripts/counsel-capability-check.mjs
+
+Legal-counsel capability and Admin-role mutation checks passed, including transaction-time authority, serialization, safe API prechecks, and DB-authoritative legal dispositions.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:error-boundaries
+> node scripts/error-boundary-check.mjs
+
+Safe error-boundary regression passed across 43 API route handlers and every persisted worker/provider failure surface.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:workflow-pins
+> node scripts/workflow-action-pin-check.mjs
+
+Workflow action pin checks passed across 10 workflows and 35 action references.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:migration-sources
+> node scripts/migration-source-check.mjs
+
+Migration source checks passed: 14 receipts use sha256-utf8-canonical-lf-v1 and CRLF/LF inputs produce identical execution text and hashes.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:production-target-anchor
+> node scripts/production-target-anchor-check.mjs
+
+Production target anchor checks passed: external token, endpoint, database ID, separate ownership, and read-only ACLs fail closed.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:job-leases
+> node scripts/job-lease-check.mjs
+
+Processing-job lease fencing and retry controls passed.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:workspace-evidence-ui
+> node scripts/workspace-evidence-ui-check.mjs
+
+Matter-workspace evidence and authority UI checks passed.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:docx
+> node scripts/docx-extraction-check.mjs && node scripts/docx-pipeline-check.mjs && npm run test:docx:acceptance
+
+PASS replacement retains both wordings, authors, dates and source hashes
+PASS overlapping and cross-paragraph comments retain exact range/reference anchors
+PASS point comments, empty comments and author metadata are preserved
+PASS headers, footers, notes and note targets are retained
+PASS tables preserve cell ancestry, grid spans, merges and row/header context
+PASS namespace aliases, literal whitespace and UTF-16 XML are supported
+PASS metadata cannot ground a contract quote; deleted text cannot become a current candidate term
+PASS receipt rejects missing, stale, tampered, omitted, duplicate and reordered evidence
+PASS conflicting revision identity and inconsistent table merges block
+PASS broken, missing, duplicate and orphan comment anchors block extraction
+PASS revision metadata gaps and structural/property revisions are preserved and blocked
+PASS unsupported fields blocks without publishing partial chunks
+PASS unsupported complex fields blocks without publishing partial chunks
+PASS unsupported drawings blocks without publishing partial chunks
+PASS unsupported content controls blocks without publishing partial chunks
+PASS unsupported custom XML blocks without publishing partial chunks
+PASS unsupported tracked moves blocks without publishing partial chunks
+PASS unsupported hidden text blocks without publishing partial chunks
+PASS unsupported numbering blocks without publishing partial chunks
+PASS unsupported unknown content blocks without publishing partial chunks
+PASS unsupported alternate content blocks without publishing partial chunks
+PASS unused styles are retained; used inherited numbering and style cycles block
+PASS ignorable declarations alone do not hide content; unknown extensions block
+PASS missing parts, external content, embeddings and unsupported XML block
+PASS external hyperlinks preserve targets, without fetching them
+PASS malformed XML, DTD/entity expansion, strict namespace and uncovered text block
+PASS ZIP corruption, duplicate/unsafe names, encryption and expansion bounds fail closed
+PASS oversized clause and extreme XML nesting block rather than truncate
+PASS extractDocument routes DOCX to evidence, keeps TXT behavior and never flattens invalid DOCX
+DOCX evidence regression checks passed: 29 synthetic scenarios. No external AI, customer source, database or deployment was used.
+PASS worker stores a complete receipt and source mappings without rewriting original bytes
+PASS unsupported and empty DOCX publish a terminal blocked receipt, with no chunks or OCR
+PASS legacy raw-text DOCX cannot reach clause or term analysis
+PASS missing, unfinished and tampered receipts stop model calls and publication
+PASS supported evidence can advance through clause analysis; resulting objects remain unapproved
+PASS OCR cannot replace DOCX negotiation evidence, including a manually queued job
+PASS actual term adapter rejects original-only quotes and enforces proposal labeling
+PASS evidence route authorizes before reading, keeps receipt private and reports missing receipts
+DOCX pipeline checks passed: 8 executable synthetic scenarios with mocked database/storage/model boundaries. These are not live-environment acceptance.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 test:docx:acceptance
+> node acceptance/docx/evidence/legal-document-evidence-repair-check.mjs --current-only && node acceptance/docx/evidence/legal-model-controls-regression.mjs && node acceptance/docx/scripts/parser-security-load-integrity-check.mjs
+
+{
+  "baselineCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "head": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceSnapshotIsCommitted": false,
+  "trackedPatchSha256": "8d813c3179e461906536ad0f91ce954ee56e6afe1c452f7ddb7123aae71db520",
+  "sourceHashes": {
+    "lib/docxExtraction.ts": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7",
+    "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+    "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+    "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+    "lib/documentExtraction.ts": "087bf1a3971674a46b7e1757c2a0e013693ace9ea8c24cbddb221ba21cdaa108",
+    "lib/jobProcessor.ts": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa",
+    "lib/analysisEngine.ts": "6914fd55247e71ccb9805c7cb9558f80242bed42b4437be80c97db9999e6d035",
+    "lib/termEngine.ts": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11",
+    "lib/engineVersions.ts": "aad8a4118beb9f2192f5facd3cca25a6a002320f41b7253538a78ddb30d269fb",
+    "scripts/docx-extraction-check.mjs": "4f44a970d6878e1811d8946c6beb7f5da0d9e15716d1f9200309da34edd24f2e",
+    "scripts/docx-pipeline-check.mjs": "2801832bd3bd653b8d466dc5fcf4623e130f46107bf0da30dbda625096a699ef",
+    "scripts/ts-test-loader.mjs": "8cfe7bbcdd1b91f9c0f3f10e1f021f0ff513f5e6849efa31f21a34889596193a",
+    "validation/docx/fixtures.mjs": "6c76f6cd4941b8de8f417544b6dde65d4aac52238f722dc7d806981cab765d31",
+    "package.json": "577411dfed04a5510480941d2513995a619037c30f7d9fb28e5a8c53963524de",
+    "package-lock.json": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684"
+  },
+  "runnerSha256": "22834d4d1696b09fb63f87734e55227dc839b4caaaaf3c857c8d91504035cc36",
+  "extractorVersion": "docx-negotiation-2026-10-09.v2",
+  "syntheticOnly": true,
+  "wordRendererExecuted": false,
+  "modelExecuted": false,
+  "runAtUtc": "2026-10-09T12:43:43.580Z",
+  "results": [
+    {
+      "name": "deleted-note-reference",
+      "sourceSha256": "9861ede8787891798e14471accaba70b3149abdf872b1096b31e277b3652dc98",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "REVISED_NOTE_ACTIVATION"
+      ],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "orphan-note",
+      "sourceSha256": "5e48935c8ab5a4e39efc52fc2c1c6a4311dd5bc09f36de85ce3d436373e094f6",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "ORPHAN_NOTE_BODY"
+      ],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "inactive-header",
+      "sourceSha256": "cb519691c276455d2a8a55c191fa9f7679d77e8cdec1d16c99600c88b31ac198",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "UNACTIVATED_HEADER_FOOTER"
+      ],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "cross-story-comment-reference",
+      "sourceSha256": "698955c8fb8ec5bc24b343cf38d2388a750f77f5711dda91ba1fe42195d992ec",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "CROSS_STORY_COMMENT_ANCHORS",
+        "UNACTIVATED_HEADER_FOOTER"
+      ],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "comment-text-not-quotation",
+      "sourceSha256": "4164b61525db275c39519a3ccd01e10b054f1bd7eac741848c935421e6922b12",
+      "result": "PASS",
+      "analysisEligible": true,
+      "blockingCodes": [],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "different-author-replacement",
+      "sourceSha256": "154d9fb0ec840c7f51656e940213183ca0f16346126348c1eef796d81a32c172",
+      "result": "PASS",
+      "analysisEligible": true,
+      "blockingCodes": [],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "active-header-cross-story-comment",
+      "sourceSha256": "2ca1af33cda6b49dc6d790b73a8ec68e7c7524eb58ef28443061d7ead0cbbfc9",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "CROSS_STORY_COMMENT_ANCHORS"
+      ],
+      "legalEvidenceReady": false
+    },
+    {
+      "name": "wrong-header-relationship-type",
+      "sourceSha256": "641a26386b75575ffd7ac5652ae9eb09a4c8db3fc7b470409c430ef8ca498613",
+      "result": "PASS",
+      "analysisEligible": false,
+      "blockingCodes": [
+        "STORY_RELATIONSHIP_MISMATCH",
+        "UNACTIVATED_HEADER_FOOTER"
+      ],
+      "legalEvidenceReady": false
+    }
+  ]
+}
+Legal DOCX control repair regressions passed: comments excluded from fallback/quotes; deterministic and AI view/uncertainty labels; exact clause/term quotes; original-only terms and metadata rejected. Provider is doubled; no network or legal approval.
+PASS: 10 independent ZIP integrity/early-allocation repair checks.

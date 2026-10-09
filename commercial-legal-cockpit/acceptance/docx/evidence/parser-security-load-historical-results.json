@@ -1,0 +1,1020 @@
+{
+  "metadata": {
+    "date": "2026-10-09T12:37:43.977Z",
+    "runtime": "v24.19.0",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuCount": 9,
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "totalHostMemoryBytes": 10451464192,
+    "heapCapMiB": 512,
+    "timeoutMs": 30000,
+    "notes": "Fresh isolated child per sample; peakRSS includes loader and fixture generation. Batch sum is conservative summed high-water marks, not simultaneous sampled RSS. No performance SLA or production capacity approval supplied.",
+    "cgroupMemoryMax": "8589934592",
+    "cgroupCpuMax": "800000 100000",
+    "cgroupObservedAt": "2026-10-09T12:40:30.015377+00:00"
+  },
+  "results": [
+    {
+      "case": "ordinary",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+      "compressedBytes": 2336,
+      "expandedBytes": 65708,
+      "evidenceSerializedBytes": 872925,
+      "parameters": null,
+      "expectedEligible": true,
+      "actualEligible": true,
+      "expectationMet": true,
+      "chunks": 500,
+      "issueCodes": [],
+      "extractMs": 49.02162499999997,
+      "receiptMs": 54.86584600000003,
+      "receiptVerified": true,
+      "before": {
+        "rss": 135811072,
+        "heapTotal": 59641856,
+        "heapUsed": 19763888,
+        "external": 31306239,
+        "arrayBuffers": 9280842
+      },
+      "after": {
+        "rss": 155045888,
+        "heapTotal": 60518400,
+        "heapUsed": 26761272,
+        "external": 31306723,
+        "arrayBuffers": 9346402
+      },
+      "processPeakRssKiB": 152292,
+      "userCpuMs": 736.522,
+      "systemCpuMs": 246.03,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 702.160801,
+      "stderr": ""
+    },
+    {
+      "case": "negotiated",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "131782cd05c4d77bb0666bdf90e3f43f01942b97c48eebd17a8a25874eee1cf7",
+      "compressedBytes": 3656,
+      "expandedBytes": 87598,
+      "evidenceSerializedBytes": 1815950,
+      "parameters": null,
+      "expectedEligible": true,
+      "actualEligible": true,
+      "expectationMet": true,
+      "chunks": 300,
+      "issueCodes": [],
+      "extractMs": 94.14776399999994,
+      "receiptMs": 70.17566,
+      "receiptVerified": true,
+      "before": {
+        "rss": 141385728,
+        "heapTotal": 59117568,
+        "heapUsed": 19757496,
+        "external": 31329449,
+        "arrayBuffers": 9282162
+      },
+      "after": {
+        "rss": 164909056,
+        "heapTotal": 64868352,
+        "heapUsed": 29993568,
+        "external": 31308043,
+        "arrayBuffers": 9347722
+      },
+      "processPeakRssKiB": 161128,
+      "userCpuMs": 836.477,
+      "systemCpuMs": 197.578,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 699.357247,
+      "stderr": ""
+    },
+    {
+      "case": "many_paragraphs",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "f782f289963af2e3a31863159b0d1c1243082a2f1869745765d842d6d151a4b1",
+      "compressedBytes": 1445,
+      "expandedBytes": 204818,
+      "evidenceSerializedBytes": 8169372,
+      "parameters": null,
+      "expectedEligible": true,
+      "actualEligible": true,
+      "expectationMet": true,
+      "chunks": 6000,
+      "issueCodes": [],
+      "extractMs": 274.50226699999996,
+      "receiptMs": 379.6489070000001,
+      "receiptVerified": true,
+      "before": {
+        "rss": 139956224,
+        "heapTotal": 55971840,
+        "heapUsed": 19735240,
+        "external": 31240248,
+        "arrayBuffers": 9279951
+      },
+      "after": {
+        "rss": 309284864,
+        "heapTotal": 201711616,
+        "heapUsed": 71398576,
+        "external": 31240272,
+        "arrayBuffers": 9279951
+      },
+      "processPeakRssKiB": 302660,
+      "userCpuMs": 1524.94,
+      "systemCpuMs": 298.596,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 1220.545778,
+      "stderr": ""
+    },
+    {
+      "case": "near_xml_token_limit",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "0d0111cd108cc85e0255386153a3d6e75d895c7be1d47cbf518348372d8b4051",
+      "compressedBytes": 2433,
+      "expandedBytes": 544818,
+      "evidenceSerializedBytes": 21825378,
+      "parameters": null,
+      "expectedEligible": true,
+      "actualEligible": true,
+      "expectationMet": true,
+      "chunks": 16000,
+      "issueCodes": [],
+      "extractMs": 634.6880799999999,
+      "receiptMs": 840.8809669999998,
+      "receiptVerified": true,
+      "before": {
+        "rss": 148062208,
+        "heapTotal": 55709696,
+        "heapUsed": 19730368,
+        "external": 31785438,
+        "arrayBuffers": 9280939
+      },
+      "after": {
+        "rss": 431624192,
+        "heapTotal": 271572992,
+        "heapUsed": 116420832,
+        "external": 31241260,
+        "arrayBuffers": 9280939
+      },
+      "processPeakRssKiB": 442816,
+      "userCpuMs": 2645.966,
+      "systemCpuMs": 369.648,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 2048.899943,
+      "stderr": ""
+    },
+    {
+      "case": "over_xml_token_limit",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "5fc5db9d0e3f764f871c5e61d9d8668879ca94772d643a77978f3ac4668240aa",
+      "compressedBytes": 2531,
+      "expandedBytes": 578818,
+      "evidenceSerializedBytes": 2847,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 28.12883499999998,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 147947520,
+        "heapTotal": 55971840,
+        "heapUsed": 19732488,
+        "external": 31819536,
+        "arrayBuffers": 9281037
+      },
+      "after": {
+        "rss": 158040064,
+        "heapTotal": 56553472,
+        "heapUsed": 33002648,
+        "external": 31885120,
+        "arrayBuffers": 9924799
+      },
+      "processPeakRssKiB": 154336,
+      "userCpuMs": 663.94,
+      "systemCpuMs": 104.39,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 521.7434290000001,
+      "stderr": ""
+    },
+    {
+      "case": "near_part_limit",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "cfb5d65b71516d39792549011a9e4e2b899c2fb009417300c0f35968045612d7",
+      "compressedBytes": 9006,
+      "expandedBytes": 8388859,
+      "evidenceSerializedBytes": 1286,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "OVERSIZED_PARAGRAPH_PROJECTION",
+        "OVERSIZED_EVIDENCE_RECEIPT"
+      ],
+      "extractMs": 246.82885599999997,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 159588352,
+        "heapTotal": 55709696,
+        "heapUsed": 19732608,
+        "external": 39636060,
+        "arrayBuffers": 9287512
+      },
+      "after": {
+        "rss": 245026816,
+        "heapTotal": 147988480,
+        "heapUsed": 78888096,
+        "external": 48089879,
+        "arrayBuffers": 17741315
+      },
+      "processPeakRssKiB": 272040,
+      "userCpuMs": 941.2,
+      "systemCpuMs": 140.265,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 817.896076,
+      "stderr": ""
+    },
+    {
+      "case": "over_part_limit",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "92768b9d35d44933d8af19a0107efb8c8f5379b4d737f49bea22353ebac45952",
+      "compressedBytes": 9006,
+      "expandedBytes": 8389459,
+      "evidenceSerializedBytes": 422,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 1.5946800000000394,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 159662080,
+        "heapTotal": 56233984,
+        "heapUsed": 19737472,
+        "external": 39636652,
+        "arrayBuffers": 9287512
+      },
+      "after": {
+        "rss": 159793152,
+        "heapTotal": 56233984,
+        "heapUsed": 19825088,
+        "external": 31247833,
+        "arrayBuffers": 9287512
+      },
+      "processPeakRssKiB": 164020,
+      "userCpuMs": 767.933,
+      "systemCpuMs": 75.966,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 599.8955759999999,
+      "stderr": ""
+    },
+    {
+      "case": "near_expanded_limit",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "99cd8f4fca75203a698bfa960fa9f149849b934a95db97ac0893844e7256a627",
+      "compressedBytes": 34184,
+      "expandedBytes": 33523703,
+      "evidenceSerializedBytes": 11422,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "UNSUPPORTED_BINARY_PART"
+      ],
+      "extractMs": 370.87182899999993,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 150851584,
+        "heapTotal": 55447552,
+        "heapUsed": 19759656,
+        "external": 48133547,
+        "arrayBuffers": 9312690
+      },
+      "after": {
+        "rss": 185323520,
+        "heapTotal": 55447552,
+        "heapUsed": 32495256,
+        "external": 64860219,
+        "arrayBuffers": 42899898
+      },
+      "processPeakRssKiB": 204296,
+      "userCpuMs": 1538.292,
+      "systemCpuMs": 118.877,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 1271.2505629999996,
+      "stderr": ""
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "f6035744288cf402b9a936b6ac358d4d36ecc30d2579c3e7e269554b6eeaa827",
+      "compressedBytes": 9566,
+      "expandedBytes": 227955,
+      "evidenceSerializedBytes": 4258339,
+      "parameters": {
+        "comments": 1000,
+        "runs": 2000,
+        "runCommentMemberships": 2000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 124.69997599999999,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 138764288,
+        "heapTotal": 55709696,
+        "heapUsed": 19746520,
+        "external": 31248361,
+        "arrayBuffers": 9288072
+      },
+      "after": {
+        "rss": 176381952,
+        "heapTotal": 109580288,
+        "heapUsed": 48160776,
+        "external": 31737556,
+        "arrayBuffers": 9777235
+      },
+      "processPeakRssKiB": 172248,
+      "userCpuMs": 898.623,
+      "systemCpuMs": 118.365,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 669.7529110000005,
+      "stderr": ""
+    },
+    {
+      "case": "excessive_attributes",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "80721c493506823a2d608f9c13e122ef9a9545eb45d9ccc0ad72125ae6a6bf12",
+      "compressedBytes": 344628,
+      "expandedBytes": 1689746,
+      "evidenceSerializedBytes": 2856,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 270.97417799999994,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 151199744,
+        "heapTotal": 60166144,
+        "heapUsed": 19747296,
+        "external": 34288818,
+        "arrayBuffers": 9623134
+      },
+      "after": {
+        "rss": 197156864,
+        "heapTotal": 202780672,
+        "heapUsed": 69668568,
+        "external": 35092811,
+        "arrayBuffers": 11377800
+      },
+      "processPeakRssKiB": 198188,
+      "userCpuMs": 1163.286,
+      "systemCpuMs": 93.77,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 844.0933150000001,
+      "stderr": ""
+    },
+    {
+      "case": "local_crc_mismatch",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "bae308448e84b448ecc948c44fa4e2e880e3101b71d5f5148fe19d88c823f62e",
+      "compressedBytes": 837,
+      "expandedBytes": 873,
+      "evidenceSerializedBytes": 428,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 1.9313790000000495,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 132378624,
+        "heapTotal": 41816064,
+        "heapUsed": 19761776,
+        "external": 31239648,
+        "arrayBuffers": 9279343
+      },
+      "after": {
+        "rss": 132378624,
+        "heapTotal": 41816064,
+        "heapUsed": 19847280,
+        "external": 31239664,
+        "arrayBuffers": 9279343
+      },
+      "processPeakRssKiB": 130244,
+      "userCpuMs": 653.595,
+      "systemCpuMs": 60.789,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 497.4279450000013,
+      "stderr": ""
+    },
+    {
+      "case": "local_size_mismatch",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "e5e4129f95b6d0c9e678e5d06dedb831a822d8c501655cf367e43447711cd942",
+      "compressedBytes": 837,
+      "expandedBytes": 873,
+      "evidenceSerializedBytes": 428,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 1.6448540000000094,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 134594560,
+        "heapTotal": 59641856,
+        "heapUsed": 19753408,
+        "external": 31239648,
+        "arrayBuffers": 9279343
+      },
+      "after": {
+        "rss": 134594560,
+        "heapTotal": 59641856,
+        "heapUsed": 19844856,
+        "external": 31239664,
+        "arrayBuffers": 9279343
+      },
+      "processPeakRssKiB": 132128,
+      "userCpuMs": 608.422,
+      "systemCpuMs": 82.037,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 475.15458899999976,
+      "stderr": ""
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "c93dd6ce7c772a378b5ee38d7bb9fdc354553c89f2182ef9ff2c7b4539ed6dda",
+      "compressedBytes": 5553,
+      "expandedBytes": 137455,
+      "evidenceSerializedBytes": 2755825,
+      "parameters": {
+        "comments": 500,
+        "runs": 2000,
+        "runCommentMemberships": 1000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 100.99029099999996,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 136151040,
+        "heapTotal": 56233984,
+        "heapUsed": 19603544,
+        "external": 31244348,
+        "arrayBuffers": 9284059
+      },
+      "after": {
+        "rss": 162889728,
+        "heapTotal": 102903808,
+        "heapUsed": 38142176,
+        "external": 31577507,
+        "arrayBuffers": 9617186
+      },
+      "processPeakRssKiB": 159072,
+      "userCpuMs": 853.641,
+      "systemCpuMs": 78.512,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 608.4956619999994,
+      "stderr": ""
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": null,
+      "extractorVersion": "docx-negotiation-2026-10-09.v2",
+      "syntheticSourceSha256": "33bed99dab1524cc5f4f4474515c58f72e50256163e573140bfdffe7a5aa5425",
+      "compressedBytes": 13718,
+      "expandedBytes": 319955,
+      "evidenceSerializedBytes": 5768839,
+      "parameters": {
+        "comments": 1500,
+        "runs": 2000,
+        "runCommentMemberships": 3000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "INVALID_OR_UNSUPPORTED_PACKAGE"
+      ],
+      "extractMs": 161.20574400000004,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 137539584,
+        "heapTotal": 55971840,
+        "heapUsed": 19751968,
+        "external": 31428523,
+        "arrayBuffers": 9292224
+      },
+      "after": {
+        "rss": 191016960,
+        "heapTotal": 111321088,
+        "heapUsed": 71884768,
+        "external": 31768172,
+        "arrayBuffers": 9807851
+      },
+      "processPeakRssKiB": 186540,
+      "userCpuMs": 909.126,
+      "systemCpuMs": 116.029,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+        "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+        "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      },
+      "wallMs": 687.0536629999988,
+      "stderr": ""
+    }
+  ],
+  "batches": [
+    {
+      "concurrency": 1,
+      "wallMs": 611.504660999999,
+      "items": [
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 45.37720100000007,
+          "receiptMs": 40.38884800000005,
+          "receiptVerified": true,
+          "before": {
+            "rss": 134377472,
+            "heapTotal": 58855424,
+            "heapUsed": 19757592,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 154394624,
+            "heapTotal": 60256256,
+            "heapUsed": 27235128,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 151672,
+          "userCpuMs": 750.342,
+          "systemCpuMs": 81.635,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 611.3854539999993,
+          "stderr": ""
+        }
+      ],
+      "sumProcessPeakRssKiB": 151672
+    },
+    {
+      "concurrency": 2,
+      "wallMs": 617.2734289999989,
+      "items": [
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 50.217584999999985,
+          "receiptMs": 40.81201399999998,
+          "receiptVerified": true,
+          "before": {
+            "rss": 133513216,
+            "heapTotal": 59641856,
+            "heapUsed": 19761120,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 153640960,
+            "heapTotal": 60518400,
+            "heapUsed": 27425448,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 150864,
+          "userCpuMs": 765.278,
+          "systemCpuMs": 98.017,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 617.2473399999999,
+          "stderr": ""
+        },
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 55.885583999999994,
+          "receiptMs": 44.022767000000044,
+          "receiptVerified": true,
+          "before": {
+            "rss": 141770752,
+            "heapTotal": 58068992,
+            "heapUsed": 19765696,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 160399360,
+            "heapTotal": 59731968,
+            "heapUsed": 27249744,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 157364,
+          "userCpuMs": 770.798,
+          "systemCpuMs": 46.509,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 582.8008869999994,
+          "stderr": ""
+        }
+      ],
+      "sumProcessPeakRssKiB": 308228
+    },
+    {
+      "concurrency": 4,
+      "wallMs": 747.1562680000006,
+      "items": [
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 84.733071,
+          "receiptMs": 46.51443400000005,
+          "receiptVerified": true,
+          "before": {
+            "rss": 135741440,
+            "heapTotal": 59117568,
+            "heapUsed": 19762240,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 155631616,
+            "heapTotal": 60870656,
+            "heapUsed": 30506776,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 151984,
+          "userCpuMs": 783.575,
+          "systemCpuMs": 91.96,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 704.4109129999997,
+          "stderr": ""
+        },
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 48.875068000000056,
+          "receiptMs": 49.80553599999996,
+          "receiptVerified": true,
+          "before": {
+            "rss": 139739136,
+            "heapTotal": 59379712,
+            "heapUsed": 19769352,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 158941184,
+            "heapTotal": 60518400,
+            "heapUsed": 26754176,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 156116,
+          "userCpuMs": 775.318,
+          "systemCpuMs": 86.482,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 655.3924129999996,
+          "stderr": ""
+        },
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 46.28462399999995,
+          "receiptMs": 39.74162000000001,
+          "receiptVerified": true,
+          "before": {
+            "rss": 146120704,
+            "heapTotal": 42078208,
+            "heapUsed": 19772200,
+            "external": 31306239,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 166830080,
+            "heapTotal": 60608512,
+            "heapUsed": 38979400,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 162920,
+          "userCpuMs": 748.433,
+          "systemCpuMs": 73.898,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 619.5338090000005,
+          "stderr": ""
+        },
+        {
+          "case": "ordinary",
+          "runtime": "v24.19.0",
+          "baselineRevision": null,
+          "extractorVersion": "docx-negotiation-2026-10-09.v2",
+          "syntheticSourceSha256": "8caccc50b5f86909cb4270497aa09e086f2941e39eb85f51556beae95e5e03b6",
+          "compressedBytes": 2336,
+          "expandedBytes": 65708,
+          "evidenceSerializedBytes": 872925,
+          "parameters": null,
+          "expectedEligible": true,
+          "actualEligible": true,
+          "expectationMet": true,
+          "chunks": 500,
+          "issueCodes": [],
+          "extractMs": 47.74327799999992,
+          "receiptMs": 41.88577400000008,
+          "receiptVerified": true,
+          "before": {
+            "rss": 133554176,
+            "heapTotal": 38932480,
+            "heapUsed": 19592992,
+            "external": 31241131,
+            "arrayBuffers": 9280842
+          },
+          "after": {
+            "rss": 152072192,
+            "heapTotal": 59469824,
+            "heapUsed": 27066768,
+            "external": 31306723,
+            "arrayBuffers": 9346402
+          },
+          "processPeakRssKiB": 149368,
+          "userCpuMs": 810.674,
+          "systemCpuMs": 138.181,
+          "sourceHashes": {
+            "lib/docxPackage.ts": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e",
+            "lib/docxExtraction.ts": "f19ced5d8d00bfdf85ee2daaed42eb74cc9a8f120c60a08a14350a7d6d40a40d",
+            "lib/docxEvidence.ts": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64",
+            "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+            "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+          },
+          "wallMs": 743.3088540000008,
+          "stderr": ""
+        }
+      ],
+      "sumProcessPeakRssKiB": 620388
+    }
+  ]
+}

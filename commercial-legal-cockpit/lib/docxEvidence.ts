@@ -1,5 +1,5 @@
 
-export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-10-09.v1";
+export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-10-09.v2";
 export const DOCX_CHUNK_PREFIX="CONTRACTTWIN_DOCX_EVIDENCE_V1\n";
 export type XmlSource={part:string;path:string};
 export type XmlNode={name:string;namespace:string;attributes:Array<{name:string;namespace:string;value:string}>;source:XmlSource;text:string|null;children:XmlNode[]};
@@ -44,5 +44,5 @@ export function sourceTextViews(text:string):string[]{
 }
 export function proposedTextContainsExcerpt(text:string,excerpt:string){
   const projection=readDocxProjection(text),normalize=(s:string)=>s.replace(/\s+/g," ").trim().toLowerCase(),needle=normalize(excerpt);
-  return Boolean(needle)&&(projection?[projection.paragraph.proposedText]:[text]).some(view=>normalize(view).includes(needle));
+  return projection?Boolean(excerpt.trim())&&projection.paragraph.proposedText.includes(excerpt):Boolean(needle)&&normalize(text).includes(needle);
 }

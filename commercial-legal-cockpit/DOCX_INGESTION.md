@@ -18,7 +18,7 @@ Engineering candidate, October 9, 2026. This adapter fixes the loss of revisions
 
 XML decoding follows XML normalization rules; the original part hash binds the source bytes. XML paths use the source's namespace prefixes; the retained tree includes namespace URIs/declarations. Story offsets count both inserted and deleted text in document order, with one newline per paragraph, and are **not** offsets in either text hypothesis. Pagination and physical layout are not inferred from Word XML.
 
-Comment text is supplied as context inside the paragraph envelope. It cannot ground a contract quotation. Clause findings may quote either original or proposed contract language and must describe the relevant view. Candidate terms are deterministically restricted to proposed text and labeled `Unapproved proposed text:`. All existing human review/authority controls remain in effect. Metadata must never be treated as instructions, negotiation policy, a party's identity or approval.
+Comment text is supplied as context inside the paragraph envelope. It cannot ground a contract quotation or trigger deterministic fallback rules. DOCX quotations must match contiguous decoded contract text exactly, including case and whitespace. Clause findings are deterministically labeled with their original/proposed view and unapproved status. Candidate terms are restricted to proposed text and labeled `Unapproved proposed text:`. These checks do not validate a model's interpretation, party attribution or normalized meaning; representative artifact-bound model evaluation and legal review remain required. All existing human review/authority controls remain in effect. Metadata must never be treated as instructions, negotiation policy, a party's identity or approval.
 
 ## Blocking features
 
@@ -29,6 +29,7 @@ The original binary remains preserved. For unsupported features, the receipt ret
 | Automatic numbering, including a used/default/inherited numbering style | Definitions/references retained; unresolved labels block analysis |
 | Paragraph-mark, formatting, table-cell/grid and section revisions; tracked moves | Raw source and metadata retained; before/after semantics block analysis |
 | Modern threaded/extended comments, revisions within comment bodies or unsupported revision extensions | Parts preserved; unsupported semantics block analysis |
+| Note references within revisions, orphan substantive notes, inactive headers/footers, mismatched story relationship/content types or cross-story comment anchors | Provenance retained; unresolved activation/association blocks analysis |
 | Fields/formulas, cached field values, content controls/data bindings and custom XML | Preserved; evaluation/binding is unsupported and blocks analysis |
 | Images, drawings, text boxes, embedded objects, signature parts and linked content | Preserved by source/part hashes and available XML; requires another validated visual/authenticity adapter |
 | Hidden/bidirectional text and unknown story elements/extension attributes | Blocked; never silently skipped under an ignorable namespace declaration |

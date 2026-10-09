@@ -1,0 +1,91 @@
+{
+  "candidateCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "runDate": "2026-10-09",
+  "probesSourceSha256": "e2c212f9a8ddadd105fa0fdcd5512e114ee019bd83a73620170a13bd8b64f798",
+  "syntheticOnly": true,
+  "wordRendererExecuted": false,
+  "modelExecuted": false,
+  "results": [
+    {
+      "name": "deleted-note-reference",
+      "sourceSha256": "9861ede8787891798e14471accaba70b3149abdf872b1096b31e277b3652dc98",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 2,
+      "defect": "LDE-001",
+      "deletedReferenceRevisionPreserved": true,
+      "referencedNoteProjectedAsProposedText": "Customer shall reimburse all NCNR commitments within 5 days.",
+      "noteProjectionRevisionKinds": [],
+      "referenceProjectionHasRevisionState": false,
+      "deterministicProposedTermGateAcceptsDeletedOnlyNote": true
+    },
+    {
+      "name": "orphan-note",
+      "sourceSha256": "5e48935c8ab5a4e39efc52fc2c1c6a4311dd5bc09f36de85ce3d436373e094f6",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 2,
+      "defect": "LDE-001",
+      "noSourceNoteReference": true,
+      "unreferencedNoteProjectedAsProposedText": "Customer shall reimburse all NCNR commitments within 5 days."
+    },
+    {
+      "name": "inactive-header",
+      "sourceSha256": "cb519691c276455d2a8a55c191fa9f7679d77e8cdec1d16c99600c88b31ac198",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 2,
+      "defect": "LDE-002",
+      "headerRelationshipPresent": true,
+      "sectionHeaderReferenceAbsent": true,
+      "inactiveHeaderProjectedAsProposedText": "Customer must pay a minimum annual manufacturing fee of $2,000,000."
+    },
+    {
+      "name": "cross-story-comment-reference",
+      "sourceSha256": "698955c8fb8ec5bc24b343cf38d2388a750f77f5711dda91ba1fe42195d992ec",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 2,
+      "defect": "LDE-003",
+      "rangePart": "word/document.xml",
+      "referencePart": "word/header1.xml",
+      "crossStoryReferenceAccepted": true
+    },
+    {
+      "name": "comment-text-not-quotation",
+      "sourceSha256": "4164b61525db275c39519a3ccd01e10b054f1bd7eac741848c935421e6922b12",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 1,
+      "check": "PASS",
+      "commentAndAuthorCannotGroundQuotation": true,
+      "commentAnchorKinds": [
+        "start",
+        "end",
+        "reference"
+      ]
+    },
+    {
+      "name": "different-author-replacement",
+      "sourceSha256": "154d9fb0ec840c7f51656e940213183ca0f16346126348c1eef796d81a32c172",
+      "analysisEligible": true,
+      "legalEvidenceReady": false,
+      "blockingCodes": [],
+      "chunkCount": 1,
+      "check": "PASS",
+      "originalText": "Customer shall pay within 30 days of invoice.",
+      "proposedText": "Customer shall pay within 60 days of invoice.",
+      "authors": [
+        "Synthetic Flex Counsel",
+        "Synthetic Customer Counsel"
+      ],
+      "partyIdentityEstablished": false,
+      "acceptanceEstablished": false
+    }
+  ]
+}

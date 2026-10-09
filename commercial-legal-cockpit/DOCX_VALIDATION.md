@@ -1,5 +1,7 @@
 # DOCX ingestion validation record
 
+Follow-on acceptance: six specialized legal and technical agents independently examined this candidate on October 9, 2026. Their reusable instructions, reproduced defects, local repair verification and unresolved acceptance gates are in [acceptance/docx/README.md](acceptance/docx/README.md) and [acceptance/docx/STATE.json](acceptance/docx/STATE.json). The original PR CI subsequently failed clean installation. Local follow-on repairs correct the lock and dependencies, linked-story/comment eligibility, contract-view fallback grounding, exact quotations and ZIP/allocation controls. The historical results below apply to the original candidate; they do not attest the repaired snapshot or close Word, target database, model, legal approval or deployment gates.
+
 Date: October 9, 2026. Scope: code/synthetic-data candidate based on repository commit `39716dfd22f4e01a3b1f891e28fb9a64149bf661`. This is local engineering evidence, not production activation or a review of any real negotiated agreement.
 
 ## Acceptance result

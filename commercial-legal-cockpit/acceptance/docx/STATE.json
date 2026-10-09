@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "objective": "Create and run specialized legal and technical agents for DOCX_VALIDATION open acceptance work.",
+  "acceptanceCriteria": [
+    "Six reusable specialist charters and actual independently checked lane reports",
+    "Raw evidence bound to original revision or explicit repaired snapshot",
+    "Reproduced material defects preserved; bounded reversible repairs tested",
+    "Missing live/Word/model/human approval proof remains blocked",
+    "No external publication, policy activation, legal-reliance activation, merge or deployment"
+  ],
+  "baseGitCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "remotePullRequest": 10,
+  "remotePullRequestContainsLocalRepairs": false,
+  "sourceSnapshot": {
+    "baseGitCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+    "sourceSnapshotSha256": "2f5f855f3d62e04948c17aa15fd4cc3cb80acc06f5efbef1637b28416c2139a7",
+    "files": [
+      {
+        "path": "lib/analysisEngine.ts",
+        "sha256": "6914fd55247e71ccb9805c7cb9558f80242bed42b4437be80c97db9999e6d035"
+      },
+      {
+        "path": "lib/termEngine.ts",
+        "sha256": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11"
+      },
+      {
+        "path": "lib/docxEvidence.ts",
+        "sha256": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64"
+      },
+      {
+        "path": "lib/docxExtraction.ts",
+        "sha256": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7"
+      },
+      {
+        "path": "lib/docxPackage.ts",
+        "sha256": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e"
+      },
+      {
+        "path": "lib/docxReceipt.ts",
+        "sha256": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f"
+      },
+      {
+        "path": "lib/jobProcessor.ts",
+        "sha256": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa"
+      },
+      {
+        "path": "lib/engineVersions.ts",
+        "sha256": "aad8a4118beb9f2192f5facd3cca25a6a002320f41b7253538a78ddb30d269fb"
+      },
+      {
+        "path": "package.json",
+        "sha256": "577411dfed04a5510480941d2513995a619037c30f7d9fb28e5a8c53963524de"
+      },
+      {
+        "path": "package-lock.json",
+        "sha256": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684"
+      }
+    ]
+  },
+  "agentTasks": [
+    {
+      "agent": "legal-document-evidence",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "BLOCKED",
+      "verified": "Eight strict synthetic source/comment/story repair cases pass",
+      "open": "Authentic Word Original/Final/comment comparison",
+      "report": "reports/legal-document-evidence.md"
+    },
+    {
+      "agent": "legal-model-controls",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "BLOCKED",
+      "verified": "Focused grounding/labeling regression passes; repaired model-double pack21/25",
+      "open": "Four semantic/party failures; actual artifact-bound provider evaluation and legal owner approval",
+      "report": "reports/legal-model-controls.md"
+    },
+    {
+      "agent": "dependency-ci",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "LOCAL_CHECKS_PASSED_REMOTE_BLOCKED",
+      "verified": "Clean install repaired; audit0; controls/typecheck/build pass locally",
+      "open": "Fresh exact-release CI/CodeQL and target persisted Workflow compatibility",
+      "report": "reports/dependency-ci.md"
+    },
+    {
+      "agent": "database-integrity",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "FAILED",
+      "verified": "Six narrow embedded PostgreSQL observations reproduce2defects and existing immutability/archive controls",
+      "open": "Repair DB-01 re-extraction and DB-02 JSON quotation grounding; approved server/role/concurrency acceptance",
+      "report": "reports/database-integrity.md"
+    },
+    {
+      "agent": "parser-security-load",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "RESOURCE_APPROVAL_REQUIRED",
+      "verified": "Ten ZIP/context-allocation repair assertions pass; synthetic benchmarks completed",
+      "open": "Approved workload/resource headroom and actual target isolation/p95/p99/concurrency",
+      "report": "reports/parser-security-load.md"
+    },
+    {
+      "agent": "release-authority",
+      "taskStatus": "COMPLETED",
+      "acceptanceStatus": "BLOCKED",
+      "verified": "Independent release/source/receipt checks;22mandatory live gates remain unverified",
+      "open": "All applicable platform/acceptance gates and attributable exact-release human approval",
+      "report": "reports/release-authority.md"
+    }
+  ],
+  "integratedLocalChecks": [
+    {
+      "command": "npm run test:controls",
+      "exitCode": 0,
+      "elapsedSeconds": 14.727,
+      "scope": "synthetic and source controls; no live acceptance",
+      "evidencePath": "evidence/coordinator-controls.json",
+      "sha256": "3a43da4785268482b8997a963092d7112f6f07654c3227ccb86c7fa6d7116127"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "elapsedSeconds": 5.744,
+      "evidencePath": "evidence/coordinator-typecheck.json",
+      "sha256": "1dc93ae260ddeec3de22592e11b68a4d5573c46218cc72ce12d8516ae49fb0b7"
+    },
+    {
+      "command": "npm audit --omit=dev --audit-level=high --json",
+      "exitCode": 0,
+      "scope": "integrated local locked dependencies",
+      "evidencePath": "evidence/coordinator-audit-command.json",
+      "sha256": "766aa52dae69319bc738e90fe310d66068f4cd502fdd69f16788e923f204a265"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "elapsedSeconds": 14.686,
+      "scope": "local synthetic/demo auth build; reliance disabled; no provider/database/deployment",
+      "evidencePath": "evidence/coordinator-build.json",
+      "sha256": "cd516d493271ab098370e1b00a5eea5e421f3f735edc8d2722c31a4133cd87c1"
+    }
+  ],
+  "releaseDecision": "NO_GO",
+  "legalRelianceAuthorized": false,
+  "productionDeploymentAuthorized": false,
+  "humanApprovalObtained": false,
+  "establishedRequirements": [
+    "Preserve original bytes, revisions/authors, comment anchors and structure",
+    "Block incomplete extraction and unapproved legal consequences",
+    "Use only public code and synthetic source data in this package",
+    "Do not infer party identity, accepted terms, execution or deployment approval"
+  ],
+  "openDefects": [
+    "DB-01: re-extraction can strand current source PENDING/failed generation when terms exist",
+    "DB-02: SQL lineage compares serialized JSON rather than decoded contract views",
+    "LMC: exact quotation alone does not validate provider meaning, party or acceptance claims"
+  ],
+  "authority": {
+    "assistant": "Read, create agent charters, reproduce defects and prepare reversible local repairs",
+    "human": "Approve confidential/live processing, database/provider access, current legal policies and release/publishing/deployment"
+  },
+  "nextPermittedIncrement": "Repair database lineage/re-extraction in isolated code with actual server regression; then repeat matching source/Word/model/target evidence. External PR publication requires Chris approval; production remains separately blocked.",
+  "minimumNextSourcePacket": "Synthetic Word-created W01 30-to-60-day payment change, two synthetic reviewers, one anchored comment, untouchedDOCX, Wordbuild and Original/Final/AllMarkup/comment evidence.",
+  "ownersAndTiming": {
+    "due": "Before production approval; no calendar deadline supplied",
+    "technicalOwner": "Identity not supplied",
+    "legalControlOwner": "Identity not supplied",
+    "releaseOwner": "Identity not supplied",
+    "riskIfLate": "Unreliable terms or unavailable source records and service resource failures",
+    "mitigation": "Keep production and legal reliance blocked",
+    "mitigationOwner": "Authorized release owner"
+  },
+  "ongoingBackgroundExecution": false,
+  "parserMeasurements": {
+    "sourceSnapshotSha256": "2f5f855f3d62e04948c17aa15fd4cc3cb80acc06f5efbef1637b28416c2139a7",
+    "nearLimitParagraphs": 16000,
+    "peakMemoryMiB": 450.6,
+    "extractionAndReceiptSeconds": 1.31,
+    "amplificationPeakMiB": 182.1,
+    "ordinaryFourWorkerSummedHighWaterMiB": 617.8,
+    "scope": "bounded local synthetic process measurements; not target capacity acceptance"
+  }
+}

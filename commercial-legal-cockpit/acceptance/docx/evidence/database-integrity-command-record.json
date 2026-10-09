@@ -1,0 +1,128 @@
+{
+  "dateUtc": "2026-10-09T12:41:49.797269+00:00",
+  "candidate": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "scope": "harness guard and embedded diagnostic evidence; no server or target acceptance",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 0,
+      "stdout": "0d446203d670e086aa50ef8d65755cbc653ae6be\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "--",
+        "lib",
+        "db"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-embedded.mjs"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs",
+        "--verify-harness"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 0,
+      "stdout": "{\"candidate\":\"0d446203d670e086aa50ef8d65755cbc653ae6be\",\"status\":\"HARNESS_INPUT_CHECK_PASS\",\"postgresqlScenarios\":\"NOT_EXECUTED\",\"fixtureSha256\":\"09f58eb4b1678c368c89fda463c04f6fda4fcf16f4d8870caadf0d82d40d9701\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs:33\nif(!raw)throw new Error(\"LOCAL_DOCX_ACCEPTANCE_URL is required; PostgreSQL scenarios were not executed.\");\n              ^\n\nError: LOCAL_DOCX_ACCEPTANCE_URL is required; PostgreSQL scenarios were not executed.\n    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs:33:15\n\nNode.js v24.19.0\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs"
+      ],
+      "environmentOverrides": {
+        "LOCAL_DOCX_ACCEPTANCE_URL": "postgresql://example.invalid/ct_docx_acceptance_test",
+        "LOCAL_DOCX_ACCEPTANCE_INIT": "EMPTY_DISPOSABLE_DATABASE"
+      },
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs:36\n  throw new Error(\"Only a loopback disposable ct_docx_acceptance_* database with no URL options is permitted.\");\n        ^\n\nError: Only a loopback disposable ct_docx_acceptance_* database with no URL options is permitted.\n    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-local.mjs:36:9\n\nNode.js v24.19.0\n"
+    },
+    {
+      "argv": [
+        "unshare",
+        "--user",
+        "--map-user=1000",
+        "--map-group=1000",
+        "id"
+      ],
+      "environmentOverrides": {},
+      "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "unshare: write failed /proc/self/uid_map: Operation not permitted\n"
+    }
+  ],
+  "runtime": {
+    "psql": null,
+    "postgres": null,
+    "initdb": null,
+    "docker": null,
+    "uid_map": "         0          0          1\n",
+    "gid_map": "         0          0          1\n"
+  },
+  "sourceHashes": {
+    "lib/jobProcessor.ts": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa",
+    "db/migrations/002_contract_twin_graph.sql": "7e8f53219e59eec1a355b042f95b9c48308b073149512b0117e97fac77c3628f",
+    "db/migrations/006_source_and_run_hardening.sql": "0fe9590bca0db17c8091fcd612cd70a1e5dbae7307fab47790046dc3846c3a91",
+    "db/migrations/008_analysis_review_attestations.sql": "0e265ef73cfb3e515af67ea92fda0458120ce25bce85f77ab70d06bae45bddee",
+    "lib/schema-migration-manifest.json": "f2000de4c35bc94269988aec4667098a107f107471a96bb905b922f263544707"
+  },
+  "harnessHashes": {
+    "acceptance/docx/scripts/database-integrity-embedded.mjs": "4b01b098370f21f6ba8a4e165fb942b85941fc40f32c3cf2b8f770812b4b36ee",
+    "acceptance/docx/scripts/database-integrity-local.mjs": "7d8a0dafdc5daec344491784db81496cb25994f254c593cf4ed9dc66a6101558"
+  }
+}

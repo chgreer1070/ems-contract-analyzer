@@ -1,0 +1,64 @@
+COMMAND: node acceptance/docx/evidence/release-authority-check.mjs
+CWD: /workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit
+EXIT: 1
+STDOUT:
+PASS source HEAD is the full independently supplied base; current bytes are separately snapshot-bound
+PASS Git integration automatic deployment is disabled
+PASS production requires manual main-only production dispatch
+PASS production names an environment and requires preflight plus CodeQL
+PASS production checkout and stale-main checks bind the workflow SHA twice
+PASS source denial precedes production mutation, staging and promotion
+PASS staged live proof precedes promotion
+PASS preview job can execute automatically; disabled Git integration is not universal deployment denial
+PASS bootstrap is manual-only and names a separate environment
+PASS seven implemented-capability blockers remain
+OBSERVED source-eligibility exit=1
+file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/scripts/production-source-eligibility-check.mjs:8
+  throw new Error(`Production mutation is blocked by ${policy.blockers.length} source-code completion gate(s): ${policy.blockers.join("; ")}`);
+        ^
+
+Error: Production mutation is blocked by 7 source-code completion gate(s): full-package coverage and validated layout/numbering/unsupported-format extraction are not implemented; negotiated DOCX evidence has bounded pilot support; all relied-on analysis stages lack representative artifact-bound legal validation; execution artifact authenticity and independent execution certification are not implemented; finance evidence/assumption lineage and the delegated multi-function authority matrix are not implemented; source-scoped provider processing authorization manifests are not implemented; the approved 41-section EMS taxonomy, financial-risk methods, and Top-10 cascade coverage are not implemented as governed validation gates; the mixed-bundle decision, economics, and snapshot evidence rollout has not completed its drain and contract-enforcement phase
+    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/scripts/production-source-eligibility-check.mjs:8:9
+
+Node.js v24.19.0
+
+PASS executed source eligibility denies production
+PASS runtime readiness requires exact engine policies plus evidence-kernel completion
+PASS changed clause and term versions are not auto-activated by existing seed migration
+PASS DOCX successful receipt binds document, matter and extraction generation
+PASS legacy DOCX and flattening OCR are denied
+PASS clause and term final publication recheck current DOCX receipt
+PASS blocked receipt is archived in the audit event
+PASS findings are initially unreviewed and document pipeline cannot generate a snapshot
+PASS actual receipt implementation accepts a complete synthetic receipt
+PASS actual receipt implementation rejects a different source version
+PASS actual receipt implementation rejects prior extractor version even with rehashed receipt
+PASS actual receipt implementation cannot elevate extraction to legal evidence
+PASS actual receipt implementation rejects hash-consistent changed paragraph content
+
+STDERR:
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ '3b6904eba4036dc05116342aa05fc2bb72f7b39189893f8fed48e8509788cdd1'
+- '3cf7ea187c5f97be82272d81d4d0c6bef68d57dd6aa78f7a01d1f146710cbeff'
+
+    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.mjs:64:76
+    at check (file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.mjs:19:25)
+    at file:///workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.mjs:64:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '3b6904eba4036dc05116342aa05fc2bb72f7b39189893f8fed48e8509788cdd1',
+  expected: '3cf7ea187c5f97be82272d81d4d0c6bef68d57dd6aa78f7a01d1f146710cbeff',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

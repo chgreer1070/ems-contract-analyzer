@@ -1,0 +1,122 @@
+{
+  "reviewRevision": "295ad76b8fe514f17e16029c79421d22206f7b96c1e7935ece3ba18c7a8cb1ab",
+  "sourceSnapshotScope": "SHA-256 of compact UTF-8 JSON array inventory in lexical path order; tracked files/current bytes outside commercial-legal-cockpit/acceptance/docx/. Acceptance scripts, fixtures and reports are separately artifact-hashed so generated outputs cannot make the source inventory self-referential.",
+  "baseGitRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "coordinatorSelectedFileSnapshotSha256": "2f5f855f3d62e04948c17aa15fd4cc3cb80acc06f5efbef1637b28416c2139a7",
+  "scope": "synthetic/source only",
+  "productionAuthorized": false,
+  "artifacts": [
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.json",
+      "sha256": "4f165cb60a18014587b4106cd5fe37c975bf7c40d7ebfae4b7016c449824a863",
+      "sizeBytes": 1247
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.mjs",
+      "sha256": "f9612c4cb4c1a8263c6c06c7d4aef5cda33f2cfed60f41f2e6af2d5efed5abc1",
+      "sizeBytes": 9764
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.txt",
+      "sha256": "fc6f0dd524db52af8bf946a93c0cc8bb8a17384453f4a529abcfb677bac25d02",
+      "sizeBytes": 3767
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-cross-review.json",
+      "sha256": "18a2e3def61f3e38509a29cba3007db8655c6b7315c1e7580c1b4c6357c7e690",
+      "sizeBytes": 5850
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-cross-review.py",
+      "sha256": "84adf02a6e4996564c268f0b6707b6959888447931df589ee878a20dcb6cc991",
+      "sizeBytes": 6385
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-cross-review.txt",
+      "sha256": "f145ca8763fbeed28fd479c9b4475aa29138cc6e99e9c5194fa91caa64661355",
+      "sizeBytes": 6035
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-enterprise-manifest.json",
+      "sha256": "e1a2db1d54dccc862f9a98e3e513cab41d46235dfce5f8da97d2559d3ef43b63",
+      "sizeBytes": 39864
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-self-reference-denial.txt",
+      "sha256": "d37a8d6213b63e1304c177743fc1383c671dc4076e238b4ec6a3be6683f845f7",
+      "sizeBytes": 4423
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-check.json",
+      "sha256": "88f3c2bad77b559d2444fe9219085a6e3e776b8e366d211a5c25a69d29945d29",
+      "sizeBytes": 1120
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-check.txt",
+      "sha256": "49d4c019d11681332f715909040037ec96a1e88ffb25687a302c214ed6c8b28a",
+      "sizeBytes": 3726
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-enterprise-manifest.json",
+      "sha256": "7fd200da6f2729c0b7aedb5f4e1a9878c983eba48dc7c71cb66820f3a73c5716",
+      "sizeBytes": 39864
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-manifest-verification.txt",
+      "sha256": "1f9260479edeb2e5a8d4e5ee1fddbd77ef7d194a1ca842c782c9b986f79cc1b4",
+      "sizeBytes": 3679
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-report.txt",
+      "sha256": "5ef82133da0964f8db44da1d9f3f27e40c99c9573ab8b557ea378423da7df1de",
+      "sizeBytes": 12240
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-source-inventory.json",
+      "sha256": "58cf12231573d9c604738d0c0df4f3f7a48a6d401edba5693c3d307f94a31657",
+      "sizeBytes": 37501
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1-state.json",
+      "sha256": "40cd60543063a49efaab08840658ec2ef5c7e9ccb1ccfd0e12632f0dae78d2f2",
+      "sizeBytes": 6254
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-history-snapshot1.json",
+      "sha256": "b4a1513ad5150821f68e677e1651014926bd139afe43a757a4fdf87ac962e786",
+      "sizeBytes": 1907
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-manifest-verification.txt",
+      "sha256": "51e50ad46b09d9360ee7b2824ffa385602e5d2fea19fe44b0c31e5cd1c4b0499",
+      "sizeBytes": 3679
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-source-inventory.json",
+      "sha256": "ca59cc268c07a38708b166fc1461742434d2bf8523e1c8a640f0a205a014b465",
+      "sizeBytes": 37653
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-state.json",
+      "sha256": "11c84f4e1816a36854d68614a3b8d5e9033b8422cd1e40bb8eb3741ad6921dcd",
+      "sizeBytes": 6664
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-state.schema.json",
+      "sha256": "0107ff420e353eef4963563561855d0e6ce9f67907d1e020ce4af9aa8dd6064d",
+      "sizeBytes": 4311
+    }
+  ],
+  "reviewDocuments": [
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/agents/release-authority.md",
+      "sha256": "390ff63a86e22ac12739d94abcadebdf67577d2671db17757c121030fcecfc9b",
+      "sizeBytes": 3722
+    },
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/reports/release-authority.md",
+      "sha256": "e63a847ae97edaed758d8d37d9ad575bd6d5da17acf1f7edd808a9b3e3de58ea",
+      "sizeBytes": 16807
+    }
+  ]
+}

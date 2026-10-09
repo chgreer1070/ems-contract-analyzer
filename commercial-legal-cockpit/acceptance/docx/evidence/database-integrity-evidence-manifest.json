@@ -1,0 +1,67 @@
+{
+  "dateUtc": "2026-10-09T12:43:42.570498+00:00",
+  "candidate": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "scope": "not server or target acceptance",
+  "embeddedExecution": {
+    "argv": [
+      "node",
+      "/workspace/scratch/f9f0943ba72f/ems-contract-analyzer/commercial-legal-cockpit/acceptance/docx/scripts/database-integrity-embedded.mjs"
+    ],
+    "cwd": "/workspace/scratch/f9f0943ba72f/docx-db-candidate/commercial-legal-cockpit",
+    "environmentOverrides": {
+      "DOCX_EMBEDDED_DIAGNOSTIC_PACKAGE": "/workspace/scratch/f9f0943ba72f/docx-db-embedded/node_modules/@electric-sql/pglite"
+    },
+    "exitCode": 0,
+    "outputFile": "acceptance/docx/evidence/database-integrity-embedded.log",
+    "diagnostics": 6,
+    "releaseDefectsReproduced": [
+      "DB-01",
+      "DB-02"
+    ],
+    "serverConcurrency": "NOT_EXECUTED",
+    "restrictedRole": "NOT_EXECUTED",
+    "approvedTarget": "NOT_EXECUTED"
+  },
+  "initialEmbeddedWorkerExecution": {
+    "exitCode": 1,
+    "outputFile": "acceptance/docx/evidence/database-integrity-embedded-initial-worker.log",
+    "reason": "harness expected different sanitized error wording; corrected assertion and reran"
+  },
+  "files": [
+    {
+      "path": "acceptance/docx/agents/database-integrity.md",
+      "sha256": "e2f4fa60bf36fdfcb34528633daa541a6972d67ed85a0ef0518c282684777cac",
+      "bytes": 2628
+    },
+    {
+      "path": "acceptance/docx/reports/database-integrity.md",
+      "sha256": "b0be9584cac29675063e7c21c6d77a1633efba2ffe9f2bd8372794af4628bf6c",
+      "bytes": 11174
+    },
+    {
+      "path": "acceptance/docx/scripts/database-integrity-embedded.mjs",
+      "sha256": "4b01b098370f21f6ba8a4e165fb942b85941fc40f32c3cf2b8f770812b4b36ee",
+      "bytes": 12330
+    },
+    {
+      "path": "acceptance/docx/scripts/database-integrity-local.mjs",
+      "sha256": "7d8a0dafdc5daec344491784db81496cb25994f254c593cf4ed9dc66a6101558",
+      "bytes": 15747
+    },
+    {
+      "path": "acceptance/docx/evidence/database-integrity-command-record.json",
+      "sha256": "a1e672657f2dd7742776ee8659c2dd6fa7c65b047994c9b1b65bb0b731d8a3bc",
+      "bytes": 5782
+    },
+    {
+      "path": "acceptance/docx/evidence/database-integrity-embedded-initial-worker.log",
+      "sha256": "5c6bb5fd0fe96725842b6e403548678f5059a2265c3707a6536fe38ab011e9f0",
+      "bytes": 5376
+    },
+    {
+      "path": "acceptance/docx/evidence/database-integrity-embedded.log",
+      "sha256": "18c13e3f265a57d9d5c01ac1b2b248ce7db50c588812b5b02344b1917ec467b2",
+      "bytes": 5285
+    }
+  ]
+}

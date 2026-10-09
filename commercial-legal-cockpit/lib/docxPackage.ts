@@ -2,7 +2,7 @@ import { inflateRawSync } from "node:zlib";
 
 // Deliberately bounded classic-ZIP reader. ZIP64, encryption and exotic filename
 // encodings require another validated adapter; never guess or partially unzip.
-export const DOCX_LIMITS = { compressedBytes:75*1024*1024, entries:2048, partBytes:8*1024*1024, expandedBytes:32*1024*1024, xmlNodes:100_000, xmlDepth:128, xmlNameChars:256, xmlAttributes:512, xmlPathChars:8192, receiptBytes:24*1024*1024 } as const;
+export const DOCX_LIMITS = { compressedBytes:75*1024*1024, entries:2048, partBytes:8*1024*1024, expandedBytes:32*1024*1024, xmlNodes:100_000, xmlDepth:128, xmlNameChars:256, xmlAttributes:512, xmlPathChars:8192, receiptBytes:24*1024*1024, runMetadataBytes:4*1024*1024 } as const;
 
 const crcTable = Array.from({length:256},(_,value)=>{
   for(let bit=0;bit<8;bit++)value=(value&1)?0xedb88320^(value>>>1):value>>>1;
@@ -42,7 +42,15 @@ export function readDocxPackage(input:ArrayBuffer):Map<string,Buffer>{
     assert(local+30<=start&&bytes.readUInt32LE(local)===0x04034b50,"DOCX local ZIP header is invalid.");
     const localNameLength=bytes.readUInt16LE(local+26),localExtraLength=bytes.readUInt16LE(local+28),dataStart=local+30+localNameLength+localExtraLength;
     assert(bytes.readUInt16LE(local+6)===flags&&bytes.readUInt16LE(local+8)===method&&bytes.subarray(local+30,local+30+localNameLength).equals(nameBytes)&&dataStart+compressed<=start,"DOCX local/central ZIP headers disagree.");
-    assert(ranges.every(([from,to])=>local>=to||dataStart+compressed<=from),"Overlapping DOCX ZIP entries are blocked.");ranges.push([local,dataStart+compressed]);
+    const localCrc=bytes.readUInt32LE(local+14),localCompressed=bytes.readUInt32LE(local+18),localLength=bytes.readUInt32LE(local+22);let entryEnd=dataStart+compressed;
+    if(flags&8){
+      assert((localCrc===0||localCrc===crc)&&(localCompressed===0||localCompressed===compressed)&&(localLength===0||localLength===length),"DOCX local/central ZIP descriptor metadata disagree.");
+      let descriptor=entryEnd;
+      assert(descriptor+12<=start,"DOCX ZIP data descriptor is missing.");
+      if(bytes.readUInt32LE(descriptor)===0x08074b50)descriptor+=4;
+      assert(descriptor+12<=start&&bytes.readUInt32LE(descriptor)===crc&&bytes.readUInt32LE(descriptor+4)===compressed&&bytes.readUInt32LE(descriptor+8)===length,"DOCX ZIP data descriptor disagrees with directory metadata.");entryEnd=descriptor+12;
+    }else assert(localCrc===crc&&localCompressed===compressed&&localLength===length,"DOCX local/central ZIP sizes or CRC disagree.");
+    assert(ranges.every(([from,to])=>local>=to||entryEnd<=from),"Overlapping DOCX ZIP entries are blocked.");ranges.push([local,entryEnd]);
     const data=bytes.subarray(dataStart,dataStart+compressed);
     const decoded=method===0?Buffer.from(data):inflateRawSync(data,{maxOutputLength:Math.min(DOCX_LIMITS.partBytes,length+1)});
     assert(decoded.length===length&&crc32(decoded)===crc,"DOCX ZIP size or CRC integrity check failed.");

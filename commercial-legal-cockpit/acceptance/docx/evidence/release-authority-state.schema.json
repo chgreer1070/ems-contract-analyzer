@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fail-closed agent DOCX acceptance state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "recordKind",
+    "baseGitRevision",
+    "observedSourceSnapshotSha256",
+    "evidenceScope",
+    "reviewDisposition",
+    "productionAuthorized",
+    "legalRelianceAuthorized",
+    "modelPolicyActivationAuthorized",
+    "humanAuthorization",
+    "docxAcceptanceItems",
+    "platformMandatoryGates",
+    "unverifiedHostedFacts",
+    "nextPermittedIncrement",
+    "mitigationOwnerRole",
+    "mitigation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "recordKind": {
+      "const": "agent-acceptance-state"
+    },
+    "baseGitRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "observedSourceSnapshotSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidenceScope": {
+      "enum": [
+        "synthetic",
+        "source-review"
+      ]
+    },
+    "reviewDisposition": {
+      "enum": [
+        "blocked",
+        "ready-for-human-review"
+      ]
+    },
+    "productionAuthorized": {
+      "const": false
+    },
+    "legalRelianceAuthorized": {
+      "const": false
+    },
+    "modelPolicyActivationAuthorized": {
+      "const": false
+    },
+    "humanAuthorization": {
+      "type": "null"
+    },
+    "docxAcceptanceItems": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item",
+          "ownerRole",
+          "status",
+          "neededEvidence"
+        ],
+        "properties": {
+          "item": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "ownerRole": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "satisfied",
+              "failed",
+              "blocked",
+              "not_executed",
+              "human_approval_required",
+              "stale"
+            ]
+          },
+          "neededEvidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "platformMandatoryGates": {
+      "type": "array",
+      "minItems": 22,
+      "maxItems": 22,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "evidenceScopeRequired",
+          "acceptedEvidence"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "source_grounding",
+              "interpretation_precedence",
+              "economics_pricing",
+              "economics_ncnr",
+              "economics_eo",
+              "notice_deadlines",
+              "action_authorization",
+              "four_pillar_traceability",
+              "audit_integrity",
+              "workflow_integration",
+              "independent_adversarial",
+              "build_runtime",
+              "release_reproducibility",
+              "enterprise_identity",
+              "tenant_isolation",
+              "data_classification",
+              "integration_reconciliation",
+              "concurrency",
+              "backup_restore",
+              "monitoring_runbook",
+              "business_uat",
+              "rollback"
+            ]
+          },
+          "status": {
+            "enum": [
+              "blocked",
+              "not_executed",
+              "failed",
+              "stale"
+            ]
+          },
+          "evidenceScopeRequired": {
+            "enum": [
+              "live",
+              "bounded-or-live"
+            ]
+          },
+          "acceptedEvidence": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    "unverifiedHostedFacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "nextPermittedIncrement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mitigationOwnerRole": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mitigation": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

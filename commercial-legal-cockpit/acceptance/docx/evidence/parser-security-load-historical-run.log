@@ -1,0 +1,15 @@
+ordinary: 49.0 ms, 148.7 MiB, eligible=true, expectation=true
+negotiated: 94.1 ms, 157.4 MiB, eligible=true, expectation=true
+many_paragraphs: 274.5 ms, 295.6 MiB, eligible=true, expectation=true
+near_xml_token_limit: 634.7 ms, 432.4 MiB, eligible=true, expectation=true
+over_xml_token_limit: 28.1 ms, 150.7 MiB, eligible=false, expectation=true
+near_part_limit: 246.8 ms, 265.7 MiB, eligible=false, expectation=true
+over_part_limit: 1.6 ms, 160.2 MiB, eligible=false, expectation=true
+near_expanded_limit: 370.9 ms, 199.5 MiB, eligible=false, expectation=true
+overlapping_comments: 124.7 ms, 168.2 MiB, eligible=false, expectation=true
+excessive_attributes: 271.0 ms, 193.5 MiB, eligible=false, expectation=true
+local_crc_mismatch: 1.9 ms, 127.2 MiB, eligible=false, expectation=true
+local_size_mismatch: 1.6 ms, 129.0 MiB, eligible=false, expectation=true
+concurrency 1: 611.5 ms wall, 148.1 MiB summed process high-water marks
+concurrency 2: 617.3 ms wall, 301.0 MiB summed process high-water marks
+concurrency 4: 747.2 ms wall, 605.8 MiB summed process high-water marks

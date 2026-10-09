@@ -1,5 +1,5 @@
 import { runRuleTriage, type RiskResult } from "@/lib/riskRules";
-import { sourceTextViews } from "@/lib/docxEvidence";
+import { DOCX_CHUNK_PREFIX, sourceTextViews } from "@/lib/docxEvidence";
 
 export { PROMPT_VERSION } from "@/lib/engineVersions";
 import { PROMPT_VERSION } from "@/lib/engineVersions";
@@ -73,8 +73,26 @@ function normalizeSource(value:string) {
 function grounded(findings:CoreFinding[], source:string) {
   return findings.filter((finding) => {
     const excerpt = normalizeSource(String(finding.sourceExcerpt ?? ""));
-    return excerpt.length >= 12 && sourceContainsExcerpt(source,excerpt);
-  });
+    return excerpt.length >= 12 && sourceContainsExcerpt(source,String(finding.sourceExcerpt ?? ""));
+  }).map(finding=>labelNegotiationFinding(finding,source));
+}
+
+function labelNegotiationFinding(finding:CoreFinding,source:string):CoreFinding {
+  if(!source.startsWith(DOCX_CHUNK_PREFIX))return finding;
+  const excerpt=normalizeSource(finding.sourceExcerpt),views=sourceTextViews(source);
+  const original=views.some((view,index)=>index%2===0&&normalizeSource(view).includes(excerpt));
+  const proposed=views.some((view,index)=>index%2===1&&normalizeSource(view).includes(excerpt));
+  const view=original&&proposed?"original and proposed views":proposed?"proposed view":"original view only";
+  return {...finding,issue:`Unapproved negotiation — ${view}: ${finding.issue}`,uncertainty:`Unapproved ${view}; acceptance, execution and party attribution are not established. ${finding.uncertainty}`};
+}
+
+function ruleFindings(source:string):CoreFinding[] {
+  // Serialized OOXML envelopes contain comments, authors and source paths. Only
+  // contract views may trigger rules or ground quotations, including fallback.
+  if(!source.startsWith(DOCX_CHUNK_PREFIX))return normalizeRules(runRuleTriage(source));
+  const findings=sourceTextViews(source).flatMap(view=>normalizeRules(runRuleTriage(view)));
+  const unique=new Map(findings.map(finding=>[`${finding.clauseFamily}:${normalizeSource(finding.sourceExcerpt)}`,finding]));
+  return grounded([...unique.values()],source);
 }
 
 function normalizeRules(findings:RiskResult[]):CoreFinding[] {
@@ -94,7 +112,7 @@ export async function analyzeContractText(source:string, options:{ allowAi?:bool
   if (options.allowAi === false) {
     return {
       mode:"rules",
-      findings:normalizeRules(runRuleTriage(source)),
+      findings:ruleFindings(source),
       modelName:"deterministic-rules",
       rejectedUngroundedFindings:0,
       warning:"Illustrative deterministic triage only. No model or approved negotiation policy was consulted."
@@ -103,7 +121,7 @@ export async function analyzeContractText(source:string, options:{ allowAi?:bool
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     if (legalRelianceEnabled) throw new Error("AI analysis is required when LEGAL_RELIANCE_ENABLED=true.");
-    return { mode:"rules", findings:normalizeRules(runRuleTriage(source)), modelName:"deterministic-rules", rejectedUngroundedFindings:0, warning:"Deterministic triage only. Do not treat this output as a legal conclusion." };
+    return { mode:"rules", findings:ruleFindings(source), modelName:"deterministic-rules", rejectedUngroundedFindings:0, warning:"Deterministic triage only. Do not treat this output as a legal conclusion." };
   }
 
   const model = process.env.OPENAI_MODEL || "gpt-5.6";
@@ -138,11 +156,12 @@ export async function analyzeContractText(source:string, options:{ allowAi?:bool
     return { mode:"ai", findings:verified, modelName:model, rejectedUngroundedFindings:Math.max(0,raw.length-verified.length) };
   } catch (error) {
     if (legalRelianceEnabled) throw error;
-    return { mode:"rules-fallback", findings:normalizeRules(runRuleTriage(source)), modelName:"deterministic-rules-fallback", rejectedUngroundedFindings:0, warning:"AI analysis was unavailable; illustrative deterministic triage was used instead." };
+    return { mode:"rules-fallback", findings:ruleFindings(source), modelName:"deterministic-rules-fallback", rejectedUngroundedFindings:0, warning:"AI analysis was unavailable; illustrative deterministic triage was used instead." };
   }
 }
 
 export function sourceContainsExcerpt(source:string, excerpt:string) {
+  if(source.startsWith(DOCX_CHUNK_PREFIX))return Boolean(excerpt.trim())&&sourceTextViews(source).some(view=>view.includes(excerpt));
   const normalized=normalizeSource(excerpt);
   return Boolean(normalized)&&sourceTextViews(source).some(view=>normalizeSource(view).includes(normalized));
 }

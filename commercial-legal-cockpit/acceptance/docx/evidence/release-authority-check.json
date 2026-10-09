@@ -1,0 +1,29 @@
+{
+  "baseRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "revision": "295ad76b8fe514f17e16029c79421d22206f7b96c1e7935ece3ba18c7a8cb1ab",
+  "scope": "synthetic",
+  "assertions_passed": 24,
+  "assertions_failed": 0,
+  "production_authorized": false,
+  "limitations": [
+    "Text inspections are source assertions, not deployed environment proof.",
+    "Receipt tests isolate integrity behavior; they do not establish source completeness.",
+    "Actual hosted reviewers, live controls and rollback have not been tested."
+  ],
+  "command": "node acceptance/docx/evidence/release-authority-check.mjs 0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "exit_code": 0,
+  "executed_at_utc": "2026-10-09T12:52:00.270440+00:00",
+  "producer": "release-authority-agent",
+  "report_schema_version": "1.0",
+  "result": "passed",
+  "report_kind": "bounded-release-control-check",
+  "qualifies_for_platform_gate": false,
+  "acceptance_disposition": "blocked",
+  "runnerSha256": "f9612c4cb4c1a8263c6c06c7d4aef5cda33f2cfed60f41f2e6af2d5efed5abc1",
+  "artifacts": [
+    {
+      "path": "commercial-legal-cockpit/acceptance/docx/evidence/release-authority-check.txt",
+      "sha256": "fc6f0dd524db52af8bf946a93c0cc8bb8a17384453f4a529abcfb677bac25d02"
+    }
+  ]
+}

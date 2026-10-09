@@ -1,0 +1,52 @@
+{
+  "baseGitCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceSnapshotSha256": "2f5f855f3d62e04948c17aa15fd4cc3cb80acc06f5efbef1637b28416c2139a7",
+  "files": [
+    {
+      "path": "lib/analysisEngine.ts",
+      "sha256": "6914fd55247e71ccb9805c7cb9558f80242bed42b4437be80c97db9999e6d035"
+    },
+    {
+      "path": "lib/termEngine.ts",
+      "sha256": "e67c2db26a48faafc5b62000e0d5ff4227e7331d494e549dbc972c3fc8ad9b11"
+    },
+    {
+      "path": "lib/docxEvidence.ts",
+      "sha256": "8598fc5455c52d0a13a7af784320ad1c710f23da74fe9cad6f3a46f521b2bc64"
+    },
+    {
+      "path": "lib/docxExtraction.ts",
+      "sha256": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7"
+    },
+    {
+      "path": "lib/docxPackage.ts",
+      "sha256": "16be9f702e5fab4fe90225d09f0c935d8ee73113ad2948d8e6be19f63b0d366e"
+    },
+    {
+      "path": "lib/docxReceipt.ts",
+      "sha256": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f"
+    },
+    {
+      "path": "lib/jobProcessor.ts",
+      "sha256": "792544a3e008cfdc97af83413c9be6dcf01edc0338f707016e7d76ce7360c3aa"
+    },
+    {
+      "path": "lib/engineVersions.ts",
+      "sha256": "aad8a4118beb9f2192f5facd3cca25a6a002320f41b7253538a78ddb30d269fb"
+    },
+    {
+      "path": "package.json",
+      "sha256": "577411dfed04a5510480941d2513995a619037c30f7d9fb28e5a8c53963524de"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "4472665c35a748feb5d7fa4cc7fab95f0e7a11d8328e50f6beffdf574c5c1684"
+    }
+  ],
+  "installedXmlParser": {
+    "version": "0.8.15",
+    "packageJsonSha256": "35aecb16da42bf3843ed197db638dff79d178fc23783bfae77070fcfa4d0ae94"
+  },
+  "observedBefore": "2026-10-09T12:47:37.626846+00:00",
+  "observedAfter": "2026-10-09T12:48:09.494366+00:00"
+}

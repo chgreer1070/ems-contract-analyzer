@@ -1,0 +1,8 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ems-commercial-legal-cockpit@0.3.0 typecheck
+> next typegen && tsc --noEmit
+
+workflows build complete (15 steps, 3 workflows, time 87ms)
+Generating route types...
+✓ Types generated successfully

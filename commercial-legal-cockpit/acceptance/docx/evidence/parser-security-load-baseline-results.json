@@ -1,0 +1,240 @@
+{
+  "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "date": "2026-10-09T12:38:47.340919+00:00",
+  "results": [
+    {
+      "case": "local_crc_mismatch",
+      "runtime": "v24.19.0",
+      "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "extractorVersion": "docx-negotiation-2026-10-09.v1",
+      "syntheticSourceSha256": "bae308448e84b448ecc948c44fa4e2e880e3101b71d5f5148fe19d88c823f62e",
+      "compressedBytes": 837,
+      "expandedBytes": 873,
+      "evidenceSerializedBytes": 5439,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": true,
+      "expectationMet": false,
+      "chunks": 1,
+      "issueCodes": [],
+      "extractMs": 12.203580999999986,
+      "receiptMs": 0.8096879999999373,
+      "receiptVerified": true,
+      "before": {
+        "rss": 129114112,
+        "heapTotal": 42078208,
+        "heapUsed": 19800304,
+        "external": 31241016,
+        "arrayBuffers": 9280711
+      },
+      "after": {
+        "rss": 130293760,
+        "heapTotal": 42078208,
+        "heapUsed": 20688256,
+        "external": 31306592,
+        "arrayBuffers": 9346271
+      },
+      "processPeakRssKiB": 127240,
+      "userCpuMs": 711.942,
+      "systemCpuMs": 150.264,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "4fe94694dc1b99d994f2b3d9de3d0733e404af09299438289d9f44f5d3ba967b",
+        "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+        "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      }
+    },
+    {
+      "case": "local_size_mismatch",
+      "runtime": "v24.19.0",
+      "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "extractorVersion": "docx-negotiation-2026-10-09.v1",
+      "syntheticSourceSha256": "e5e4129f95b6d0c9e678e5d06dedb831a822d8c501655cf367e43447711cd942",
+      "compressedBytes": 837,
+      "expandedBytes": 873,
+      "evidenceSerializedBytes": 5439,
+      "parameters": null,
+      "expectedEligible": false,
+      "actualEligible": true,
+      "expectationMet": false,
+      "chunks": 1,
+      "issueCodes": [],
+      "extractMs": 12.296428000000105,
+      "receiptMs": 1.0289329999999381,
+      "receiptVerified": true,
+      "before": {
+        "rss": 129212416,
+        "heapTotal": 42340352,
+        "heapUsed": 19801336,
+        "external": 31241016,
+        "arrayBuffers": 9280711
+      },
+      "after": {
+        "rss": 130260992,
+        "heapTotal": 42340352,
+        "heapUsed": 20689288,
+        "external": 31306592,
+        "arrayBuffers": 9346271
+      },
+      "processPeakRssKiB": 127208,
+      "userCpuMs": 647.056,
+      "systemCpuMs": 92.531,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "4fe94694dc1b99d994f2b3d9de3d0733e404af09299438289d9f44f5d3ba967b",
+        "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+        "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      }
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "extractorVersion": "docx-negotiation-2026-10-09.v1",
+      "syntheticSourceSha256": "c93dd6ce7c772a378b5ee38d7bb9fdc354553c89f2182ef9ff2c7b4539ed6dda",
+      "compressedBytes": 5553,
+      "expandedBytes": 137455,
+      "evidenceSerializedBytes": 8949597,
+      "parameters": {
+        "comments": 500,
+        "runs": 2000,
+        "runCommentMemberships": 1000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "OVERSIZED_PARAGRAPH_PROJECTION"
+      ],
+      "extractMs": 189.91310699999997,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 134737920,
+        "heapTotal": 38932480,
+        "heapUsed": 19775456,
+        "external": 31245716,
+        "arrayBuffers": 9285427
+      },
+      "after": {
+        "rss": 207081472,
+        "heapTotal": 125063168,
+        "heapUsed": 76234216,
+        "external": 31578875,
+        "arrayBuffers": 9618554
+      },
+      "processPeakRssKiB": 202228,
+      "userCpuMs": 918.277,
+      "systemCpuMs": 202.098,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "4fe94694dc1b99d994f2b3d9de3d0733e404af09299438289d9f44f5d3ba967b",
+        "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+        "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      }
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "extractorVersion": "docx-negotiation-2026-10-09.v1",
+      "syntheticSourceSha256": "f6035744288cf402b9a936b6ac358d4d36ecc30d2579c3e7e269554b6eeaa827",
+      "compressedBytes": 9566,
+      "expandedBytes": 227955,
+      "evidenceSerializedBytes": 16556612,
+      "parameters": {
+        "comments": 1000,
+        "runs": 2000,
+        "runCommentMemberships": 2000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "OVERSIZED_PARAGRAPH_PROJECTION"
+      ],
+      "extractMs": 372.4967670000001,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 133844992,
+        "heapTotal": 39194624,
+        "heapUsed": 19793536,
+        "external": 31366739,
+        "arrayBuffers": 9289440
+      },
+      "after": {
+        "rss": 284372992,
+        "heapTotal": 231784448,
+        "heapUsed": 115792704,
+        "external": 31738924,
+        "arrayBuffers": 9647491
+      },
+      "processPeakRssKiB": 277708,
+      "userCpuMs": 1142.48,
+      "systemCpuMs": 219.151,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "4fe94694dc1b99d994f2b3d9de3d0733e404af09299438289d9f44f5d3ba967b",
+        "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+        "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      }
+    },
+    {
+      "case": "overlapping_comments",
+      "runtime": "v24.19.0",
+      "baselineRevision": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+      "extractorVersion": "docx-negotiation-2026-10-09.v1",
+      "syntheticSourceSha256": "33bed99dab1524cc5f4f4474515c58f72e50256163e573140bfdffe7a5aa5425",
+      "compressedBytes": 13718,
+      "expandedBytes": 319955,
+      "evidenceSerializedBytes": 1768,
+      "parameters": {
+        "comments": 1500,
+        "runs": 2000,
+        "runCommentMemberships": 3000000
+      },
+      "expectedEligible": false,
+      "actualEligible": false,
+      "expectationMet": true,
+      "chunks": 0,
+      "issueCodes": [
+        "OVERSIZED_PARAGRAPH_PROJECTION",
+        "OVERSIZED_EVIDENCE_RECEIPT"
+      ],
+      "extractMs": 542.0442380000001,
+      "receiptMs": null,
+      "receiptVerified": false,
+      "before": {
+        "rss": 134336512,
+        "heapTotal": 39718912,
+        "heapUsed": 19805200,
+        "external": 31429891,
+        "arrayBuffers": 9293592
+      },
+      "after": {
+        "rss": 353263616,
+        "heapTotal": 246140928,
+        "heapUsed": 152298712,
+        "external": 31638428,
+        "arrayBuffers": 9678107
+      },
+      "processPeakRssKiB": 369544,
+      "userCpuMs": 1326.652,
+      "systemCpuMs": 225.577,
+      "sourceHashes": {
+        "lib/docxPackage.ts": "4fe94694dc1b99d994f2b3d9de3d0733e404af09299438289d9f44f5d3ba967b",
+        "lib/docxExtraction.ts": "cebf5daaa4f0377b3f46539aeaed292067f7d932a13aa84db076c496e7ab2be3",
+        "lib/docxEvidence.ts": "217b36b46f11692994b11b4b086bdc657d286a485d2dfae8a1d7ac121b1bb72a",
+        "lib/docxReceipt.ts": "7873cce3ffd75e980056d57ab19c8a778611d8dc88a58c7664b9fb08038b3a3f",
+        "lib/stateHash.ts": "b97f4a57d09532aefd542a7f1ffd13d65ecfa88424385eb835be3a2bd07d6d29"
+      }
+    }
+  ]
+}

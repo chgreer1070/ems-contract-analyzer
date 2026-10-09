@@ -133,6 +133,12 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
     const revisionByPath=new Map<string,string>(),revisionIdentity=new Map<string,string|null>(),commentById=new Map<string,DocxEvidence["comments"][number]>(),noteById=new Map<string,XmlSource>();let revisionBytes=0;
     const sourceKey=(source:XmlSource)=>`${source.part}:${source.path}`;
     const storyParts=evidence.parts.filter(p=>p.tree?.namespace===W&&STORY_KINDS[local(p.tree)]);
+    for(const part of storyParts){
+      const kind=STORY_KINDS[local(part.tree!)];if(kind==="body")continue;
+      const expectedType=`application/vnd.openxmlformats-officedocument.wordprocessingml.${kind}+xml`;
+      const incoming=evidence.relationships.filter(r=>r.resolvedTarget===part.part);
+      if(overrides.get(part.part)!==expectedType||!incoming.length||incoming.some(r=>r.part!==main.source.part||r.type!==`${R}/${kind}`))issue("STORY_RELATIONSHIP_MISMATCH","Story root, content type and main-document relationship type must agree.",part.tree!.source);
+    }
     const usedStyles=new Set(storyParts.flatMap(p=>descendants(p.tree!,n=>n.namespace===W&&["pStyle","rStyle","tblStyle"].includes(local(n))).map(n=>attr(n,"val")).filter((id):id is string=>id!==null)));
     const styleNodes=styles.flatMap(p=>descendants(p.tree!,n=>n.namespace===W&&local(n)==="style"));
     for(const n of styleNodes)if(attr(n,"default")==="1"||attr(n,"default")==="true")usedStyles.add(attr(n,"styleId")??"");
@@ -196,8 +202,9 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       if(part.part.startsWith("docProps/")||part.part.startsWith("word/theme/"))continue;
       issue("UNSUPPORTED_XML_PART","Uninterpreted package XML is retained; no whole-document completeness claim is permitted.",part.tree.source);
     }
+    let runMetadataBytes=0;
     for(const part of storyParts){
-      const tree=part.tree!,kind=STORY_KINDS[local(tree)],paragraphs:DocxParagraph[]=[],activeComments=new Set<string>();let storyOffset=0;
+      const tree=part.tree!,kind=STORY_KINDS[local(tree)],paragraphs:DocxParagraph[]=[],activeComments=new Set<string>();let storyOffset=0,activeCommentBytes=0;
       const collect=(n:XmlNode,ancestors:Array<{name:string;source:XmlSource}>,inheritedRevisions:string[])=>{
         if(n.namespace===W&&local(n)==="p"){
           const pPr=child(n,"pPr"),paragraph:DocxParagraph={source:n.source,ancestors,style:pPr?attr(child(pPr,"pStyle")??pPr,"val"):null,numbering:pPr?child(pPr,"numPr"):null,tableContext:null,runs:[],originalText:"",proposedText:""};let paragraphOffset=0;
@@ -209,19 +216,22 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
               if(!comment)issue("MISSING_COMMENT_BODY","Comment anchor has no comment body.",item.source);
               else{
                 comment.anchors.push({kind:anchorKind,source:item.source,paragraphPath:n.source.path,storyOffset,paragraphOffset});
-                if(anchorKind==="start"){if(activeComments.has(id!))issue("DUPLICATE_COMMENT_START","Comment range starts twice.",item.source);activeComments.add(id!);}
-                if(anchorKind==="end"){if(!activeComments.has(id!))issue("UNMATCHED_COMMENT_END","Comment range ends without a start in this story.",item.source);activeComments.delete(id!);}
+                if(anchorKind==="start"){if(activeComments.has(id!))issue("DUPLICATE_COMMENT_START","Comment range starts twice.",item.source);else activeCommentBytes+=Buffer.byteLength(id!)+8;activeComments.add(id!);}
+                if(anchorKind==="end"){if(!activeComments.has(id!))issue("UNMATCHED_COMMENT_END","Comment range ends without a start in this story.",item.source);else activeCommentBytes-=Buffer.byteLength(id!)+8;activeComments.delete(id!);}
               }
               return;
             }
             if(item.namespace===W&&["footnoteReference","endnoteReference"].includes(name)){
               const id=attr(item,"id")??"",noteKind=name==="footnoteReference"?"footnote":"endnote",target=noteById.get(`${noteKind}:${id}`)??null;
               evidence.references.push({kind:noteKind,id,source:item.source,target});if(!target)issue("MISSING_NOTE_BODY","Note reference has no corresponding note.",item.source);
+              if(next.length)issue("REVISED_NOTE_ACTIVATION","A note reference inside a tracked revision requires validated original/proposed story activation.",item.source);
             }
             if(item.namespace===W&&["t","delText","tab","br","cr"].includes(name)){
               const text=plainText(item),types=next.map(key=>evidence.revisions.find(r=>r.key===key)!.kind);
               if(types.includes("ins")&&types.includes("del"))issue("NESTED_CONFLICTING_REVISIONS","Nested insertion/deletion semantics are unresolved.",item.source);
               if(name==="delText"&&!types.some(type=>["del","moveFrom"].includes(type)))issue("UNBOUND_DELETED_TEXT","Deleted text has no revision envelope.",item.source);
+              runMetadataBytes+=activeCommentBytes+next.reduce((total,key)=>total+Buffer.byteLength(key)+8,0);
+              if(runMetadataBytes>DOCX_LIMITS.runMetadataBytes)throw new Error("DOCX run revision/comment metadata exceeds its supported allocation budget.");
               paragraph.runs.push({text,source:item.source,revisionKeys:next,commentIds:[...activeComments],kind:name});
               if(!types.some(type=>["ins","moveTo"].includes(type)))paragraph.originalText+=text;
               if(!types.some(type=>["del","moveFrom"].includes(type)))paragraph.proposedText+=text;
@@ -288,6 +298,20 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       if(!comment.anchors.length)issue("ORPHAN_COMMENT","Comment body has no range or reference anchor.",comment.source);
       const starts=comment.anchors.filter(a=>a.kind==="start"),ends=comment.anchors.filter(a=>a.kind==="end"),refs=comment.anchors.filter(a=>a.kind==="reference");
       if(starts.length!==ends.length||starts.length>1||ends.length>1||refs.length>1||(starts.length&&starts[0].source.part!==ends[0]?.source.part))issue("AMBIGUOUS_COMMENT_ANCHORS","Comment range/reference association is inconsistent.",comment.source);
+      if(new Set(comment.anchors.map(a=>a.source.part)).size>1)issue("CROSS_STORY_COMMENT_ANCHORS","Comment range and reference cross document stories; their association is unresolved.",comment.source);
+    }
+    const referencedNotes=new Set(evidence.references.flatMap(r=>r.target?[sourceKey(r.target)]:[]));
+    for(const part of storyParts){
+      const kind=STORY_KINDS[local(part.tree!)];
+      if(kind==="footnotes"||kind==="endnotes")for(const note of descendants(part.tree!,n=>n.namespace===W&&["footnote","endnote"].includes(local(n)))){
+        const type=attr(note,"type");
+        if(!["separator","continuationSeparator","continuationNotice"].includes(type??"")&&!referencedNotes.has(sourceKey(note.source)))issue("ORPHAN_NOTE_BODY","A note body has no document reference; proposed story activation is unresolved.",note.source);
+      }
+      if(kind==="header"||kind==="footer"){
+        const referenceName=kind==="header"?"headerReference":"footerReference";
+        const sectionReferences=descendants(main,n=>n.namespace===W&&local(n)===referenceName&&n.source.path.split("/").some(segment=>segment.split(":").at(-1)?.startsWith("sectPr[")));
+        if(!sectionReferences.some(n=>evidence.relationships.some(r=>r.part===main.source.part&&r.type===`${R}/${kind}`&&r.id===attr(n,"id",R)&&r.resolvedTarget===part.part)))issue("UNACTIVATED_HEADER_FOOTER","Header/footer has no supported section reference; its analysis context is unresolved.",part.tree!.source);
+      }
     }
     // Non-paragraph anchors and dangling relationship IDs cannot be silently lost.
     for(const part of storyParts)for(const n of descendants(part.tree!,n=>n.text===null)){

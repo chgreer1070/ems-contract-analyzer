@@ -1,0 +1,20 @@
+{
+  "baselineCommit": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+  "sourceSha256": "2ca1af33cda6b49dc6d790b73a8ec68e7c7524eb58ef28443061d7ead0cbbfc9",
+  "syntheticOnly": true,
+  "wordRendererExecuted": false,
+  "baseline": {
+    "analysisEligible": true,
+    "blockingCodes": [],
+    "reexecuted": false,
+    "evidence": "legal-document-evidence-isolated-anchors-baseline-results.json"
+  },
+  "current": {
+    "head": "0d446203d670e086aa50ef8d65755cbc653ae6be",
+    "extractorFileSha256": "4e9f9e70ec6c53ca619cbfab65dd39a6ce85ce61b3340010c46395f82b0826c7",
+    "analysisEligible": false,
+    "blockingCodes": [
+      "CROSS_STORY_COMMENT_ANCHORS"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "command": "env -u OPENAI_API_KEY -u OPENAI_MODEL -u DATABASE_URL -u RUNTIME_DATABASE_URL LEGAL_RELIANCE_ENABLED=false npm run test:validation-controls",
+  "chunk_id": "c8056b",
+  "wall_time_seconds": 0.496598297,
+  "exit_code": 0,
+  "original_token_count": 64,
+  "output": "npm warn Unknown env config \"http-proxy\". This will stop working in the next major version of npm.\n\n> ems-commercial-legal-cockpit@0.3.0 test:validation-controls\n> node scripts/validation-readiness-check.mjs\n\nValidation/readiness hardening checks passed.\n"
+}
