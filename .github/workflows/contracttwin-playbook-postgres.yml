@@ -1,0 +1,48 @@
+name: ContractTwin synthetic playbook PostgreSQL checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'commercial-legal-cockpit/lib/playbooks/**'
+      - 'commercial-legal-cockpit/scripts/playbook-*.mjs'
+      - 'commercial-legal-cockpit/db/migrations/**'
+      - '.github/workflows/contracttwin-playbook-postgres.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: contracttwin_playbook_test
+          POSTGRES_PASSWORD: synthetic-fixture-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: commercial-legal-cockpit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Kernel and service regression checks
+        run: node --test scripts/playbook-kernel-check.mjs scripts/playbook-integration-check.mjs
+      - name: Native PostgreSQL transactions, permissions, and lock ordering
+        env:
+          PLAYBOOK_TEST_OWNER_DATABASE_URL: postgresql://postgres:synthetic-fixture-only@127.0.0.1:5432/contracttwin_playbook_test
+        run: node --test scripts/playbook-postgres-check.mjs
