@@ -12,6 +12,37 @@ import { internalErrorResponse } from "@/lib/safeErrors";
 export const runtime = "nodejs";
 const projection = "id,matter_id,mime_type,blob_pathname,sha256,server_sha256,size_bytes,integrity_status,security_scan_status,deletion_status";
 
+/** Read-only reconciliation view; incomplete intent is not proof of worker failure. */
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    if (!pdfPreparationEnabled() || !databaseConfigured()) return Response.json({ ok: false, error: "PDF preparation reconciliation is unavailable." }, { status: 503 });
+    const { id: matterId } = await context.params;
+    await requireMatterAccess(request, matterId, "EDIT");
+    const result = await query(`
+      select started.entity_id as preparation_id, started.event_time as started_at,
+             completed.event_time as completed_at,
+             case when completed.id is null then 'PENDING_OR_INTERRUPTED' else 'COMPLETED' end as status,
+             started.metadata->'operation' as operation,
+             started.metadata->'output'->>'sha256' as output_sha256,
+             started.metadata->'output'->>'sizeBytes' as size_bytes,
+             started.metadata->'output'->>'pageCount' as page_count
+        from audit_events started
+        left join lateral (
+          select id,event_time from audit_events done
+           where done.matter_id=started.matter_id and done.entity_id=started.entity_id
+             and done.entity_type='pdf_preparation' and done.action='PDF_PREPARATION_COMPLETED'
+           order by done.id desc limit 1
+        ) completed on true
+       where started.matter_id=$1 and started.entity_type='pdf_preparation'
+         and started.action='PDF_PREPARATION_STARTED'
+       order by started.id desc limit 100`, [matterId]);
+    return Response.json({ ok: true, preparations: result.rows, limit: 100, automaticRecovery: false }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    const access = accessErrorResponse(error); if (access) return access;
+    return internalErrorResponse(error, "Preparation reconciliation could not be loaded.");
+  }
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     if (!pdfPreparationEnabled()) return Response.json({ ok: false, error: "PDF preparation is not enabled for this deployment." }, { status: 503 });

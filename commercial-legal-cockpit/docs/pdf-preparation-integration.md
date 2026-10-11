@@ -30,6 +30,17 @@ GET `/api/matters/{matterId}/pdf-preparations/{preparationId}/content` requires
 current matter VIEW access, a completed receipt, active and still valid parents,
 and correct output bytes/size. It returns an attachment with no-store headers.
 
+GET `/api/matters/{matterId}/pdf-preparations` provides a read-only reconciliation
+view to matter editors. It lists the latest 100 started preparations, marking
+those without a completion receipt `PENDING_OR_INTERRUPTED`. This label does not
+prove a request failed. The response omits storage locations. It never retries,
+deletes, or changes retention automatically.
+
+Private PDF reads bypass the provider cache, bound the initial fetch to 30 seconds,
+and bound stream consumption to 30 seconds and the permitted byte limit. JSON
+requests are bounded to 8 KiB and 10 seconds. Oversize, stalled, and failed streams
+are canceled without waiting indefinitely for provider cancellation.
+
 ## Evidence and authority
 
 An append-only `PDF_PREPARATION_STARTED` audit event records intent, planned
@@ -69,6 +80,13 @@ revocation during writes. Run `npm run typecheck`, `npm run test:controls`, and
 
 Development fidelity tests also require Python and PyMuPDF 1.26.6. Production
 runtime uses Node and pdf-lib 1.17.1 (MIT); no Python runtime is introduced.
+
+`npm run test:pdf-preparation-io` adds 13 checks for actual stream consumption,
+overflow cancellation, stalled cancellation, private/no-cache read options,
+and local TCP scanner framing, clean/threat/malformed/oversized responses,
+timeouts and disconnections. It also checks reconciliation authorization and
+read-only behavior. The TCP server emulates the ClamAV protocol; these tests do
+not prove antivirus detection. Blob and DB provider calls remain mocked.
 
 ## Release limits and next gate
 
