@@ -124,6 +124,11 @@ local dependency closure; it does not establish hosted packaging or runtime beha
 
 ## Release limits and next gate
 
+The [nonproduction acceptance runbook](pdf-preparation-live-validation.md) includes
+an unfilled environment template, a no-network configuration preflight, and an
+optional bounded read-only database check. Neither preflight mode authorizes
+feature enablement or claims live provider acceptance.
+
 This is a local review candidate, not a live integration or production approval.
 No authenticated provider, live DB/storage, or real ClamAV session was exercised.
 No UI or durable job queue was added. Runtime costs, real large/malformed PDFs,

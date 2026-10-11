@@ -39,7 +39,9 @@
     "test:pdf-preparation": "node scripts/pdf-preparation-check.mjs",
     "test:pdf-preparation-io": "node scripts/pdf-preparation-io-check.mjs",
     "test:pdf-preparation-worker": "node scripts/build-pdf-preparation-worker.mjs --check && node scripts/pdf-preparation-worker-check.mjs",
-    "test:pdf-preparation-package": "node scripts/pdf-preparation-package-check.mjs"
+    "test:pdf-preparation-package": "node scripts/pdf-preparation-package-check.mjs",
+    "pdf-preparation:preflight": "node scripts/pdf-preparation-preflight.mjs",
+    "test:pdf-preparation-preflight": "node scripts/pdf-preparation-preflight-check.mjs"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",
