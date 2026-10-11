@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
+  // Worker modules load from disk outside Next's server bundle.
+  outputFileTracingIncludes: {
+    "/api/matters/*/pdf-preparations": [
+      "./runtime/*.cjs", "./node_modules/pdf-lib/**/*",
+      "./node_modules/@pdf-lib/**/*", "./node_modules/pako/**/*", "./node_modules/tslib/**/*"
+    ]
+  },
   turbopack: { root: __dirname },
   // The production workflow injects the exact approved Git SHA at build time.
   // Next replaces this server reference with that literal, so a runtime env

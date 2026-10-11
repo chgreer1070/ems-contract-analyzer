@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/build-pdf-preparation-worker.mjs --check",
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
@@ -36,7 +37,9 @@
     "db:verify-target": "node scripts/verify-target-schema.mjs",
     "db:verify-runtime-principal": "node scripts/runtime-database-principal.mjs",
     "test:pdf-preparation": "node scripts/pdf-preparation-check.mjs",
-    "test:pdf-preparation-io": "node scripts/pdf-preparation-io-check.mjs"
+    "test:pdf-preparation-io": "node scripts/pdf-preparation-io-check.mjs",
+    "test:pdf-preparation-worker": "node scripts/build-pdf-preparation-worker.mjs --check && node scripts/pdf-preparation-worker-check.mjs",
+    "test:pdf-preparation-package": "node scripts/pdf-preparation-package-check.mjs"
   },
   "dependencies": {
     "@vercel/blob": "2.6.1",

@@ -18,7 +18,8 @@ function load(path, mocks = {}) {
 let count = 0;
 async function check(name, fn) { await fn(); count++; console.log(`PASS ${name}`); }
 const engine = load("lib/pdfPreparation.ts");
-const service = load("lib/pdfPreparationService.ts", { "@/lib/pdfPreparation": engine });
+const workerModule = load("lib/pdfPreparationWorker.ts", { "@/lib/pdfPreparation": engine });
+const service = load("lib/pdfPreparationService.ts", { "@/lib/pdfPreparation": engine, "@/lib/pdfPreparationWorker": workerModule });
 const storageModule = load("lib/pdfPreparationStorage.ts", { "@/lib/pdfPreparation": engine, "@vercel/blob": {} });
 const matterId = "11111111-1111-4111-8111-111111111111";
 const id1 = "22222222-2222-4222-8222-222222222222";
@@ -36,8 +37,8 @@ for (let index = 0; index < 2; index++) {
 }
 const bytes = await source.save();
 const splitRequest = engine.parsePdfPreparationRequest({ operation: "SPLIT", documentIds: [id1], firstPage: 2, lastPage: 2 });
-const split = await engine.preparePdf(splitRequest, [bytes]);
-const merged = await engine.preparePdf({ operation: "MERGE", documentIds: [id2, id1] }, [split.bytes, bytes]);
+const split = await workerModule.preparePdfInWorker(splitRequest, [bytes]);
+const merged = await workerModule.preparePdfInWorker({ operation: "MERGE", documentIds: [id2, id1] }, [split.bytes, bytes]);
 await check("split and merge page count, order, and page lineage", async () => {
   assert.equal(split.pageCount, 1); assert.equal(merged.pageCount, 3);
   assert.deepEqual(split.pageMap, [{ outputPage: 1, sourceDocumentId: id1, sourcePage: 2 }]);

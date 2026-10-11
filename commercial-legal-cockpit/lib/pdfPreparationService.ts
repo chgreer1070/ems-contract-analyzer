@@ -1,5 +1,6 @@
 import type { Principal } from "@/lib/access";
-import { PdfPreparationError, parsePdfPreparationRequest, pdfBytesHash, preparePdf, PDF_PREPARATION_MAX_BYTES, type PdfPreparationRequest } from "@/lib/pdfPreparation";
+import { PdfPreparationError, parsePdfPreparationRequest, pdfBytesHash, PDF_PREPARATION_MAX_BYTES, type PdfPreparationRequest } from "@/lib/pdfPreparation";
+import { preparePdfInWorker } from "@/lib/pdfPreparationWorker";
 
 export type PdfSource = {
   id: string; matter_id: string; mime_type: string; blob_pathname: string;
@@ -55,7 +56,7 @@ export async function executePdfPreparation(request: Request, matterId: string, 
     if (bytes.length !== Number(source.size_bytes) || pdfBytesHash(bytes) !== source.server_sha256!.toLowerCase()) throw new PdfPreparationError("Source bytes failed integrity verification.", 409);
     inputs.push(bytes);
   }
-  const output = await preparePdf(operation, inputs);
+  const output = await preparePdfInWorker(operation, inputs);
   if (!await deps.scanOutput(output.bytes)) throw new PdfPreparationError("Prepared PDF failed malware scanning.", 423);
   const receipt = {
     version: 1 as const, preparationId, operation,
