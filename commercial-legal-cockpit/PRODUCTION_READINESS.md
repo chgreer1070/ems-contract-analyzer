@@ -8,7 +8,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 
 ## 1. Identity and access — BLOCKING
 
-- Microsoft Entra application registration approved.
+- Microsoft Entra application registration approved with a concrete tenant GUID (not `common`/`organizations`/`consumers`), and any pre-1.7 Microsoft `account.accountId` values migrated from Entra `sub` to `oid` before Better Auth 1.7.14 receives production traffic.
 - MFA / conditional access applied by corporate identity policy.
 - `AUTH_REQUIRED=true` in production.
 - Default role is Viewer; Lawyer/Approver/Admin roles are explicitly granted.
