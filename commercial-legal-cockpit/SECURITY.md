@@ -48,6 +48,10 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks. Better Auth 1.7 treats the verified Microsoft Entra directory `oid` claim as the stable provider-owned account identifier; pairwise `sub` values must not be used as account keys after the 1.7 cutover. Identity confirmation still does not grant matter or role authority.
 
+Production pins `better-auth` **1.7.14**, which clears GHSA-965c-763c-88jm and the related Better Auth 1.7 advisories. This is a breaking identity cutover, not a silent patch: Microsoft account rows must use the verified Entra directory `oid` as `account.accountId`, and `MICROSOFT_TENANT_ID` must be a concrete tenant GUID so Better Auth can validate the Microsoft account issuer. Ambiguous tenants (`common` / `organizations` / `consumers`) are rejected. Complete the `sub`→`oid` cutover in `OPERATIONS_RUNBOOK.md` before accepting production Microsoft sign-in on 1.7.
+
+The same release also hardens the production dependency audit gate by pinning Next.js **16.4.3**, Workflow **4.8.15**, `@vercel/blob` **2.8.2**, and exact overrides for patched transitive packages so `npm audit --omit=dev --audit-level=high` reports zero findings.
+
 ### OpenAI
 
 External inference boundary. Send only content approved for the configured enterprise/API environment. Model output is untrusted until schema validation, source verification and required human review complete.
