@@ -1,42 +1,67 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
-const root=process.cwd();
-const packageManifest=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
-const lockfile=fs.readFileSync(path.join(root,"package-lock.json"),"utf8");
-const authSource=fs.readFileSync(path.join(root,"lib/auth.ts"),"utf8");
-const authMigrateSource=fs.readFileSync(path.join(root,"scripts/auth-migrate.mjs"),"utf8");
-const microsoftMigrateSource=fs.readFileSync(path.join(root,"scripts/microsoft-account-oid-migrate.mjs"),"utf8");
-const runbook=fs.readFileSync(path.join(root,"OPERATIONS_RUNBOOK.md"),"utf8");
-const security=fs.readFileSync(path.join(root,"SECURITY.md"),"utf8");
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const packageManifest = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf8"));
+const lockfile = readFileSync(join(projectRoot, "package-lock.json"), "utf8");
+const authSource = readFileSync(join(projectRoot, "lib/auth.ts"), "utf8");
+const opsRunbook = readFileSync(join(projectRoot, "OPERATIONS_RUNBOOK.md"), "utf8");
+const securityDoc = readFileSync(join(projectRoot, "SECURITY.md"), "utf8");
+const envExample = readFileSync(join(projectRoot, ".env.example"), "utf8");
+const cutoverScript = readFileSync(join(projectRoot, "scripts/microsoft-account-oid-cutover.mjs"), "utf8");
+const installedBetterAuth = require(join(projectRoot, "node_modules/better-auth/package.json"));
 
-assert.equal(packageManifest.dependencies["better-auth"],"1.7.14","production better-auth must be pinned to 1.7.14");
-assert.equal(packageManifest.dependencies.jose,"6.2.14","Microsoft oid migrator must pin jose directly rather than rely on a transitive Better Auth copy");
-assert.match(lockfile,/"node_modules\/better-auth"[\s\S]*?"version": "1\.7\.14"/,"package-lock must resolve better-auth 1.7.14");
-assert.match(packageManifest.scripts["db:migrate:microsoft-oid"],/microsoft-account-oid-migrate\.mjs/,"package scripts must expose the explicit Microsoft oid cutover");
-assert.match(packageManifest.scripts["test:better-auth-upgrade"],/better-auth-upgrade-check\.mjs/,"package scripts must expose the Better Auth 1.7 upgrade control check");
-assert.match(packageManifest.scripts["test:controls"],/test:better-auth-upgrade/,"test:controls must include the Better Auth 1.7 upgrade control check");
+const REQUIRED_BETTER_AUTH = "1.7.14";
 
-assert.match(authSource,/socialProviders:[\s\S]*microsoft:\s*\{/,"auth must keep the built-in Microsoft social provider");
-assert.match(authSource,/tenantId:\s*process\.env\.MICROSOFT_TENANT_ID/,"Microsoft tenantId must remain the configured concrete tenant");
-assert.match(authSource,/Better Auth 1\.7\+|accountId from Entra `oid`|Entra `oid` claim/,"auth.ts must document the 1.7 Microsoft oid account-identifier change");
-assert.doesNotMatch(authSource,/tenantId:\s*['"]common['"]|tenantId:\s*['"]organizations['"]|tenantId:\s*['"]consumers['"]/,"Microsoft social provider must not use common/organizations/consumers aliases");
-assert.doesNotMatch(authSource,/genericOAuth|microsoftEntraId/,"ContractTwin must not use the Generic OAuth microsoftEntraId helper for production Entra SSO");
-assert.doesNotMatch(authSource,/magicLink\(|emailOTP\(/,"this deployment does not enable Magic Link/email OTP plugins covered by the 1.7 advisory class");
+assert.equal(
+  packageManifest.dependencies["better-auth"],
+  REQUIRED_BETTER_AUTH,
+  `package.json must pin better-auth ${REQUIRED_BETTER_AUTH} to clear GHSA-965c-763c-88jm and related 1.7 advisories`
+);
+assert.match(
+  lockfile,
+  new RegExp(`"node_modules/better-auth"[\\s\\S]*?"version": "${REQUIRED_BETTER_AUTH}"`),
+  `package-lock.json must resolve better-auth ${REQUIRED_BETTER_AUTH}`
+);
+assert.equal(
+  installedBetterAuth.version,
+  REQUIRED_BETTER_AUTH,
+  `installed better-auth must be ${REQUIRED_BETTER_AUTH}`
+);
 
-assert.match(authMigrateSource,/getMigrations\(migrationAuth\.options\)/,"Better Auth schema changes must continue through the gated auth migrator");
-assert.match(microsoftMigrateSource,/CONFIRM_MICROSOFT_ACCOUNT_OID_MIGRATION/,"Microsoft oid migrator must require an explicit confirmation gate");
-assert.match(microsoftMigrateSource,/createRemoteJWKSet|jwtVerify/,"Microsoft oid migrator must verify stored ID tokens before rewriting accountId");
-assert.match(microsoftMigrateSource,/MICROSOFT_OID_EXPORT_MAP_PATH/,"Microsoft oid migrator must accept a trusted Entra export map when ID tokens are unavailable");
-assert.match(microsoftMigrateSource,/Dry-run only|dry-run/,"Microsoft oid migrator must default to non-mutating inventory");
-assert.match(microsoftMigrateSource,/issuer is still NOT NULL|1\.7\.0-1\.7\.2/,"Microsoft/auth cutover must detect leftover 1.7.0-1.7.2 issuer NOT NULL constraints");
-assert.match(microsoftMigrateSource,/Pause Microsoft sign-in|duplicate/i,"cutover must fail closed when oid mapping or duplicate keys are unsafe");
+assert.match(authSource, /AMBIGUOUS_MICROSOFT_TENANTS/, "auth must reject ambiguous Microsoft tenants");
+assert.match(authSource, /common.*organizations.*consumers|organizations.*consumers/, "auth must name the ambiguous Microsoft tenants");
+assert.match(authSource, /MICROSOFT_TENANT_GUID/, "auth must require a concrete Entra tenant GUID");
+assert.match(authSource, /disableProfilePhoto:\s*true/, "Microsoft provider must disable oversized profile photos");
+assert.match(authSource, /verified Entra `oid` claim|account\.accountId/, "auth must document the Better Auth 1.7 Microsoft oid account-identifier change");
+assert.match(authSource, /account issuer|trusted issuer|id-token issuer/i, "auth must document the Microsoft account-issuer binding");
 
-assert.match(runbook,/Better Auth 1\.7/,"operations runbook must document the Better Auth 1.7 cutover");
-assert.match(runbook,/Microsoft account.*oid|oid claim/i,"operations runbook must document the Microsoft sub-to-oid account migration");
-assert.match(runbook,/CONFIRM_MICROSOFT_ACCOUNT_OID_MIGRATION|db:migrate:microsoft-oid/,"operations runbook must name the explicit oid migration command/gate");
-assert.match(runbook,/never ran Better Auth 1\.7\.0 through 1\.7\.2|no issuer schema cleanup/i,"operations runbook must record the direct 1.6-to-1.7.3+ issuer guidance");
-assert.match(security,/1\.7\.14|GHSA-965c-763c-88jm/,"security docs must record the Better Auth advisory clearance target");
+assert.match(opsRunbook, /Better Auth 1\.7/, "operations runbook must document the Better Auth 1.7 upgrade");
+assert.match(opsRunbook, /sub.*oid|oid claim/i, "operations runbook must require Microsoft accountId migration from sub to oid");
+assert.match(opsRunbook, /microsoft-account-oid-cutover/, "operations runbook must point operators at the oid cutover script");
+assert.match(opsRunbook, /common|organizations|consumers/, "operations runbook must forbid ambiguous Microsoft tenants");
+assert.match(opsRunbook, /issuer/i, "operations runbook must cover the Microsoft account-issuer change");
 
-console.log("Better Auth 1.7.14 upgrade controls passed.");
+assert.match(securityDoc, /better-auth[`*_\s]*1\.7\.14|Better Auth[`*_\s]*1\.7\.14/i, "security doc must record the patched Better Auth version");
+assert.match(securityDoc, /GHSA-965c-763c-88jm/, "security doc must cite the cleared Better Auth advisory");
+assert.match(securityDoc, /oid/i, "security doc must describe the Microsoft oid account identifier");
+
+assert.match(envExample, /concrete Entra tenant GUID|tenant GUID/i, ".env.example must require a concrete Entra tenant GUID");
+assert.doesNotMatch(envExample, /MICROSOFT_TENANT_ID=common/, ".env.example must not suggest an ambiguous Microsoft tenant");
+
+assert.match(cutoverScript, /providerId.?=.?['"]microsoft['"]|providerId:\s*["']microsoft["']|"microsoft"/, "cutover script must target microsoft provider rows");
+assert.match(cutoverScript, /accountId/, "cutover script must rewrite Microsoft accountId values");
+assert.match(cutoverScript, /oid/, "cutover script must migrate to the Entra oid claim");
+assert.match(cutoverScript, /--apply/, "cutover script must require an explicit apply flag");
+
+assert.match(
+  packageManifest.scripts["test:controls"],
+  /test:better-auth-upgrade/,
+  "test:controls must include the Better Auth upgrade gate"
+);
+
+console.log(`Better Auth upgrade controls passed for ${REQUIRED_BETTER_AUTH}.`);

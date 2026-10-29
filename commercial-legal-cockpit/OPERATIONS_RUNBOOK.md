@@ -23,7 +23,29 @@ This is a future-state activation procedure, not current authorization to activa
 15. Complete security/privacy/privilege/records-management review, backup/restore testing and penetration or risk-based security testing.
 16. Confirm `/api/readiness` reports the production infrastructure, exact current validation evidence, complete required standard coverage, and an empty approved evidence-kernel blocker list as ready. Only then consider setting `LEGAL_RELIANCE_ENABLED=true` through approved change management.
 
-## 2. Safe model or prompt upgrade
+## 2. Better Auth 1.7 Microsoft identity cutover
+
+Upgrading `better-auth` from 1.6.x to **1.7.14** is a coordinated identity change, not a silent dependency bump. It clears GHSA-965c-763c-88jm and related 1.7 advisories, but Microsoft account identity and issuer handling change:
+
+1. Keep `LEGAL_RELIANCE_ENABLED=false` and pause Microsoft sign-in / account linking for the cutover window when any Better Auth `account` rows already exist for `providerId` `microsoft` or `microsoft-entra-id`.
+2. Confirm `MICROSOFT_TENANT_ID` is the enterprise's concrete Entra tenant GUID. Do **not** use `common`, `organizations`, or `consumers`; Better Auth 1.7 binds the Microsoft account issuer to that GUID and the application rejects ambiguous tenants.
+3. Inventory existing Microsoft account rows. Better Auth 1.6 stored the pairwise, app-specific `sub` claim as `account.accountId`. Better Auth 1.7 stores the stable directory `oid` claim instead.
+4. Build a verified `sub`→`oid` mapping from stored Microsoft ID tokens when available, or from a trusted Entra export. Better Auth cannot derive `oid` from the old account row alone.
+5. Dry-run, then apply, the cutover script (`scripts/microsoft-account-oid-cutover.mjs`) against the migration database identity:
+
+```bash
+DATABASE_URL="$MIGRATION_DATABASE_URL" npm run db:migrate:microsoft-oid
+DATABASE_URL="$MIGRATION_DATABASE_URL" npm run db:migrate:microsoft-oid -- --apply --mapping path/to/sub-to-oid.json
+```
+
+6. Deploy application code and the locked `better-auth@1.7.14` package together after the data rewrite (or on a pristine target with zero Microsoft account rows). Run `npm run db:migrate` so the Better Auth schema for the installed version is applied after ContractTwin receipts.
+7. Re-enable Microsoft sign-in only after a successful Entra login against the concrete tenant, and confirm no duplicate `account` rows share the same `(providerId, accountId)`.
+
+If the mapping cannot be verified, keep Microsoft sign-in paused. Accepting 1.7 production traffic against unmigrated `sub` rows can create duplicate accounts or orphan existing role grants.
+
+Databases that briefly ran Better Auth 1.7.0–1.7.2 may still have a leftover nullable/`NOT NULL` `account.issuer` column or `account_issuer_accountId_uidx` index. 1.7.3+ no longer writes issuer; follow the upstream 1.7 upgrade guide to relax or drop that constraint before sign-up/account-link traffic. Fresh upgrades from 1.6.25 to 1.7.14 do not add that column.
+
+## 3. Safe model or prompt upgrade
 
 Any change to a production OpenAI model, analysis prompt, output schema, graph version or economics formula invalidates prior reliance evidence for the changed engine manifest.
 
@@ -38,7 +60,7 @@ Any change to a production OpenAI model, analysis prompt, output schema, graph v
 
 Do not reuse a passing validation record, counsel receipt, graph receipt or economics run from a different engine manifest, input generation, agreement version or formula version.
 
-## 3. Negotiation standard change
+## 4. Negotiation standard change
 
 1. Admin creates the proposed standard in `/admin`. It is inactive by design.
 2. Legal/Finance/BU stakeholders review the standard, fallback, no-go, authority and business rationale outside the activation action as required by company governance.
@@ -49,7 +71,7 @@ Do not reuse a passing validation record, counsel receipt, graph receipt or econ
 
 AI must never be used as the source of company policy.
 
-## 4. Contract matter lifecycle
+## 5. Contract matter lifecycle
 
 ### Open matter
 
@@ -97,7 +119,7 @@ AI must never be used as the source of company policy.
 - Apply retention category/date under approved company policy.
 - Preserve legal holds until formally released by authorized personnel.
 
-## 5. Scanned/large-document processing
+## 6. Scanned/large-document processing
 
 - All sources must pass ClamAV before any extraction path. Machine-readable PDFs/DOCX/TXT then use local extraction and hashed source chunks.
 - XLSX and scanned/otherwise non-machine-readable sources are routed to the configured Azure Document Intelligence Layout service.
@@ -118,7 +140,7 @@ AI must never be used as the source of company policy.
 - Do not manually set a source to `CLEAN`. Investigate scanner responses and retry through the governed job path. Preserve the source and relevant evidence for incident handling; do not download a quarantined object through ordinary user workflows.
 - Validate clean, detected and unavailable/unrecognized scanner paths in staging with approved synthetic fixtures before production activation. Do not commit malware test files to this repository.
 
-## 6. Source purge / records destruction
+## 7. Source purge / records destruction
 
 `ALLOW_SOURCE_PURGE=false` is the normal safe state.
 
@@ -133,7 +155,7 @@ A source object may be destroyed only when all of the following are true:
 
 Execution is two-phase: the database first records `PENDING_PURGE`, then the private Blob is deleted, then a separate transaction records `PURGED`, the executed request, and audit evidence. If external deletion or finalization fails, leave the pending state in place and investigate/retry through the governed path; do not manually erase the database record. Blob-not-found may be treated as already deleted only during a properly authorized retry. After deletion, ContractTwin preserves the document tombstone and audit history. If there is any uncertainty, do not purge.
 
-## 7. Access review
+## 8. Access review
 
 At the cadence required by company policy:
 
@@ -143,32 +165,6 @@ At the cadence required by company policy:
 - verify the bootstrap variable remains absent after first use;
 - review Entra conditional access/MFA configuration; and
 - review production secrets/credential rotation.
-
-## 8. Better Auth 1.7 cutover (Microsoft account identifiers)
-
-Upgrading `better-auth` from 1.6.x to **1.7.14** is a deliberate identity cutover, not a silent dependency bump. Follow the published Better Auth 1.7 upgrade guide for this deployment class (login client + Microsoft social provider + fixed `BETTER_AUTH_URL` behind Vercel).
-
-### What changes
-
-- Package pin moves to `better-auth@1.7.14` (clears GHSA-965c-763c-88jm and related 1.7 advisories).
-- Microsoft account rows are keyed by the stable Entra **`oid`** claim. Better Auth 1.6 stored the pairwise **`sub`** claim in `account."accountId"`.
-- Because this repository upgrades **directly from 1.6 to 1.7.14**, **no issuer schema cleanup** is required. Only databases that already ran Better Auth 1.7.0 through 1.7.2 need to relax/drop the temporary `account.issuer` NOT NULL constraint and unique index.
-- This app uses the built-in `socialProviders.microsoft` path with a concrete `MICROSOFT_TENANT_ID` GUID and a configured `BETTER_AUTH_URL`. It does not use Magic Link, Generic OAuth `microsoftEntraId`, dynamic `baseURL.allowedHosts`, or custom adapters, so those 1.7 sections do not apply.
-
-### Required operator order before production traffic on 1.7
-
-1. Keep `AUTH_REQUIRED`/`LEGAL_RELIANCE_ENABLED` under approved change control; treat SSO as frozen during the identity rewrite.
-2. Back up PostgreSQL.
-3. Apply ordinary schema work with `npm run db:migrate` (ContractTwin receipts, then Better Auth's installed-version schema via `db:migrate:auth`).
-4. Inventory Microsoft rows with a dry-run: `npm run db:migrate:microsoft-oid`.
-5. If any Microsoft rows still use `sub`-form `accountId` values:
-   - Prefer rewriting from a **verified** stored Microsoft ID token (script verifies against the tenant JWKS using `MICROSOFT_TENANT_ID` + `MICROSOFT_CLIENT_ID`); or
-   - Pause Microsoft sign-in/account linking and supply a trusted Entra export through `MICROSOFT_OID_EXPORT_MAP_PATH` (JSON array/object of previous `accountId`/`sub` → `oid`).
-6. Apply only after review: `CONFIRM_MICROSOFT_ACCOUNT_OID_MIGRATION=true npm run db:migrate:microsoft-oid`.
-7. Deploy the 1.7.14 application build and confirm fresh Microsoft sign-in reaches the existing app user (no duplicate `account` row).
-8. Restart any in-flight OAuth sign-in/linking flows created before the upgrade; pre-upgrade state cannot complete.
-
-Empty databases with no Microsoft `account` rows are a documented no-op for step 4–6, but the dry-run still must be executed and retained as release evidence.
 
 ## 9. Database migration
 
