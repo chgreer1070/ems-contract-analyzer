@@ -41,3 +41,35 @@ def test_versions_survive_reopening_the_database(tmp_path, monkeypatch) -> None:
     assert fetched.status_code == 200
     assert fetched.json()["facts"]
     assert fetched.json()["version"] == 1
+
+
+def test_audit_log_records_the_key_fingerprint_and_rejects_changes(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "audit.sqlite"
+    monkeypatch.setenv("CONTRACTTWIN_DB_PATH", str(path))
+    clear_store()
+    created = client.post(
+        "/v1/agreements",
+        json={"agreement_key": "audit-sample", "base": {"name": "Base", "role": "base", "text": BASE}},
+    )
+    assert created.status_code == 200, created.text
+    listed = client.get("/v1/audit")
+    assert listed.status_code == 200
+    events = listed.json()
+    assert events[0]["action"] == "reading.created"
+    assert events[0]["actor"].startswith("key:")
+    assert "test-key" not in events[0]["actor"]
+    assert events[0]["agreement_key"] == "audit-sample"
+    assert events[0]["at"]
+    connection = __import__("sqlite3").connect(path)
+    try:
+        connection.execute("DELETE FROM audit_log")
+        raise AssertionError("The audit log allowed a delete.")
+    except Exception as exc:
+        assert "append-only" in str(exc)
+    try:
+        connection.execute("UPDATE audit_log SET action = 'tampered'")
+        raise AssertionError("The audit log allowed an update.")
+    except Exception as exc:
+        assert "append-only" in str(exc)
+    reopened = SqliteReadingRepository(str(path))
+    assert len(reopened.list_audit()) == len(events)

@@ -44,6 +44,19 @@ def test_pdf_table_cells_are_kept_verbatim() -> None:
     assert "NW-100 | USD 12.40" in extracted.text
 
 
+def test_footnotes_and_text_boxes_are_read_and_comments_stay_out_of_the_text() -> None:
+    extracted = extract_upload("notes.docx", _docx_with_notes())
+    assert "The unit price in the footnote is USD 9.50 per unit." in extracted.text
+    assert "The text box states a late fee of one percent (1%) per month." in extracted.text
+    assert "This comment is not contract text." not in extracted.text
+    assert len(extracted.annotations) == 1
+    note = extracted.annotations[0]
+    assert note.kind == "comment"
+    assert note.operative is False
+    assert note.author == "Ada Reviewer"
+    assert note.text == "This comment is not contract text."
+
+
 def test_a_textless_pdf_is_flagged_and_not_invented() -> None:
     response = client.post(
         "/v1/agreements/files",
@@ -108,6 +121,50 @@ def _docx_with_redline_and_table() -> bytes:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as package:
         package.writestr("word/document.xml", document)
+    return buffer.getvalue()
+
+
+def _docx_with_notes() -> bytes:
+    document = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:commentRangeStart w:id="1"/>
+      <w:r><w:t>1.1 Price. See the footnote.</w:t></w:r>
+      <w:r><w:footnoteReference w:id="1"/></w:r>
+      <w:commentRangeEnd w:id="1"/>
+      <w:r><w:commentReference w:id="1"/></w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent>
+            <w:p><w:r><w:t>The text box states a late fee of one percent (1%) per month.</w:t></w:r></w:p>
+          </w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    footnotes = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:t> </w:t></w:r></w:p></w:footnote>
+  <w:footnote w:id="1"><w:p><w:r><w:t>The unit price in the footnote is USD 9.50 per unit.</w:t></w:r></w:p></w:footnote>
+</w:footnotes>
+"""
+    comments = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="1" w:author="Ada Reviewer" w:date="2025-03-01T00:00:00Z">
+    <w:p><w:r><w:t>This comment is not contract text.</w:t></w:r></w:p>
+  </w:comment>
+</w:comments>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+        package.writestr("word/footnotes.xml", footnotes)
+        package.writestr("word/comments.xml", comments)
     return buffer.getvalue()
 
 

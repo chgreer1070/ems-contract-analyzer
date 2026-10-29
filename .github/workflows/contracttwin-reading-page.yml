@@ -1,0 +1,61 @@
+name: ContractTwin reading page
+
+on:
+  pull_request:
+    paths:
+      - "contracttwin/**"
+      - "commercial-legal-cockpit/app/reading/**"
+      - "commercial-legal-cockpit/app/api/reading-sample/**"
+      - "commercial-legal-cockpit/e2e/**"
+      - "commercial-legal-cockpit/playwright.config.ts"
+      - "commercial-legal-cockpit/scripts/start-reading-e2e.sh"
+      - ".github/workflows/contracttwin-reading-page.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Sample agreement page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: commercial-legal-cockpit/package-lock.json
+
+      - name: Install the reading service
+        run: python -m pip install ./contracttwin
+
+      - name: Install the cockpit
+        working-directory: commercial-legal-cockpit
+        run: npm ci --no-audit --no-fund
+
+      - name: Install the browser
+        working-directory: commercial-legal-cockpit
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the cockpit
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: "false"
+          ALLOW_DEMO_ACCESS: "true"
+          LEGAL_RELIANCE_ENABLED: "false"
+        run: npm run build
+
+      - name: Open the sample agreement page
+        working-directory: commercial-legal-cockpit
+        env:
+          AUTH_REQUIRED: "false"
+          ALLOW_DEMO_ACCESS: "true"
+          LEGAL_RELIANCE_ENABLED: "false"
+          CONTRACTTWIN_API_KEY: e2e-reading-key
+          CONTRACTTWIN_CORE_URL: http://127.0.0.1:8080
+        run: npx playwright test

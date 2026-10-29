@@ -217,4 +217,4 @@ See `PRODUCTION_READINESS.md` for the acceptance checklist.
 
 ## Separate reading service
 
-`lib/contracttwinCoreClient.ts` can send agreement text to the Python service in `../contracttwin` when it is given that service's key. That service returns cited clauses, a notice calendar, and pricing / NCNR / excess-and-obsolete exposure. The matter screens do not call it, and its response is not a legal-reliance record. Run instructions and the HTTP contract are in `../contracttwin/README.md`.
+`/reading` calls the Python service for the made-up Harborline sample and shows the operative payment term with its quote. It needs `CONTRACTTWIN_CORE_URL` and `CONTRACTTWIN_API_KEY`. `lib/contracttwinCoreClient.ts` is the caller. The matter screens do not call it, and its response is not a legal-reliance record. Run `npm run test:reading-page` after a production build. Run instructions and the HTTP contract are in `../contracttwin/README.md`.

@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from contracttwin.ingest import MAX_DOCUMENTS, MAX_UPLOAD_BYTES, Extraction, IngestError, extract_upload
 from contracttwin.llm import OptionalLlmExtractor
-from contracttwin.models import AgreementAnalysis, AgreementInput, ReadingVersion
+from contracttwin.models import AgreementAnalysis, AgreementInput, AuditEvent, ReadingVersion
 from contracttwin.pipeline import AnalysisRequest, analyze
 from contracttwin.repository import ReadingRepository, SqliteReadingRepository
 from contracttwin.textutil import sha256_text
@@ -39,7 +39,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "service": "contracttwin-core", "version": "0.2.0"}
 
     @protected.post("/v1/agreements", response_model=AgreementAnalysis)
-    def create_agreement(body: AgreementInput) -> AgreementAnalysis:
+    def create_agreement(body: AgreementInput, actor: str = Depends(require_api_key)) -> AgreementAnalysis:
         if body.base.role != "base":
             raise HTTPException(status_code=400, detail="The first document must be the base agreement.")
         if body.base.text is None:
@@ -53,12 +53,13 @@ def create_app() -> FastAPI:
                 raise HTTPException(status_code=400, detail=f"{amendment.name} needs text.")
         base = Extraction(text=body.base.text)
         amendments = [Extraction(text=item.text or "") for item in body.amendments]
-        return _read(body, base, amendments)
+        return _read(body, base, amendments, actor)
 
     @protected.post("/v1/agreements/files", response_model=AgreementAnalysis)
     async def create_agreement_from_files(
         manifest: str = Form(...),
         files: list[UploadFile] = File(...),
+        actor: str = Depends(require_api_key),
     ) -> AgreementAnalysis:
         try:
             payload = json.loads(manifest)
@@ -80,20 +81,27 @@ def create_app() -> FastAPI:
             amendments = [_extraction_for(item, uploaded) for item in body.amendments]
         except (IngestError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return _read(body, base, amendments)
+        return _read(body, base, amendments, actor)
 
     @protected.get("/v1/agreements/{analysis_id}", response_model=AgreementAnalysis)
-    def get_agreement(analysis_id: str) -> AgreementAnalysis:
+    def get_agreement(analysis_id: str, actor: str = Depends(require_api_key)) -> AgreementAnalysis:
         found = get_repository().get(analysis_id)
         if found is None:
             raise HTTPException(status_code=404, detail="No reading with that id is stored.")
+        get_repository().append_audit(actor, "reading.read", found.agreement_key, found.analysis_id, "Read a stored reading.")
         return found
 
     @protected.get("/v1/agreement-versions", response_model=list[ReadingVersion])
-    def list_versions(agreement_key: str) -> list[ReadingVersion]:
+    def list_versions(agreement_key: str, actor: str = Depends(require_api_key)) -> list[ReadingVersion]:
         if not agreement_key.strip():
             raise HTTPException(status_code=400, detail="Provide an agreement_key.")
-        return get_repository().versions(agreement_key)
+        versions = get_repository().versions(agreement_key)
+        get_repository().append_audit(actor, "versions.listed", agreement_key, None, f"Listed {len(versions)} versions.")
+        return versions
+
+    @protected.get("/v1/audit", response_model=list[AuditEvent])
+    def list_audit() -> list[AuditEvent]:
+        return get_repository().list_audit()
 
     app.include_router(protected)
     return app
@@ -102,7 +110,7 @@ def create_app() -> FastAPI:
 def require_api_key(
     x_api_key: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
-) -> None:
+) -> str:
     expected = os.environ.get("CONTRACTTWIN_API_KEY", "")
     if not expected:
         raise HTTPException(status_code=503, detail="The service has no API key configured.")
@@ -113,6 +121,7 @@ def require_api_key(
         presented = x_api_key.strip()
     if not presented or not _keys_match(presented, expected):
         raise HTTPException(status_code=401, detail="The API key was missing or wrong.")
+    return _key_fingerprint(presented)
 
 
 def get_repository() -> ReadingRepository:
@@ -135,7 +144,7 @@ def clear_store() -> None:
     _repository_path = None
 
 
-def _read(body: AgreementInput, base: Extraction, amendments: list[Extraction]) -> AgreementAnalysis:
+def _read(body: AgreementInput, base: Extraction, amendments: list[Extraction], actor: str) -> AgreementAnalysis:
     request = AnalysisRequest(
         base_name=body.base.name,
         base_text=base.text,
@@ -151,12 +160,24 @@ def _read(body: AgreementInput, base: Extraction, amendments: list[Extraction]) 
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _attach(analysis, [base, *amendments])
     agreement_key = (body.agreement_key or "").strip() or f"base-{sha256_text(base.text)[:16]}"
-    return get_repository().save(analysis, agreement_key)
+    repository = get_repository()
+    prior = {item.analysis_id for item in repository.versions(agreement_key)}
+    stored = repository.save(analysis, agreement_key)
+    action = "reading.reused" if stored.analysis_id in prior else "reading.created"
+    repository.append_audit(
+        actor,
+        action,
+        stored.agreement_key,
+        stored.analysis_id,
+        f"Version {stored.version} of the agreement reading.",
+    )
+    return stored
 
 
 def _attach(analysis: AgreementAnalysis, extractions: list[Extraction]) -> None:
     for document, extraction in zip(analysis.documents, extractions, strict=False):
         document.revisions = list(extraction.revisions)
+        document.annotations = list(extraction.annotations)
         document.extraction_warnings = list(extraction.warnings)
         analysis.warnings.extend(extraction.warnings)
 
@@ -192,6 +213,10 @@ def _selected_extractor() -> OptionalLlmExtractor | None:
     if os.environ.get("CONTRACTTWIN_EXTRACTOR") != "llm":
         return None
     return OptionalLlmExtractor()
+
+
+def _key_fingerprint(secret: str) -> str:
+    return "key:" + hashlib.sha256(secret.encode("utf-8")).hexdigest()[:12]
 
 
 def _keys_match(presented: str, expected: str) -> bool:

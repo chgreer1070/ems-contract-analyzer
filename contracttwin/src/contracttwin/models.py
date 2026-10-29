@@ -71,6 +71,18 @@ class Revision(BaseModel):
     location: str
 
 
+class Annotation(BaseModel):
+    """A comment or other note. It is not part of the operative contract text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["comment"]
+    text: str
+    author: str | None = None
+    location: str
+    operative: Literal[False] = False
+
+
 class AgreementInput(BaseModel):
     """JSON body for a reading. File bytes are handled by the upload endpoint."""
 
@@ -91,6 +103,7 @@ class DocumentRecord(BaseModel):
     character_count: int
     order: int
     revisions: list[Revision] = Field(default_factory=list)
+    annotations: list[Annotation] = Field(default_factory=list)
     extraction_warnings: list[str] = Field(default_factory=list)
 
 
@@ -182,6 +195,16 @@ class RejectedCandidate(BaseModel):
     reason: str
     document_id: str | None = None
     quote: str | None = None
+
+
+class AuditEvent(BaseModel):
+    id: int
+    at: str
+    actor: str
+    action: str
+    agreement_key: str | None = None
+    analysis_id: str | None = None
+    detail: str
 
 
 class ReadingVersion(BaseModel):

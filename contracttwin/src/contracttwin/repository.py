@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
-from contracttwin.models import AgreementAnalysis, ReadingVersion
+from contracttwin.models import AgreementAnalysis, AuditEvent, ReadingVersion
 
 
 class ReadingRepository(Protocol):
@@ -24,6 +24,19 @@ class ReadingRepository(Protocol):
 
     def versions(self, agreement_key: str) -> list[ReadingVersion]:
         """List readings for one agreement, oldest first."""
+
+    def append_audit(
+        self,
+        actor: str,
+        action: str,
+        agreement_key: str | None,
+        analysis_id: str | None,
+        detail: str,
+    ) -> AuditEvent:
+        """Add one audit row. The log has no update or delete operation."""
+
+    def list_audit(self) -> list[AuditEvent]:
+        """Return the audit log, oldest first."""
 
 
 class SqliteReadingRepository:
@@ -47,6 +60,37 @@ class SqliteReadingRepository:
             )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS readings_by_agreement ON readings (agreement_key, version)"
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    at TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    agreement_key TEXT,
+                    analysis_id TEXT,
+                    detail TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS audit_log_no_update
+                BEFORE UPDATE ON audit_log
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit log is append-only');
+                END
+                """
+            )
+            connection.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS audit_log_no_delete
+                BEFORE DELETE ON audit_log
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit log is append-only');
+                END
+                """
             )
 
     def save(self, analysis: AgreementAnalysis, agreement_key: str) -> AgreementAnalysis:
@@ -112,6 +156,45 @@ class SqliteReadingRepository:
                 (agreement_key,),
             ).fetchall()
         return [ReadingVersion.model_validate(dict(row)) for row in rows]
+
+    def append_audit(
+        self,
+        actor: str,
+        action: str,
+        agreement_key: str | None,
+        analysis_id: str | None,
+        detail: str,
+    ) -> AuditEvent:
+        at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO audit_log (at, actor, action, agreement_key, analysis_id, detail)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (at, actor, action, agreement_key, analysis_id, detail),
+            )
+            event_id = int(cursor.lastrowid or 0)
+        return AuditEvent(
+            id=event_id,
+            at=at,
+            actor=actor,
+            action=action,
+            agreement_key=agreement_key,
+            analysis_id=analysis_id,
+            detail=detail,
+        )
+
+    def list_audit(self) -> list[AuditEvent]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, at, actor, action, agreement_key, analysis_id, detail
+                FROM audit_log
+                ORDER BY id
+                """
+            ).fetchall()
+        return [AuditEvent.model_validate(dict(row)) for row in rows]
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=5)

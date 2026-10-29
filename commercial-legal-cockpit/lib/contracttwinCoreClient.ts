@@ -30,6 +30,7 @@ export type ContractTwinDocument = {
 export type ContractTwinAgreementRequest = {
   base: ContractTwinDocument;
   amendments?: ContractTwinDocument[];
+  agreement_key?: string;
 };
 
 export type ContractTwinImpact = {

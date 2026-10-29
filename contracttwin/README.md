@@ -80,7 +80,7 @@ JSON
 
 `POST /v1/agreements/files` takes a form field named `manifest` (the same JSON, without the text) and one or more `files`. Use `.txt`, `.pdf`, or `.docx`. The manifest `filename` must match the uploaded file name.
 
-`GET /v1/agreements/{analysis_id}` returns a stored reading. `GET /v1/agreement-versions?agreement_key=` lists the versions of one agreement. `GET /health` returns `{"status":"ok"}` without a key.
+`GET /v1/agreements/{analysis_id}` returns a stored reading. `GET /v1/agreement-versions?agreement_key=` lists the versions of one agreement. `GET /v1/audit` lists the append-only log of who called the service, what changed, and when. The log stores a short fingerprint of the service key, not the key itself. Rows cannot be updated or deleted. `GET /health` returns `{"status":"ok"}` without a key.
 
 On the Harborline sample, a correct reading shows:
 
@@ -118,7 +118,7 @@ Model output is still quote-checked. A paraphrase is rejected. A quote that surv
 
 ## Documents
 
-Word files keep tables and tracked changes. The reading uses the words that remain after accepting insertions and dropping deletions. Deleted and inserted words are listed on the document as redline history. A quote of a deleted word is rejected, because that word is not in the operative text.
+Word files keep tables, footnotes, text boxes, and tracked changes. The reading uses the words that remain after accepting insertions and dropping deletions, including footnote text and text inside a text box. Deleted and inserted words are listed on the document as redline history. Comments are kept as notes and are not treated as contract text. A quote of a deleted word, or of a comment, is rejected, because that word is not in the operative text.
 
 PDF tables are read with pdfplumber. A page with no machine-readable text is flagged, including a page that looks scanned. The service does not guess the words on that page.
 

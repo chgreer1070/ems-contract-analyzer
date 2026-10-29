@@ -14,7 +14,7 @@ from io import BytesIO
 import pdfplumber
 
 from contracttwin.docx_reader import DocxReadError, read_docx
-from contracttwin.models import Revision
+from contracttwin.models import Annotation, Revision
 from contracttwin.textutil import MAX_DOCUMENT_CHARS, normalize_newlines
 
 MAX_UPLOAD_BYTES = 2_000_000
@@ -30,6 +30,7 @@ class IngestError(ValueError):
 class Extraction:
     text: str
     revisions: list[Revision] = field(default_factory=list)
+    annotations: list[Annotation] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -102,10 +103,15 @@ def extract_pdf(data: bytes, filename: str) -> Extraction:
 
 def extract_docx(data: bytes, filename: str) -> Extraction:
     try:
-        text, revisions, warnings = read_docx(data, filename)
+        text, revisions, annotations, warnings = read_docx(data, filename)
     except DocxReadError as exc:
         raise IngestError(str(exc)) from exc
-    return Extraction(text=guard_length(normalize_newlines(text), filename), revisions=revisions, warnings=warnings)
+    return Extraction(
+        text=guard_length(normalize_newlines(text), filename),
+        revisions=revisions,
+        annotations=annotations,
+        warnings=warnings,
+    )
 
 
 def guard_length(text: str, filename: str) -> str:
