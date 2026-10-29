@@ -8,6 +8,7 @@ const requiredExactValues = new Map([
   ["ALLOW_DEMO_ACCESS", "false"],
   ["LEGAL_RELIANCE_ENABLED", "true"],
   ["ALLOW_SOURCE_PURGE", "false"],
+  ["MICROSOFT_ACCOUNT_IDENTIFIER", "oid"],
 ]);
 
 const requiredNonEmptyValues = [

@@ -46,7 +46,7 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 ### Microsoft Entra ID / Better Auth
 
-Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
+Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks. Better Auth 1.7.14 is the pinned production release that clears the audited package findings through 1.7.6, including GHSA-965c-763c-88jm (OAuth state accepted as a magic-link token), GHSA-r4xp-prcw-77qf (OAuth proxy account takeover), GHSA-q84f-53jg-9ppm (device-login approval display), and GHSA-44jh-23m7-hpcf (adapter rate-limit accounting). This application does not enable magic-link, device authorization, or the OAuth proxy. The upgrade is still not a silent patch: Microsoft sign-in now binds the account to the verified Entra directory object id (`oid`) rather than the app-specific subject (`sub`). Production must pause Microsoft sign-in, rewrite existing rows with the checked cutover script, and set `MICROSOFT_ACCOUNT_IDENTIFIER=oid` before accepting traffic. The account table does not gain an issuer column on this jump from 1.6. A package upgrade, a preview, or a synthetic test is not evidence that the target directory cutover has been performed.
 
 ### OpenAI
 

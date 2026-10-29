@@ -9,6 +9,10 @@ import {
 } from "./schema-migration-manifest.mjs";
 import {assertHeldPreMigrationTargetChallenge} from "./release-target-binding.mjs";
 
+// Better Auth 1.7.14 does not add an account issuer column. Microsoft account
+// ids change from the app-specific subject to the directory object id in a
+// separate paused-sign-in data cutover. This schema step must not rewrite those ids.
+
 const {Pool}=pg;
 if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required.");
 const manifest=await assertSchemaMigrationManifestMatchesRepository(process.cwd());

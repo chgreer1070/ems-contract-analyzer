@@ -11,6 +11,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 - Microsoft Entra application registration approved.
 - MFA / conditional access applied by corporate identity policy.
 - `AUTH_REQUIRED=true` in production.
+- Better Auth 1.7 Microsoft account cutover is complete before production sign-in: existing `microsoft` and `microsoft-entra-id` rows store the Entra directory object id, Microsoft sign-in was paused during that rewrite, and `MICROSOFT_ACCOUNT_IDENTIFIER=oid` is set only after the cutover script says it is safe to apply.
 - Default role is Viewer; Lawyer/Approver/Admin roles are explicitly granted.
 - Restricted matters tested against unauthorized users.
 - Production sets `ALLOW_DEMO_ACCESS=false`; demo principals are confirmed Viewer-only and unable to query or mutate persistent legal state.
