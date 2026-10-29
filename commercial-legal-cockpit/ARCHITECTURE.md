@@ -71,7 +71,7 @@ flowchart LR
 
 ### 5.1 Identity and authorization
 
-- Microsoft Entra authentication through Better Auth.
+- Microsoft Entra authentication through Better Auth 1.7. Microsoft accounts are keyed by the directory object id, not the old app-specific subject.
 - Global application roles plus explicit matter owner/member access.
 - Separately administered legal-counsel attestation capability.
 - Capability-based legal review, finance review, executive approval, records administration and platform administration; role rank never implies another profession's authority.

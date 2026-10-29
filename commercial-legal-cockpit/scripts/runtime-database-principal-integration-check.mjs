@@ -76,6 +76,8 @@ try{
     await expectPrivilegeDenied("sp_runtime_release_identity_write","update public.release_database_identity set database_id=database_id where singleton=true");
     await expectPrivilegeDenied("sp_runtime_release_external_identity_write","update public.release_database_external_identity set external_database_id=external_database_id where singleton=true");
     await expectPrivilegeDenied("sp_runtime_release_receipt_truncate","truncate table public.release_target_receipts");
+    await expectPrivilegeDenied("sp_runtime_microsoft_cutover_forge","update public.microsoft_account_oid_cutover set account_row_count=account_row_count where singleton=true");
+    await client.query("select better_auth_version,account_row_count from public.microsoft_account_oid_cutover where singleton=true");
     await client.query("select filename,sha256 from public.schema_migrations order by filename limit 1");
     await client.query("select database_id from public.release_database_identity where singleton=true");
     await client.query("select external_database_id,release_database_id from public.release_database_external_identity where singleton=true");

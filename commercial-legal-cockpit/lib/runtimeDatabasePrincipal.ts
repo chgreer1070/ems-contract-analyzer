@@ -65,7 +65,7 @@ public_sequences as (
    where n.nspname='public' and c.relkind='S'
 ),
 protected_release_tables(relname) as (
-  values ('release_database_identity'),('release_database_external_identity'),('release_target_receipts')
+  values ('release_database_identity'),('release_database_external_identity'),('release_target_receipts'),('microsoft_account_oid_cutover')
 )
 select session_user::text session_user_name,current_user::text current_user_name,
        session_user=current_user identities_match,
@@ -101,7 +101,7 @@ select session_user::text session_user_name,current_user::text current_user_name
        ) approved_runtime_functions_ready,
        not exists(
          select 1 from identities i cross join public_tables t
-           where t.relname not in ('schema_migrations','release_database_identity','release_database_external_identity','release_target_receipts') and (
+           where t.relname not in ('schema_migrations','release_database_identity','release_database_external_identity','release_target_receipts','microsoft_account_oid_cutover') and (
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'SELECT') or
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'INSERT') or
             not pg_catalog.has_table_privilege(i.rolname,t.oid,'UPDATE') or
@@ -142,7 +142,7 @@ select session_user::text session_user_name,current_user::text current_user_name
           )
         ) and not exists(
           select 1 from identities i cross join public_tables t
-           where t.relname in ('release_database_identity','release_database_external_identity','release_target_receipts') and (
+           where t.relname in ('release_database_identity','release_database_external_identity','release_target_receipts','microsoft_account_oid_cutover') and (
              not pg_catalog.has_table_privilege(i.rolname,t.oid,'SELECT') or
              pg_catalog.has_table_privilege(i.rolname,t.oid,'INSERT') or pg_catalog.has_table_privilege(i.rolname,t.oid,'UPDATE') or
              pg_catalog.has_table_privilege(i.rolname,t.oid,'DELETE') or pg_catalog.has_table_privilege(i.rolname,t.oid,'TRUNCATE') or

@@ -1,6 +1,8 @@
 import pg from "pg";
 import {createHash,randomUUID} from "node:crypto";
 import {verifiedDatabaseConnectionConfig} from "./database-connection-config.mjs";
+import {applyMicrosoftAccountCutover} from "./microsoft-account-cutover.mjs";
+import {microsoftFixtureJwks,signMicrosoftFixtureToken} from "./microsoft-account-cutover-check.mjs";
 
 const {Client}=pg;
 if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required.");
@@ -104,7 +106,7 @@ async function raceSafeCounselRelationUniqueness(){
 }
 
 try{
-  for(const table of ["user","session","account","verification","matters","documents","audit_events","negotiation_standards","contract_terms","processing_jobs","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies"]){
+  for(const table of ["user","session","account","verification","microsoft_account_oid_cutover","matters","documents","audit_events","negotiation_standards","contract_terms","processing_jobs","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies"]){
     const result=await client.query("select to_regclass($1) name",[table]);
     if(!result.rows[0].name)throw new Error(`Required migrated table missing: ${table}`);
   }
@@ -122,6 +124,29 @@ try{
     await expectFailure("sp_release_receipt_update",()=>client.query("update public.release_target_receipts set source_sha=$2 where nonce_sha256=$1",[testReleaseNonceSha,"b".repeat(40)]),error=>String(error.message).toLowerCase().includes("append-only"));
     await expectFailure("sp_release_receipt_delete",()=>client.query("delete from public.release_target_receipts where nonce_sha256=$1",[testReleaseNonceSha]),error=>String(error.message).toLowerCase().includes("append-only"));
     await expectFailure("sp_release_receipt_truncate",()=>client.query("truncate table public.release_target_receipts"),error=>String(error.message).toLowerCase().includes("append-only"));
+    const cutoverRows=(await client.query("select singleton,better_auth_version,account_row_count,rewritten_row_count from public.microsoft_account_oid_cutover")).rows;
+    if(cutoverRows.length!==1||cutoverRows[0].singleton!==true||cutoverRows[0].better_auth_version!=="1.7.14"||Number(cutoverRows[0].account_row_count)!==0){
+      throw new Error("Microsoft directory-id cutover receipt must record exactly one empty 1.7.14 inventory before accounts exist.");
+    }
+    await expectFailure("sp_microsoft_cutover_update",()=>client.query("update public.microsoft_account_oid_cutover set account_row_count=account_row_count where singleton=true"),error=>String(error.message).includes("immutable"));
+    await expectFailure("sp_microsoft_cutover_delete",()=>client.query("delete from public.microsoft_account_oid_cutover where singleton=true"),error=>String(error.message).includes("immutable"));
+    await expectFailure("sp_microsoft_cutover_truncate",()=>client.query("truncate table public.microsoft_account_oid_cutover"),error=>String(error.message).includes("immutable"));
+    await applyMicrosoftAccountCutover(client);
+    const legacyDirectoryId="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const legacyClientId="11111111-2222-4333-8444-555555555555";
+    const legacyObjectId="99999999-8888-4777-8666-555555555555";
+    const legacyToken=signMicrosoftFixtureToken({tenant:legacyDirectoryId,client:legacyClientId,subject:"old-app-subject",directoryId:legacyObjectId});
+    await expectFailure("sp_microsoft_legacy_subject",async()=>{
+      const userId=`cutover-${randomUUID()}`;
+      await client.query(`insert into "user"(id,name,email,"emailVerified","createdAt","updatedAt") values($1,'Cutover fixture',$2,false,clock_timestamp(),clock_timestamp())`,[userId,`${userId}@example.invalid`]);
+      await client.query(`insert into account(id,"accountId","providerId","userId","idToken","createdAt","updatedAt") values($1,'old-app-subject','microsoft',$2,$3,clock_timestamp(),clock_timestamp())`,[`account-${userId}`,userId,legacyToken]);
+      await applyMicrosoftAccountCutover(client,{
+        tenantId:legacyDirectoryId,
+        clientId:legacyClientId,
+        now:new Date("2026-10-29T15:00:00.000Z"),
+        jwks:microsoftFixtureJwks
+      });
+    },error=>String(error.message).includes("old Microsoft subject"));
     await client.query(`insert into app_user_roles(user_id,role,active,granted_by) values('ci-lawyer','LAWYER',true,'ci-admin'),('ci-approver','APPROVER',true,'ci-admin'),('ci-admin','ADMIN',true,'ci-admin')`);
     await client.query(`insert into app_user_capabilities(user_id,capability,active,granted_by) values('ci-lawyer','LEGAL_COUNSEL_ATTEST',true,'ci-admin')`);
     const customer=(await client.query("insert into customers(name) values('CI Control Customer') returning id")).rows[0];

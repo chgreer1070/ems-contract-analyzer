@@ -80,11 +80,15 @@ const preMigrationBinding=await verifyPreMigrationTargetBinding({
   expectedTargetAnchor,
   requireVerifiedTls:true
 });
+const microsoftAccountOidMap=process.env.MICROSOFT_ACCOUNT_OID_MAP||"";
 const migrationEnvironment=childEnvironment({
   DATABASE_URL:migrationDatabaseUrl,
   EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor.databaseId,
   EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding.liveDatabaseFingerprint,
-  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge
+  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge,
+  MICROSOFT_CLIENT_ID:variables.get("MICROSOFT_CLIENT_ID")||"",
+  MICROSOFT_TENANT_ID:variables.get("MICROSOFT_TENANT_ID")||"",
+  MICROSOFT_ACCOUNT_OID_MAP:microsoftAccountOidMap
 });
 try{
   await run("db:migrate:preflight",migrationEnvironment);
