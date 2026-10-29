@@ -124,7 +124,7 @@ PDF tables are read with pdfplumber. A page with no machine-readable text is fla
 
 ## Cockpit
 
-The cockpit file `commercial-legal-cockpit/lib/contracttwinCoreClient.ts` can POST text to this service when it is given the service key. The matter screens do not call it. Wiring it into a matter would be a later, separate decision.
+The cockpit file `commercial-legal-cockpit/lib/contracttwinCoreClient.ts` can POST text to this service when it is given the service key. A matter screen can open the made-up Harborline sample at `/reading`. The matter screen does not call this client and does not send the matter's documents. The sample response is not a legal-reliance record.
 
 ## What this is not
 
