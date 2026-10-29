@@ -37,7 +37,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 - Tables, schedules and pricing exhibits have a validated extraction path before relying on them.
 - Oversized contracts use an asynchronous worker and never silently truncate.
 - Page/chunk provenance is preserved through analysis.
-- Every migration through `014_release_database_external_identity.sql` is applied; database controls prove quarantine-before-parser, exact extraction/OCR generation ownership, hash matching, counsel-authorized legal dispositions, durable decision rationale, fenced stale-worker publication denial, protocol-1 immutable authoritative-economics selection, authorized executive-snapshot job receipts, the immutable external-logical-to-physical database identity mapping, and append-only release-target receipts. Protocol 0 remains an expand-safe compatibility path until the separately blocked drain and contract-enforcement phase completes; it is not reliance evidence.
+- Every migration through `015_microsoft_account_oid_cutover.sql` is applied; database controls prove quarantine-before-parser, exact extraction/OCR generation ownership, hash matching, counsel-authorized legal dispositions, durable decision rationale, fenced stale-worker publication denial, protocol-1 immutable authoritative-economics selection, authorized executive-snapshot job receipts, the immutable external-logical-to-physical database identity mapping, and append-only release-target receipts. Protocol 0 remains an expand-safe compatibility path until the separately blocked drain and contract-enforcement phase completes; it is not reliance evidence.
 
 ## 4. AI legal analysis — BLOCKING FOR LEGAL_RELIANCE_ENABLED
 
@@ -126,7 +126,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 
 ## 11. Schema and release evidence — BLOCKING
 
-- Better Auth and every ContractTwin migration through `014_release_database_external_identity.sql` applied from the exact release SHA.
+- Better Auth 1.7.14 and every ContractTwin migration through `015_microsoft_account_oid_cutover.sql` applied from the exact release SHA. Microsoft accounts use the Entra directory object id, and the cutover receipt exists before Microsoft sign-in is accepted.
 - The compiled ordered filename/SHA-256 migration manifest has no missing, extra, reordered, or changed receipt; manifest v2 hashes and executes the same strict-UTF-8, canonical-LF source on every platform, and idempotent rerun is verified before approved production change.
 - PostgreSQL 17 database-control tests prove quarantine-before-parser, exact extraction generation, matching source hashes, immutable run/receipt evidence, current engine policies, counsel-capability enforcement, cross-matter lineage rejection, protocol-1 immutable agreement-version authoritative-economics selection, agreement-version-scoped execution, independent decisions, governed standards, legal-hold purge blocking and append-only audit. Release evidence separately proves the mixed-bundle drain, protocol-0 rejection after contract enforcement, and protocol-0 historical non-reliance.
 - Application access/readiness/security-boundary controls, frozen corpus, economics, TypeScript, dependency audit, production build and CodeQL pass for the exact release SHA.

@@ -8,6 +8,7 @@ import {
   MIGRATION_ADVISORY_XACT_LOCK_QUERY
 } from "./schema-migration-manifest.mjs";
 import {assertHeldPreMigrationTargetChallenge} from "./release-target-binding.mjs";
+import {applyMicrosoftAccountCutover} from "./microsoft-account-cutover.mjs";
 
 const {Pool}=pg;
 if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required.");
@@ -55,15 +56,23 @@ try{
   await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
   await targetClient.query(MIGRATION_ADVISORY_XACT_LOCK_QUERY);
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Pre-auth database");
-  const migrationAuth=betterAuth({database:pool});
-  const {toBeCreated,toBeAdded,compileMigrations}=await getMigrations(migrationAuth.options);
-  console.log(`Better Auth schema: ${toBeCreated.length} tables to create, ${toBeAdded.length} fields/indexes to add.`);
-  if(toBeCreated.length||toBeAdded.length){
+  // Schema validation would run before this transaction creates the auth
+  // tables and report a mismatch that this same command is about to repair.
+  const migrationAuth=betterAuth({database:pool,advanced:{database:{validateSchema:false}}});
+  const {toBeCreated,toBeAdded,toBeAddedIndexes,compileMigrations}=await getMigrations(migrationAuth.options);
+  console.log(`Better Auth schema: ${toBeCreated.length} tables to create, ${toBeAdded.length} fields to add, ${toBeAddedIndexes.length} indexes to add.`);
+  if(toBeCreated.length||toBeAdded.length||toBeAddedIndexes.length){
     const compiledAuthMigrationSql=await compileMigrations();
-    if(!compiledAuthMigrationSql.trim())throw new Error("Better Auth returned an empty migration plan for pending schema changes.");
+    if(!compiledAuthMigrationSql.trim()||compiledAuthMigrationSql.trim()===";")throw new Error("Better Auth returned an empty migration plan for pending schema changes.");
     await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
     await targetClient.query(compiledAuthMigrationSql);
   }
+  await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
+  await applyMicrosoftAccountCutover(targetClient,{
+    tenantId:process.env.MICROSOFT_TENANT_ID||"",
+    clientId:process.env.MICROSOFT_CLIENT_ID||"",
+    oidMapJson:process.env.MICROSOFT_ACCOUNT_OID_MAP||""
+  });
   await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Post-auth database");
   await assertTrustedMigrationTarget(targetClient);

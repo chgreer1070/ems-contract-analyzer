@@ -90,6 +90,8 @@ assert.ok(authOccursBefore("await targetClient.query(MIGRATION_ADVISORY_XACT_LOC
 assert.ok(authOccursBefore("assertDatabaseSchemaMigrationReceiptPrefix(targetClient","getMigrations(migrationAuth.options)"),"legacy target rejection must precede Better Auth migration planning or mutation");
 assert.ok(authOccursBefore("assertDatabaseSchemaMigrationReceiptPrefix(targetClient","targetClient.query(compiledAuthMigrationSql)"),"legacy target rejection must precede Better Auth mutation");
 assert.ok(authOccursBefore("assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true})","targetClient.query(compiledAuthMigrationSql)"),"Better Auth DDL transaction must recheck the held live-target proof on its exact connection");
+assert.ok(authOccursBefore("targetClient.query(compiledAuthMigrationSql)","applyMicrosoftAccountCutover(targetClient"),"Microsoft directory-id cutover must run only after the installed Better Auth schema is applied");
+assert.ok(authOccursBefore("applyMicrosoftAccountCutover(targetClient","targetClient.query(\"commit\")"),"Microsoft directory-id cutover must commit only through the proved auth migration transaction");
 assert.ok(authOccursBefore("targetClient.query(MIGRATION_ADVISORY_XACT_LOCK_QUERY)","targetClient.query(compiledAuthMigrationSql)"),"Better Auth DDL must hold the transaction-scoped schema lock on its exact connection");
 assert.match(authMigrateSource,/class TargetBoundMigrationPool extends Pool/,"Better Auth migration must wrap every independently reserved pg client");
 assert.match(authMigrateSource,/super\.connect\(\)\.then\(async client=>\{\s*try\{\s*await assertHeldPreMigrationTargetChallenge\(client\)/s,"promise-based Better Auth connections must validate the held target before use");
