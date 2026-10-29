@@ -1,7 +1,6 @@
 import {betterAuth} from "better-auth";
 import {getMigrations} from "better-auth/db/migration";
 import pg from "pg";
-import {applyMicrosoftAccountCutover,issuerSchemaBlocker,migrationPlanAddsAccountIssuer} from "./microsoft-account-cutover.mjs";
 import {assertTrustedMigrationTarget,verifiedDatabaseConnectionConfig} from "./database-connection-config.mjs";
 import {
   assertDatabaseSchemaMigrationReceiptPrefix,
@@ -57,25 +56,14 @@ try{
   await targetClient.query(MIGRATION_ADVISORY_XACT_LOCK_QUERY);
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Pre-auth database");
   const migrationAuth=betterAuth({database:pool});
-  const {toBeCreated,toBeAdded,compileMigrations,schemaProblems}=await getMigrations(migrationAuth.options);
-  if(migrationPlanAddsAccountIssuer(toBeCreated)||migrationPlanAddsAccountIssuer(toBeAdded)){
-    throw new Error(`Better Auth 1.7.14 must keep the 1.6 account key and must not add an issuer column. ${issuerSchemaBlocker([{name:"issuer",nullable:false}],[])}`);
-  }
-  if(schemaProblems?.length){
-    const rendered=schemaProblems.map(problem=>typeof problem==="string"?problem:JSON.stringify(problem)).join(" ");
-    const issuerHelp=rendered.includes("issuer")?` ${issuerSchemaBlocker([{name:"issuer",nullable:false}],[])}`:"";
-    throw new Error(`Better Auth refused the live account schema. ${rendered}${issuerHelp}`);
-  }
-  console.log(`Better Auth schema: ${toBeCreated.length} tables to create, ${toBeAdded.length} fields/indexes to add. Account identity stays providerId plus accountId.`);
+  const {toBeCreated,toBeAdded,compileMigrations}=await getMigrations(migrationAuth.options);
+  console.log(`Better Auth schema: ${toBeCreated.length} tables to create, ${toBeAdded.length} fields/indexes to add.`);
   if(toBeCreated.length||toBeAdded.length){
     const compiledAuthMigrationSql=await compileMigrations();
     if(!compiledAuthMigrationSql.trim())throw new Error("Better Auth returned an empty migration plan for pending schema changes.");
     await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
     await targetClient.query(compiledAuthMigrationSql);
   }
-  await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
-  const microsoftAccountCutover=await applyMicrosoftAccountCutover(targetClient);
-  console.log(microsoftAccountCutover.summary);
   await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Post-auth database");
   await assertTrustedMigrationTarget(targetClient);

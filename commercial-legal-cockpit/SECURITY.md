@@ -48,7 +48,9 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
 
-Better Auth 1.7 recognizes a Microsoft account by the Entra directory object id (`oid`) and by the provider name, not by the temporary account `issuer` column from 1.7.0–1.7.2 and not by the app-specific subject (`sub`) stored in 1.6. The gated auth migration verifies a saved sign-in token when one is present, or requires a reviewed Entra export when it is not, and rewrites the stored account id before new sign-in traffic. Accepting 1.7 sign-in before that rewrite can create a second account for the same person. The migration does not receive the Microsoft client secret. Pause Microsoft sign-in from the start of that migration until this version is the only running copy.
+Production pins `better-auth` **1.7.14**, which clears GHSA-965c-763c-88jm and the related Better Auth 1.7 advisories. This is a breaking identity cutover, not a silent patch: Microsoft account rows must use the verified Entra directory `oid` as `account.accountId`, and `MICROSOFT_TENANT_ID` must be a concrete tenant GUID so Better Auth can validate the Microsoft account issuer. Ambiguous tenants (`common` / `organizations` / `consumers`) are rejected. Complete the `sub`→`oid` cutover in `OPERATIONS_RUNBOOK.md` before accepting production Microsoft sign-in on 1.7.
+
+The same release also hardens the production dependency audit gate by pinning Next.js **16.4.3**, Workflow **4.8.15**, `@vercel/blob` **2.8.2**, and exact overrides for patched transitive packages so `npm audit --omit=dev --audit-level=high` reports zero findings.
 
 ### OpenAI
 

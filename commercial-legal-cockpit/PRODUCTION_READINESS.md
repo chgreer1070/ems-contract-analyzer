@@ -126,7 +126,7 @@ These are acceptance gates, not assertions of completion. Source-code implementa
 
 ## 11. Schema and release evidence — BLOCKING
 
-- Better Auth 1.7, including the Microsoft directory-object-id account rewrite, and every ContractTwin migration through `014_release_database_external_identity.sql` applied from the exact release SHA.
+- Better Auth and every ContractTwin migration through `014_release_database_external_identity.sql` applied from the exact release SHA.
 - The compiled ordered filename/SHA-256 migration manifest has no missing, extra, reordered, or changed receipt; manifest v2 hashes and executes the same strict-UTF-8, canonical-LF source on every platform, and idempotent rerun is verified before approved production change.
 - PostgreSQL 17 database-control tests prove quarantine-before-parser, exact extraction generation, matching source hashes, immutable run/receipt evidence, current engine policies, counsel-capability enforcement, cross-matter lineage rejection, protocol-1 immutable agreement-version authoritative-economics selection, agreement-version-scoped execution, independent decisions, governed standards, legal-hold purge blocking and append-only audit. Release evidence separately proves the mixed-bundle drain, protocol-0 rejection after contract enforcement, and protocol-0 historical non-reliance.
 - Application access/readiness/security-boundary controls, frozen corpus, economics, TypeScript, dependency audit, production build and CodeQL pass for the exact release SHA.
