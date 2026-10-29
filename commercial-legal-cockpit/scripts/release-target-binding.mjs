@@ -312,11 +312,12 @@ export function evaluateReleaseTargetBinding({
 
 async function grantReleaseControlReadAccess(migrationClient,runtimeRoleName){
   const role=quoteIdentifier(runtimeRoleName);
-  await migrationClient.query(`revoke all privileges on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts from ${role}`);
+  await migrationClient.query(`revoke all privileges on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts,public.microsoft_account_oid_cutover from ${role}`);
   await migrationClient.query(`revoke select(singleton,database_id,created_at),insert(singleton,database_id,created_at),update(singleton,database_id,created_at),references(singleton,database_id,created_at) on table public.release_database_identity from ${role}`);
   await migrationClient.query(`revoke select(singleton,external_database_id,release_database_id,created_at),insert(singleton,external_database_id,release_database_id,created_at),update(singleton,external_database_id,release_database_id,created_at),references(singleton,external_database_id,release_database_id,created_at) on table public.release_database_external_identity from ${role}`);
   await migrationClient.query(`revoke select(nonce_sha256,database_id,source_sha,created_at),insert(nonce_sha256,database_id,source_sha,created_at),update(nonce_sha256,database_id,source_sha,created_at),references(nonce_sha256,database_id,source_sha,created_at) on table public.release_target_receipts from ${role}`);
-  await migrationClient.query(`grant select on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts to ${role}`);
+  await migrationClient.query(`revoke select(singleton,better_auth_version,provider_ids,account_row_count,rewritten_row_count,mapping_sha256,applied_at),insert(singleton,better_auth_version,provider_ids,account_row_count,rewritten_row_count,mapping_sha256,applied_at),update(singleton,better_auth_version,provider_ids,account_row_count,rewritten_row_count,mapping_sha256,applied_at),references(singleton,better_auth_version,provider_ids,account_row_count,rewritten_row_count,mapping_sha256,applied_at) on table public.microsoft_account_oid_cutover from ${role}`);
+  await migrationClient.query(`grant select on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts,public.microsoft_account_oid_cutover to ${role}`);
 }
 
 export async function establishReleaseTargetBinding({

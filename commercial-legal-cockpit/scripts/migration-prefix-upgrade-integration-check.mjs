@@ -117,7 +117,7 @@ try{
     assert.equal(rerunPrefix.rows.length,migrations.length);
     assertExactSchemaMigrationReceipts(rerunPrefix.rows,manifest,"Idempotent upgraded fixture");
   }finally{await client.end();}
-  console.log("Migration prefix-upgrade integration passed: an exact 001-010 receipt prefix upgrades forward through 014 without rewriting migration 010, its physical identity, schema receipts, or a prior release receipt.");
+  console.log("Migration prefix-upgrade integration passed: an exact 001-010 receipt prefix upgrades forward through 015 without rewriting migration 010, its physical identity, schema receipts, or a prior release receipt.");
 }finally{
   if(databaseCreated){
     await admin.query("select pg_catalog.pg_terminate_backend(pid) from pg_catalog.pg_stat_activity where datname=$1 and pid<>pg_catalog.pg_backend_pid()",[databaseName]);

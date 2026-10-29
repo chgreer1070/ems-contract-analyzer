@@ -1,6 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isConcreteDirectoryId } from "./microsoft-account-cutover.mjs";
 
 const requiredExactValues = new Map([
   ["APP_ENV", "production"],
@@ -94,6 +95,9 @@ async function main() {
   if(variables.has("MIGRATION_DATABASE_URL")){
     errors.push("MIGRATION_DATABASE_URL must remain a protected CI-only secret and must not be present in Vercel");
   }
+  if(variables.has("MICROSOFT_ACCOUNT_OID_MAP")){
+    errors.push("MICROSOFT_ACCOUNT_OID_MAP must remain a protected release secret and must not be present in Vercel");
+  }
   if(variables.has("RUNTIME_DATABASE_URL")){
     errors.push("RUNTIME_DATABASE_URL is a gate-only alias and must not be present in Vercel");
   }
@@ -115,6 +119,10 @@ async function main() {
   }
   if((variables.get("RELEASE_ATTESTATION_TOKEN")||"").length<32){
     errors.push("RELEASE_ATTESTATION_TOKEN must contain at least 32 characters");
+  }
+  const microsoftDirectoryId=variables.get("MICROSOFT_TENANT_ID")||"";
+  if(microsoftDirectoryId&&!isConcreteDirectoryId(microsoftDirectoryId)){
+    errors.push("MICROSOFT_TENANT_ID must be the concrete Entra directory id, not common, organizations, or consumers");
   }
   try{
     const databaseUrl=new URL(variables.get("DATABASE_URL")||"");

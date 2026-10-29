@@ -15,6 +15,7 @@
     { "filename": "011_authority_evidence_hardening.sql", "sha256": "f3c975d5201e6591287f028425568a8d780b8e49895cc22fcf3c84cae6e83b9c" },
     { "filename": "012_processing_job_lease_fencing.sql", "sha256": "3effd8f180b433311984ed0a279774ad6c0b627a21c3280993ecb60eb858bbb6" },
     { "filename": "013_decision_economics_evidence.sql", "sha256": "e4575582695f308b017b30f5fba80fd0868e26276c3cb6568d1d43dbf1f68928" },
-    { "filename": "014_release_database_external_identity.sql", "sha256": "90b4ba8a08063864551eac1b7a0a03e9f22ee97374dde1bd0feb11e09cd9b8e0" }
+    { "filename": "014_release_database_external_identity.sql", "sha256": "90b4ba8a08063864551eac1b7a0a03e9f22ee97374dde1bd0feb11e09cd9b8e0" },
+    { "filename": "015_microsoft_account_oid_cutover.sql", "sha256": "163e7175e5ee6b37c328acc5cc7f6c0fa9c704af569593e6671a5c25c256ffb7" }
   ]
 }

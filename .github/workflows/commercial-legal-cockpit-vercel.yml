@@ -305,6 +305,7 @@ jobs:
         env:
           PRODUCTION_ENV_FILE: ${{ runner.temp }}/contracttwin-production-${{ github.run_id }}-${{ github.run_attempt }}.env
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          MICROSOFT_ACCOUNT_OID_MAP: ${{ secrets.MICROSOFT_ACCOUNT_OID_MAP }}
           EXPECTED_PRODUCTION_TARGET_TOKEN: ${{ secrets.EXPECTED_PRODUCTION_TARGET_TOKEN }}
           EXPECTED_PRODUCTION_DATABASE_ID: ${{ secrets.EXPECTED_PRODUCTION_DATABASE_ID }}
           EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256: ${{ secrets.EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256 }}

@@ -9,7 +9,7 @@ const required = [
   "decisions","economics_runs","audit_events","agreement_versions","agreement_version_documents","document_relations","contract_terms",
   "term_dependencies","processing_jobs","analysis_runs","validation_cases","validation_runs","validation_results","executive_snapshots",
   "legal_hold_events","purge_requests","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies",
-  "release_database_identity","release_database_external_identity","release_target_receipts"
+  "release_database_identity","release_database_external_identity","release_target_receipts","microsoft_account_oid_cutover"
 ];
 const missing = required.filter((name) => !new RegExp(`create table(?: if not exists)?\\s+(?:public\\.)?${name}\\b`, "i").test(sql));
 const controls = [
@@ -31,6 +31,7 @@ const controls = [
   [/suppress_duplicate_term_dependency/i,"dependency rerun idempotency"],
   [/suppress_duplicate_document_relation/i,"document-relation rerun idempotency"],
   [/idx_api_rate_events_lookup/i,"centralized API rate-limit index"]
+  ,[/prevent_microsoft_account_oid_cutover_mutation/i,"immutable Microsoft directory-id cutover receipt"]
   ,[/security_scan_status/i,"source malware quarantine state"]
   ,[/prevent_unscanned_extraction/i,"malware-before-parser trigger"]
   ,[/enforce_verified_document_hash/i,"matching client/server source hash trigger"]

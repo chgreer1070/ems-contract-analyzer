@@ -1,7 +1,7 @@
 {
   "version": 3,
   "postgresMajor": 17,
-  "schemaDefinitionSha256": "b9d34f6a399647c0a59aafb4163fe4a56ef7f57e89bc7b26e026620432a0b8d6",
+  "schemaDefinitionSha256": "38861cbf13655dc4ebc09e44a6f6eb4aceb57d4f2a9ef2e0454757d11646f1f7",
   "columns": [
     { "table": "agreement_versions", "name": "authoritative_economics_run_id", "type": "uuid", "nullable": true },
     { "table": "agreement_versions", "name": "authoritative_economics_selected_by", "type": "text", "nullable": true },
@@ -24,7 +24,14 @@
     { "table": "release_target_receipts", "name": "nonce_sha256", "type": "text", "nullable": false },
     { "table": "release_target_receipts", "name": "database_id", "type": "uuid", "nullable": false },
     { "table": "release_target_receipts", "name": "source_sha", "type": "text", "nullable": false },
-    { "table": "release_target_receipts", "name": "created_at", "type": "timestamp with time zone", "nullable": false }
+    { "table": "release_target_receipts", "name": "created_at", "type": "timestamp with time zone", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "singleton", "type": "boolean", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "better_auth_version", "type": "text", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "provider_ids", "type": "text[]", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "account_row_count", "type": "integer", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "rewritten_row_count", "type": "integer", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "mapping_sha256", "type": "text", "nullable": false },
+    { "table": "microsoft_account_oid_cutover", "name": "applied_at", "type": "timestamp with time zone", "nullable": false }
   ],
   "rules": [],
   "triggers": [
@@ -88,6 +95,7 @@
     { "table": "release_database_identity", "name": "trg_release_database_identity_immutable", "function": "prevent_release_database_identity_mutation" },
     { "table": "release_database_external_identity", "name": "trg_release_database_external_identity_immutable", "function": "prevent_release_database_external_identity_mutation" },
     { "table": "release_target_receipts", "name": "trg_release_target_receipts_append_only", "function": "prevent_release_target_receipt_mutation" },
+    { "table": "microsoft_account_oid_cutover", "name": "trg_microsoft_account_oid_cutover_immutable", "function": "prevent_microsoft_account_oid_cutover_mutation" },
     { "table": "term_dependencies", "name": "trg_dependencies_execution_freeze", "function": "enforce_legal_object_execution_freeze" },
     { "table": "term_dependencies", "name": "trg_dependencies_human_review", "function": "enforce_human_review_record" },
     { "table": "term_dependencies", "name": "trg_dependencies_reviewed_immutable", "function": "prevent_reviewed_object_mutation" },
@@ -152,6 +160,13 @@
     { "table": "release_target_receipts", "name": "release_target_receipts_nonce_sha256_check", "type": "c", "validated": true },
     { "table": "release_target_receipts", "name": "release_target_receipts_pkey", "type": "p", "validated": true },
     { "table": "release_target_receipts", "name": "release_target_receipts_source_sha_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_pkey", "type": "p", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_singleton_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_version_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_provider_ids_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_account_row_count_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_rewritten_row_count_check", "type": "c", "validated": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_mapping_sha256_check", "type": "c", "validated": true },
     { "table": "term_dependencies", "name": "term_dependencies_origin_check", "type": "c", "validated": true },
     { "table": "term_dependencies", "name": "term_dependencies_processing_job_id_fkey", "type": "f", "validated": true },
     { "table": "term_dependencies", "name": "term_dependencies_review_status_check", "type": "c", "validated": true },
@@ -179,6 +194,7 @@
     { "table": "release_database_external_identity", "name": "release_database_external_identity_pkey", "unique": true },
     { "table": "release_database_external_identity", "name": "release_database_external_identity_release_database_id_key", "unique": true },
     { "table": "release_target_receipts", "name": "release_target_receipts_pkey", "unique": true },
+    { "table": "microsoft_account_oid_cutover", "name": "microsoft_account_oid_cutover_pkey", "unique": true },
     { "table": "term_dependencies", "name": "uq_counsel_dependency_active", "unique": true },
     { "table": "term_dependencies", "name": "uq_model_dependency_active_per_job", "unique": true }
   ]
