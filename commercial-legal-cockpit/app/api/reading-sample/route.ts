@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 import { analyzeAgreementText } from "@/lib/contracttwinCoreClient";
+import { internalErrorResponse } from "@/lib/safeErrors";
 
 export async function GET() {
   const serviceUrl = process.env.CONTRACTTWIN_CORE_URL;
@@ -30,7 +31,7 @@ export async function GET() {
     if (!payment) {
       return NextResponse.json(
         { error: "The sample reading did not include the operative payment term." },
-        { status: 502 },
+        { status: 503 },
       );
     }
     return NextResponse.json({
@@ -39,7 +40,6 @@ export async function GET() {
       quote: payment.citations[0]?.quote ?? "",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The reading service call failed.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return internalErrorResponse(error, "The sample agreement could not be read.");
   }
 }
