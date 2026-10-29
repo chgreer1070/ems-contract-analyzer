@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ENGINE_VERSION = "contracttwin-core-0.1.0"
+ENGINE_VERSION = "contracttwin-core-0.2.0"
 
 DISCLAIMER = (
     "This is a source-grounded reading aid, not a legal conclusion, not a financial "
@@ -31,6 +31,12 @@ DomainName = Literal[
     "definition",
     "survival",
     "precedence",
+    "liability",
+    "indemnity",
+    "warranty",
+    "termination",
+    "forecast",
+    "consignment",
     "general",
 ]
 ImpactArea = Literal["margin", "cash", "working_capital", "inventory"]
@@ -57,6 +63,14 @@ class InputDocument(BaseModel):
     effective_date: str | None = None
 
 
+class Revision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["insertion", "deletion"]
+    text: str
+    location: str
+
+
 class AgreementInput(BaseModel):
     """JSON body for a reading. File bytes are handled by the upload endpoint."""
 
@@ -64,6 +78,7 @@ class AgreementInput(BaseModel):
 
     base: InputDocument
     amendments: list[InputDocument] = Field(default_factory=list)
+    agreement_key: str | None = Field(default=None, max_length=200)
 
 
 class DocumentRecord(BaseModel):
@@ -75,6 +90,8 @@ class DocumentRecord(BaseModel):
     sha256: str
     character_count: int
     order: int
+    revisions: list[Revision] = Field(default_factory=list)
+    extraction_warnings: list[str] = Field(default_factory=list)
 
 
 class SectionSource(BaseModel):
@@ -167,8 +184,18 @@ class RejectedCandidate(BaseModel):
     quote: str | None = None
 
 
+class ReadingVersion(BaseModel):
+    analysis_id: str
+    agreement_key: str
+    version: int
+    created_at: str
+    engine_version: str
+
+
 class AgreementAnalysis(BaseModel):
     analysis_id: str
+    agreement_key: str = ""
+    version: int = 0
     engine_version: str
     extractor: str
     fallback_used: bool

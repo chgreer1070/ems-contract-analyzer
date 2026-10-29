@@ -97,11 +97,16 @@ export type ContractTwinAnalysis = {
 export async function analyzeAgreementText(
   serviceUrl: string,
   body: ContractTwinAgreementRequest,
-  fetchImpl: typeof fetch = fetch,
+  options: { apiKey: string; fetchImpl?: typeof fetch },
 ): Promise<ContractTwinAnalysis> {
+  const fetchImpl = options.fetchImpl ?? fetch;
   const response = await fetchImpl(new URL("/v1/agreements", serviceUrl), {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      "x-api-key": options.apiKey,
+    },
     body: JSON.stringify(body),
   });
   if (!response.ok) {

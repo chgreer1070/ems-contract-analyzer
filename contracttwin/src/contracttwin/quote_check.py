@@ -131,6 +131,12 @@ def _domain(value: str) -> str:
         "definition",
         "survival",
         "precedence",
+        "liability",
+        "indemnity",
+        "warranty",
+        "termination",
+        "forecast",
+        "consignment",
         "general",
     }
     if value not in allowed:

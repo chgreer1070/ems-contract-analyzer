@@ -14,10 +14,14 @@ from contracttwin.models import AgreementAnalysis
 from contracttwin.pipeline import AnalysisRequest, analyze
 
 FIXTURES = Path(__file__).parent / "fixtures"
+API_KEY = "test-key"
+API_HEADERS = {"X-API-Key": API_KEY}
 
 
 @pytest.fixture(autouse=True)
-def _reset_store() -> None:
+def _reset_store(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("CONTRACTTWIN_API_KEY", API_KEY)
+    monkeypatch.setenv("CONTRACTTWIN_DB_PATH", str(tmp_path / "readings.sqlite"))
     clear_store()
 
 

@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 from contracttwin.api import app
 from contracttwin.pipeline import AnalysisRequest, analyze
 
-client = TestClient(app)
+from .conftest import API_HEADERS
+
+client = TestClient(app, headers=API_HEADERS)
 
 
 def test_one_line_uses_the_date_that_follows_each_phrase() -> None:

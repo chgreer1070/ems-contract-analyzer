@@ -217,4 +217,4 @@ See `PRODUCTION_READINESS.md` for the acceptance checklist.
 
 ## Separate reading service
 
-`lib/contracttwinCoreClient.ts` can send agreement text to the Python service in `../contracttwin`. That service returns cited clauses, a notice calendar, and pricing / NCNR / excess-and-obsolete exposure. The matter screens do not call it, and its response is not a legal-reliance record. Run instructions and the HTTP contract are in `../contracttwin/README.md`.
+`lib/contracttwinCoreClient.ts` can send agreement text to the Python service in `../contracttwin` when it is given that service's key. That service returns cited clauses, a notice calendar, and pricing / NCNR / excess-and-obsolete exposure. The matter screens do not call it, and its response is not a legal-reliance record. Run instructions and the HTTP contract are in `../contracttwin/README.md`.

@@ -10,6 +10,7 @@ import re
 
 from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
+from contracttwin.terms import term_candidates
 from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
 
 DAYS_RE = re.compile(
@@ -192,6 +193,7 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                         attributes={"quarter_end": quarter_end.isoformat()},
                     )
                 )
+        found.extend(term_candidates(line, version, warnings))
     return found
 
 
@@ -382,6 +384,18 @@ def _line_negates_exposure(line: str) -> bool:
 
 def _domain_for_line(line: str) -> str:
     lowered = line.lower()
+    if "indemnif" in lowered:
+        return "indemnity"
+    if "warrant" in lowered:
+        return "warranty"
+    if "consign" in lowered:
+        return "consignment"
+    if "terminat" in lowered:
+        return "termination"
+    if "forecast" in lowered or "end-of-life" in lowered or "end of life" in lowered or "last time buy" in lowered:
+        return "forecast"
+    if "liability" in lowered:
+        return "liability"
     if "notice" in lowered:
         return "notice"
     if "excess and obsolete" in lowered or "e&o" in lowered or "inventory" in lowered:

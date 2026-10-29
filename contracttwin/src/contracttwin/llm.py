@@ -88,6 +88,12 @@ def _candidates_from_model(raw: str, documents: list[PreparedDocument]) -> list[
             "definition",
             "survival",
             "precedence",
+            "liability",
+            "indemnity",
+            "warranty",
+            "termination",
+            "forecast",
+            "consignment",
             "general",
         }:
             domain = "general"

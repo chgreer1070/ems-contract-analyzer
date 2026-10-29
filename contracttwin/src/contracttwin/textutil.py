@@ -57,6 +57,7 @@ _NUMBER_WORDS = {
     "one hundred": 100,
     "one hundred twenty": 120,
     "one hundred twenty-five": 125,
+    "one hundred eighty": 180,
 }
 
 DATE_RE = re.compile(

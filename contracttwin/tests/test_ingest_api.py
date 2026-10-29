@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from contracttwin.api import app
 from contracttwin.ingest import IngestError, extract_upload
 
-from .conftest import FIXTURES, read_fixture
+from .conftest import API_HEADERS, FIXTURES, read_fixture
 
-client = TestClient(app)
+client = TestClient(app, headers=API_HEADERS)
 
 
 def test_word_round_trip_keeps_the_amendment_result() -> None:
@@ -45,7 +45,7 @@ def test_pdf_sentence_is_cited_verbatim() -> None:
     sentence = "2.1 Unit Prices. The unit price for product NW-100 is USD 12.40 per unit."
     payload = _pdf_bytes(sentence)
     extracted = extract_upload("prices.pdf", payload)
-    assert sentence in extracted
+    assert sentence in extracted.text
     response = client.post(
         "/v1/agreements/files",
         data={"manifest": '{"base": {"name": "Price page", "role": "base", "filename": "prices.pdf"}}'},
@@ -54,7 +54,7 @@ def test_pdf_sentence_is_cited_verbatim() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     quotes = [citation["quote"] for fact in body["facts"] for citation in fact["citations"]]
-    assert any(sentence in quote and sentence in extracted for quote in quotes)
+    assert any(sentence in quote and sentence in extracted.text for quote in quotes)
 
 
 def test_json_endpoint_reads_text_and_rejects_a_bad_date() -> None:

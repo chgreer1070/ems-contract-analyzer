@@ -24,8 +24,14 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
+export CONTRACTTWIN_API_KEY=choose-a-long-secret
+export CONTRACTTWIN_DB_PATH=data/contracttwin.sqlite
 uvicorn contracttwin.api:app --host 127.0.0.1 --port 8080
 ```
+
+The service refuses agreement calls until `CONTRACTTWIN_API_KEY` is set. Send that key as `X-API-Key` or `Authorization: Bearer`. `/health` stays open so a probe can see that the process is up. Readings are stored in the SQLite file from `CONTRACTTWIN_DB_PATH` and are still there after a restart. Send `agreement_key` when you want later readings of the same deal to stack as versions. If you leave it out, the base document's contents name the agreement.
+
+Uploads are limited to 2,000,000 bytes and to `.txt`, `.pdf`, and `.docx`. A file whose contents do not match that type is refused. At most 12 documents can be sent together.
 
 Then open `http://127.0.0.1:8080/docs` for the interactive page, or call the service as shown below.
 
@@ -33,10 +39,14 @@ Docker, from the repository root:
 
 ```bash
 docker build -t contracttwin-core contracttwin
-docker run --rm -p 8080:8080 contracttwin-core
+docker run --rm -p 8080:8080 \
+  -e CONTRACTTWIN_API_KEY=choose-a-long-secret \
+  -e CONTRACTTWIN_DB_PATH=/data/readings.sqlite \
+  -v contracttwin-data:/data \
+  contracttwin-core
 ```
 
-Tests do not call a model and do not need a network. The sample files are `tests/fixtures/harborline_msa.txt` and `tests/fixtures/harborline_amendment_1.txt`.
+Tests do not call a model and do not need a network. The sample files are `tests/fixtures/harborline_msa.txt`, `tests/fixtures/harborline_amendment_1.txt`, and `tests/fixtures/cedarline_terms.txt`. Cedarline is a second made-up agreement used for liability, indemnity, warranty, termination, forecast, consignment, and late fees.
 
 ## Send an agreement
 
@@ -45,6 +55,7 @@ Tests do not call a model and do not need a network. The sample files are `tests
 ```bash
 curl -s http://127.0.0.1:8080/v1/agreements \
   -H 'content-type: application/json' \
+  -H 'X-API-Key: choose-a-long-secret' \
   -d @- <<'JSON'
 {
   "base": {
@@ -69,7 +80,7 @@ JSON
 
 `POST /v1/agreements/files` takes a form field named `manifest` (the same JSON, without the text) and one or more `files`. Use `.txt`, `.pdf`, or `.docx`. The manifest `filename` must match the uploaded file name.
 
-`GET /v1/agreements/{analysis_id}` returns the same reading until the process restarts. `GET /health` returns `{"status":"ok"}`.
+`GET /v1/agreements/{analysis_id}` returns a stored reading. `GET /v1/agreement-versions?agreement_key=` lists the versions of one agreement. `GET /health` returns `{"status":"ok"}` without a key.
 
 On the Harborline sample, a correct reading shows:
 
@@ -105,14 +116,21 @@ Turning that on sends the agreement text to the model provider. Do not point it 
 
 Model output is still quote-checked. A paraphrase is rejected. A quote that survives only in replaced text is marked not operative. If the model is down or returns junk, the rule reading is kept. The model is never the system of record.
 
+## Documents
+
+Word files keep tables and tracked changes. The reading uses the words that remain after accepting insertions and dropping deletions. Deleted and inserted words are listed on the document as redline history. A quote of a deleted word is rejected, because that word is not in the operative text.
+
+PDF tables are read with pdfplumber. A page with no machine-readable text is flagged, including a page that looks scanned. The service does not guess the words on that page.
+
 ## Cockpit
 
-The cockpit file `commercial-legal-cockpit/lib/contracttwinCoreClient.ts` can POST text to this service. The matter screens do not call it. Wiring it into a matter would be a later, separate decision.
+The cockpit file `commercial-legal-cockpit/lib/contracttwinCoreClient.ts` can POST text to this service when it is given the service key. The matter screens do not call it. Wiring it into a matter would be a later, separate decision.
 
 ## What this is not
 
-- Not the full 41-topic EMS taxonomy, and not the cockpit economics engine.
-- Not sign-in, virus scanning, a database, or a human-approval record.
-- Not layout, tables, tracked changes, footnotes, or scanned-page reading. PDF and Word support is plain text. If the extractor changes a character, the quote check fails closed.
+- Not the full EMS term list, and not the cockpit's finance engine. The terms it reads are pricing, NCNR, excess and obsolete, liability and exclusions, indemnity, warranty, termination and survival, forecast, last-time-buy, end-of-life, consigned inventory, and late fees.
+- The service key is one shared key. It is not a person signing in. There is no virus scan and no human-approval record.
+- SQLite keeps readings for this service. It is not the cockpit's system of record.
+- Word reading covers paragraphs, tables, and tracked insertions and deletions. It does not cover footnotes, comments, or text boxes. PDF reading covers machine-readable text and tables. A scanned page is flagged and not guessed.
 - Not a holiday calendar beyond what the contract itself says.
 - Not production evidence. Passing these tests does not make a deployment ready for legal reliance.

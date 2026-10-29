@@ -1,13 +1,13 @@
 [project]
 name = "contracttwin"
-version = "0.1.0"
+version = "0.2.0"
 description = "Source-grounded EMS agreement reader. Facts cite the contract text they came from."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "pdfplumber>=0.11,<1",
   "pydantic>=2.9,<3",
-  "pypdf>=5.1,<7",
   "python-docx>=1.1,<2",
   "python-multipart>=0.0.12,<1",
   "uvicorn>=0.32,<1",
@@ -31,7 +31,10 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not smoke'"
+markers = [
+  "smoke: hits a running Docker container",
+]
 filterwarnings = [
   "ignore:starlette.testclient:UserWarning",
 ]
