@@ -32,6 +32,9 @@ export const auth = betterAuth({
         microsoft: {
           clientId: process.env.MICROSOFT_CLIENT_ID as string,
           clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
+          // Better Auth 1.7 stores this person's Entra directory object id, not the
+          // old app-specific subject. A concrete tenant lets the token's issuer be
+          // checked. Existing rows are rewritten by the gated auth migration.
           tenantId: process.env.MICROSOFT_TENANT_ID as string,
           authority: "https://login.microsoftonline.com",
           prompt: "select_account"

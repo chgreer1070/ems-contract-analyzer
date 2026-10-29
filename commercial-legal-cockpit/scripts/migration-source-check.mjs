@@ -91,6 +91,13 @@ assert.ok(authOccursBefore("assertDatabaseSchemaMigrationReceiptPrefix(targetCli
 assert.ok(authOccursBefore("assertDatabaseSchemaMigrationReceiptPrefix(targetClient","targetClient.query(compiledAuthMigrationSql)"),"legacy target rejection must precede Better Auth mutation");
 assert.ok(authOccursBefore("assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true})","targetClient.query(compiledAuthMigrationSql)"),"Better Auth DDL transaction must recheck the held live-target proof on its exact connection");
 assert.ok(authOccursBefore("targetClient.query(MIGRATION_ADVISORY_XACT_LOCK_QUERY)","targetClient.query(compiledAuthMigrationSql)"),"Better Auth DDL must hold the transaction-scoped schema lock on its exact connection");
+assert.ok(authOccursBefore("migrationPlanAddsAccountIssuer(toBeCreated)","compileMigrations()"),"an issuer column in the Better Auth plan must be refused before any auth DDL");
+assert.ok(authOccursBefore("schemaProblems","compileMigrations()"),"Better Auth schema problems must stop the migration before DDL");
+const cutoverIndex=authMigrateSource.indexOf("applyMicrosoftAccountCutover(targetClient)");
+assert.ok(cutoverIndex>authMigrateSource.indexOf("targetClient.query(compiledAuthMigrationSql)"),"Microsoft account cutover must follow Better Auth schema DDL");
+assert.ok(cutoverIndex<authMigrateSource.lastIndexOf('assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Post-auth database")'),"Microsoft account cutover must finish before the post-auth receipt check");
+const cutoverPrelude=authMigrateSource.slice(authMigrateSource.lastIndexOf("compiledAuthMigrationSql",cutoverIndex),cutoverIndex);
+assert.match(cutoverPrelude,/assertHeldPreMigrationTargetChallenge\(targetClient,\{withinTransaction:true\}\)/,"Microsoft account rewrite must recheck the held live-target proof");
 assert.match(authMigrateSource,/class TargetBoundMigrationPool extends Pool/,"Better Auth migration must wrap every independently reserved pg client");
 assert.match(authMigrateSource,/super\.connect\(\)\.then\(async client=>\{\s*try\{\s*await assertHeldPreMigrationTargetChallenge\(client\)/s,"promise-based Better Auth connections must validate the held target before use");
 assert.match(authMigrateSource,/super\.connect\(\(error,client,release\)=>\{[\s\S]*assertHeldPreMigrationTargetChallenge\(client\)[\s\S]*callback\(null,client,release\)/,"callback-based Better Auth connections must validate the held target before use");

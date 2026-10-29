@@ -80,11 +80,17 @@ const preMigrationBinding=await verifyPreMigrationTargetBinding({
   expectedTargetAnchor,
   requireVerifiedTls:true
 });
+// The account cutover checks saved Microsoft sign-in tokens. It needs the
+// public application id and tenant id, plus an optional one-line Entra export
+// when those tokens are missing. The client secret and auth secret stay out.
 const migrationEnvironment=childEnvironment({
   DATABASE_URL:migrationDatabaseUrl,
   EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor.databaseId,
   EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding.liveDatabaseFingerprint,
-  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge
+  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge,
+  MICROSOFT_CLIENT_ID:variables.get("MICROSOFT_CLIENT_ID")||"",
+  MICROSOFT_TENANT_ID:variables.get("MICROSOFT_TENANT_ID")||"",
+  MICROSOFT_ACCOUNT_OID_EXPORT_JSON:process.env.MICROSOFT_ACCOUNT_OID_EXPORT_JSON||""
 });
 try{
   await run("db:migrate:preflight",migrationEnvironment);

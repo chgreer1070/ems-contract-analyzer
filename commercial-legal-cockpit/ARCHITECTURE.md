@@ -71,7 +71,7 @@ flowchart LR
 
 ### 5.1 Identity and authorization
 
-- Microsoft Entra authentication through Better Auth.
+- Microsoft Entra authentication through Better Auth 1.7. The stored Microsoft account id is the directory object id, rewritten from any 1.6 app-specific subject by the gated auth migration before sign-in resumes.
 - Global application roles plus explicit matter owner/member access.
 - Separately administered legal-counsel attestation capability.
 - Capability-based legal review, finance review, executive approval, records administration and platform administration; role rank never implies another profession's authority.
