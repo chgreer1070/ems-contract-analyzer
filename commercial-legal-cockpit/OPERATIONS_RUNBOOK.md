@@ -31,11 +31,11 @@ Upgrading `better-auth` from 1.6.x to **1.7.14** is a coordinated identity chang
 2. Confirm `MICROSOFT_TENANT_ID` is the enterprise's concrete Entra tenant GUID. Do **not** use `common`, `organizations`, or `consumers`; Better Auth 1.7 binds the Microsoft account issuer to that GUID and the application rejects ambiguous tenants.
 3. Inventory existing Microsoft account rows. Better Auth 1.6 stored the pairwise, app-specific `sub` claim as `account.accountId`. Better Auth 1.7 stores the stable directory `oid` claim instead.
 4. Build a verified `sub`→`oid` mapping from stored Microsoft ID tokens when available, or from a trusted Entra export. Better Auth cannot derive `oid` from the old account row alone.
-5. Dry-run, then apply, the cutover script against the migration database identity:
+5. Dry-run, then apply, the cutover script (`scripts/microsoft-account-oid-cutover.mjs`) against the migration database identity:
 
 ```bash
-DATABASE_URL="$MIGRATION_DATABASE_URL" node scripts/microsoft-account-oid-cutover.mjs
-DATABASE_URL="$MIGRATION_DATABASE_URL" node scripts/microsoft-account-oid-cutover.mjs --apply --mapping path/to/sub-to-oid.json
+DATABASE_URL="$MIGRATION_DATABASE_URL" npm run db:migrate:microsoft-oid
+DATABASE_URL="$MIGRATION_DATABASE_URL" npm run db:migrate:microsoft-oid -- --apply --mapping path/to/sub-to-oid.json
 ```
 
 6. Deploy application code and the locked `better-auth@1.7.14` package together after the data rewrite (or on a pristine target with zero Microsoft account rows). Run `npm run db:migrate` so the Better Auth schema for the installed version is applied after ContractTwin receipts.
