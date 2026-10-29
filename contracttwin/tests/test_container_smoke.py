@@ -35,9 +35,9 @@ def container():
             "-e",
             f"CONTRACTTWIN_API_KEY={KEY}",
             "-e",
-            "CONTRACTTWIN_DB_PATH=/data/readings.sqlite",
-            "-p",
-            "127.0.0.1::8080",
+            "CONTRACTTWIN_DB_PATH=/tmp/readings.sqlite",
+            "--network",
+            "host",
             image,
         ],
         check=False,
@@ -45,11 +45,10 @@ def container():
         text=True,
     )
     if started.returncode != 0:
-        pytest.fail(started.stderr)
-    port = _published_port(name)
+        pytest.fail(started.stderr or started.stdout)
     try:
-        _wait(port)
-        yield port, name
+        _wait(name)
+        yield "8080", name
     finally:
         subprocess.run(["docker", "rm", "-f", name], check=False, capture_output=True)
 
@@ -73,34 +72,30 @@ def test_container_requires_a_key_and_keeps_the_reading(container) -> None:
     assert any(fact["attributes"].get("net_days") == 60 for fact in created["facts"] if fact["operative"])
 
     subprocess.run(["docker", "restart", name], check=True, capture_output=True)
-    _wait(port)
+    _wait(name)
     fetched = _request(port, "GET", f"/v1/agreements/{created['analysis_id']}", None, key=KEY)
     assert fetched["analysis_id"] == created["analysis_id"]
     assert fetched["version"] == 1
     assert fetched["agreement_key"] == "smoke"
 
 
-def _published_port(name: str) -> str:
-    completed = subprocess.run(
-        ["docker", "port", name, "8080"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return completed.stdout.strip().rsplit(":", 1)[-1]
-
-
-def _wait(port: str) -> None:
+def _wait(name: str) -> None:
     deadline = time.time() + 30
     last_error = "container did not answer"
     while time.time() < deadline:
         try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
+            urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2)
             return
         except Exception as exc:
             last_error = str(exc)
             time.sleep(0.5)
-    pytest.fail(last_error)
+    logs = subprocess.run(["docker", "logs", name], capture_output=True, text=True)
+    state = subprocess.run(
+        ["docker", "inspect", "-f", "{{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}", name],
+        capture_output=True,
+        text=True,
+    )
+    pytest.fail(f"{last_error}\nstate: {state.stdout}\nstdout:\n{logs.stdout}\nstderr:\n{logs.stderr}")
 
 
 def _request(port: str, method: str, path: str, payload: dict | None, key: str | None = None) -> dict:
