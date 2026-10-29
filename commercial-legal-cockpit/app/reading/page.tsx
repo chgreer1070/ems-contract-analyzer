@@ -74,24 +74,34 @@ export default function ReadingPage() {
     setReviewNote(body.message ?? "A person looked at this sample. This is not an approval.");
   }
 
+  const sampleLabel = (
+    <p data-testid="sample-label">
+      This is a sample reading of a made-up agreement. Harborline is not a Flex or customer contract.
+      Looking at it is not an approval, and it does not send a notice or change contract text.
+    </p>
+  );
   if (error) {
     return (
       <main data-testid="reading-error" style={{ fontFamily: "Georgia, serif", margin: "2rem", maxWidth: "42rem" }}>
         <h1>Sample agreement reading</h1>
+        {sampleLabel}
         <p>{error}</p>
       </main>
     );
   }
   if (!reading) {
     return (
-      <main data-testid="reading-loading" style={{ fontFamily: "Georgia, serif", margin: "2rem" }}>
-        Reading the sample agreement.
+      <main data-testid="reading-loading" style={{ fontFamily: "Georgia, serif", margin: "2rem", maxWidth: "42rem" }}>
+        <h1>Sample agreement reading</h1>
+        {sampleLabel}
+        <p>Reading the sample agreement.</p>
       </main>
     );
   }
   return (
     <main style={{ fontFamily: "Georgia, serif", margin: "2rem", maxWidth: "42rem" }}>
       <h1>Sample agreement reading</h1>
+      {sampleLabel}
       <p data-testid="disclaimer">{reading.disclaimer}</p>
       <h2>Payment</h2>
       <p data-testid="operative-payment">{reading.payment.statement}</p>
