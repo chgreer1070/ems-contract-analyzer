@@ -204,7 +204,7 @@ assert.match(authSource, /toLowerCase\(\)/);
 assert.match(authSource, /unconfiguredAuthSecret/);
 assert.match(authSource, /authRequired\s*\?\s*\{\}/);
 for (const tenant of ["common", "organizations", "consumers"]) assert.match(authSource, new RegExp(tenant));
-assert.match(authSource, /\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{12\}/);
+assert.match(authSource, /\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}-\[1-5\]\[0-9a-f\]\{3\}-\[89ab\]\[0-9a-f\]\{3\}-\[0-9a-f\]\{12\}/);
 
 const authMigrateSource = await fs.readFile(path.resolve("scripts/auth-migrate.mjs"), "utf8");
 assert.ok(authMigrateSource.indexOf("assertBetterAuth17AccountCutover") < authMigrateSource.indexOf("getMigrations(migrationAuth.options)"));

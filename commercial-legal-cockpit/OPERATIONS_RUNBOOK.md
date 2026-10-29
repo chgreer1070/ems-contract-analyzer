@@ -13,31 +13,38 @@ This is a future-state activation procedure, not current authorization to activa
 5. Run `npm ci` from the committed lockfile.
 6. Generate and independently record a random 256-bit target token, a production database UUID, and the SHA-256 of the normalized approved database host/port/name. Configure these only in the two protected GitHub environments documented below.
 7. Configure the separate `contracttwin-production-bootstrap` environment with `PRODUCTION_DATABASE_BOOTSTRAP_URL`, `MIGRATION_DATABASE_URL`, the three target values, and Vercel access. Approve and run `ContractTwin Production Target Bootstrap` once from current `main`. Confirm it creates only the separately owned target marker and performs no application/auth migration or deployment; then revoke/remove the bootstrap credential.
-8. Pause Microsoft sign-in, then complete the Better Auth 1.7 account cutover in section 1a before accepting traffic. Configure `MIGRATION_DATABASE_URL` plus the same three target values on `contracttwin-production`, approve and dispatch the production release workflow, and let its schema gate prove the distinct migrator/runtime credentials currently reach the same externally anchored database at the approved logical endpoint before applying every checksum-verified ContractTwin migration through `014_release_database_external_identity.sql`, followed by the Better Auth schema. The auth phase checks Microsoft account ids and stops the release when they still use the old subject; it does not rewrite them. Migration `014` must map the approved external logical identity to migration `010`'s preserved physical identity without rewriting prior migration or release receipts. Never add protected database or anchor credentials to Vercel or any application/runtime env file.
+8. Pause Microsoft sign-in, then complete the Better Auth 1.7 account cutover in section 2 before accepting traffic. Configure `MIGRATION_DATABASE_URL` plus the same three target values on `contracttwin-production`, approve and dispatch the production release workflow, and let its schema gate prove the distinct migrator/runtime credentials currently reach the same externally anchored database at the approved logical endpoint before applying every checksum-verified ContractTwin migration through `014_release_database_external_identity.sql`, followed by the Better Auth schema. The auth phase checks Microsoft account ids and stops the release when they still use the old subject; it does not rewrite them. Migration `014` must map the approved external logical identity to migration `010`'s preserved physical identity without rewriting prior migration or release receipts. Never add protected database or anchor credentials to Vercel or any application/runtime env file.
 9. Verify `/api/health` and `/api/readiness` without exposing secrets. Readiness must identify authentication, database, private Blob, ClamAV, OpenAI and OCR configuration; demo readiness is intentionally sanitized and is not activation evidence.
 10. Sign in as the identity configured in `BOOTSTRAP_ADMIN_EMAIL`, open `/bootstrap-admin`, explicitly bootstrap the first Admin, verify `/admin`, then remove `BOOTSTRAP_ADMIN_EMAIL` from production.
 11. Grant user roles through `/admin`; separately grant `LEGAL_COUNSEL_ATTEST` only to active, qualified Lawyer/Approver/Admin users under the documented counsel-authority process; configure restricted-matter memberships through each matter workspace.
 12. Load formally approved negotiation standards. New standards remain inactive until a separate Admin activation action.
 13. Run the frozen production validation suite from `/admin` against the exact configured model, prompt, corpus and validation-gate versions. Review every failed, missing, duplicate, unexpected, unsafe, normalized source-containment, or rejected-ungrounded result; do not lower thresholds merely to obtain a pass. The legacy `exact_quote_failure_count` field is not byte-exact because the current evaluator normalizes case and whitespace.
-14. Execute the live target-environment acceptance procedure in section 12 using approved synthetic sources.
+14. Execute the live target-environment acceptance procedure in section 13 using approved synthetic sources.
 15. Complete security/privacy/privilege/records-management review, backup/restore testing and penetration or risk-based security testing.
 16. Confirm `/api/readiness` reports the production infrastructure, exact current validation evidence, complete required standard coverage, and an empty approved evidence-kernel blocker list as ready. Only then consider setting `LEGAL_RELIANCE_ENABLED=true` through approved change management.
 
-## 1a. Better Auth 1.7 Microsoft account cutover
+## 2. Better Auth 1.7 Microsoft identity cutover
 
-Better Auth 1.7 is not a drop-in patch. Microsoft sign-in now stores the person's Entra directory object id (`oid`). Older rows store the app-specific subject (`sub`). Signing in on 1.7 before those rows are updated can create a second account for the same person. The account table does not gain a new required issuer column. Only a database that already ran Better Auth 1.7.0 through 1.7.2 needs the issuer column made optional and its unique index dropped; this release stops if it finds that leftover and does not drop it for you.
+Upgrading `better-auth` from 1.6.x to **1.7.14** is a coordinated identity change, not a silent dependency bump. It clears GHSA-965c-763c-88jm and related 1.7 advisories, but Microsoft account identity and the account issuer change:
 
-Do this while Microsoft sign-in is paused, before the release that runs Better Auth 1.7 accepts traffic:
+1. Keep `LEGAL_RELIANCE_ENABLED=false` and pause Microsoft sign-in / account linking for the cutover window when any Better Auth `account` rows already exist for `providerId` `microsoft` or `microsoft-entra-id`.
+2. Confirm `MICROSOFT_TENANT_ID` is the enterprise's concrete Entra tenant GUID. Do **not** use `common`, `organizations`, or `consumers`; Better Auth 1.7 binds the Microsoft account issuer to that GUID and the application rejects ambiguous tenants.
+3. Inventory existing Microsoft account rows. Better Auth 1.6 stored the pairwise, app-specific `sub` claim as `account.accountId`. Better Auth 1.7 stores the stable directory `oid` claim instead.
+4. Point `DATABASE_URL` at the migration credential. Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_TENANT_ID` to the same Entra application and directory GUID the app uses. In production also set `APP_ENV=production` so the connection requires `sslmode=verify-full`.
+5. Dry-run `node scripts/migrate-microsoft-account-identifiers.mjs`. It verifies each stored Microsoft ID token and reports which account ids would change. It does not print the token. A token that fails verification is not guessed from email or from the old subject.
+6. When the dry run only reports verified token changes, run the same command with `--apply`.
+7. When a row has no stored ID token, do not apply a guess. Build a reviewed JSON file whose source is `entra-export`, name the reviewer, and list only `accountRowId` plus `oid` from an Entra export. Then run `--apply --mapping <file>` while sign-in stays paused. After that command has stored those object ids, set the GitHub secret `MICROSOFT_ACCOUNT_OID_MAPPING_JSON` to the same file contents for the release that deploys this version. The release only checks that each listed object id is already stored. It does not write account ids, and a switch cannot make the old subject count as the object id. Remove the secret after that release. Do not put the file in Vercel.
+8. `scripts/microsoft-account-oid-cutover.mjs` (`npm run db:migrate:microsoft-oid`) is a separate helper that copies an `oid` out of a stored token without checking its signature, or from a `sub`→`oid` file. Do not use it as the sign-off. The release still requires a verified directory id and will stop if the stored id is only the old subject.
+9. Dispatch the production release only after the verifying command exits without asking for changes. Run `npm run db:migrate` so the Better Auth schema for the installed version is applied after ContractTwin receipts. The auth phase checks Microsoft account ids and stops the release when they still use the old subject; it does not rewrite them.
+10. Re-enable Microsoft sign-in only after a successful Entra login against the concrete tenant, and confirm no duplicate `account` rows share the same `(providerId, accountId)`.
 
-1. Point `DATABASE_URL` at the migration credential. Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_TENANT_ID` to the same Entra application and directory GUID the app uses. In production also set `APP_ENV=production` so the connection requires `sslmode=verify-full`.
-2. Dry-run `node scripts/migrate-microsoft-account-identifiers.mjs`. It verifies each stored Microsoft ID token and reports which account ids would change. It does not print the token. A token that fails verification is not guessed from email or from the old subject.
-3. When the dry run only reports verified token changes, run the same command with `--apply`.
-4. When a row has no stored ID token, do not apply a guess. Build a reviewed JSON file whose source is `entra-export`, name the reviewer, and list only `accountRowId` plus `oid` from an Entra export. Then run `--apply --mapping <file>` while sign-in stays paused. After that command has stored those object ids, set the GitHub secret `MICROSOFT_ACCOUNT_OID_MAPPING_JSON` to the same file contents for the release that deploys this version. The release only checks that each listed object id is already stored. It does not write account ids, and a switch cannot make the old subject count as the object id. Remove the secret after that release. Do not put the file in Vercel.
-5. Dispatch the production release only after the command exits without asking for changes. The release checks the same rules again and will stop before changing the database if Microsoft rows are still on the old subject.
+If the mapping cannot be verified, keep Microsoft sign-in paused. Accepting 1.7 production traffic against unmigrated `sub` rows can create duplicate accounts or orphan existing role grants.
 
 An empty account table has nothing to rewrite. The check still runs.
 
-## 2. Safe model or prompt upgrade
+Databases that briefly ran Better Auth 1.7.0–1.7.2 may still have a leftover nullable/`NOT NULL` `account.issuer` column or `account_issuer_accountId_uidx` index. 1.7.3+ no longer writes issuer. This release stops if it finds that required column or unique index and does not drop it for you. Fresh upgrades from 1.6.25 to 1.7.14 do not add that column.
+
+## 3. Safe model or prompt upgrade
 
 Any change to a production OpenAI model, analysis prompt, output schema, graph version or economics formula invalidates prior reliance evidence for the changed engine manifest.
 
@@ -52,7 +59,7 @@ Any change to a production OpenAI model, analysis prompt, output schema, graph v
 
 Do not reuse a passing validation record, counsel receipt, graph receipt or economics run from a different engine manifest, input generation, agreement version or formula version.
 
-## 3. Negotiation standard change
+## 4. Negotiation standard change
 
 1. Admin creates the proposed standard in `/admin`. It is inactive by design.
 2. Legal/Finance/BU stakeholders review the standard, fallback, no-go, authority and business rationale outside the activation action as required by company governance.
@@ -63,7 +70,7 @@ Do not reuse a passing validation record, counsel receipt, graph receipt or econ
 
 AI must never be used as the source of company policy.
 
-## 4. Contract matter lifecycle
+## 5. Contract matter lifecycle
 
 ### Open matter
 
@@ -111,7 +118,7 @@ AI must never be used as the source of company policy.
 - Apply retention category/date under approved company policy.
 - Preserve legal holds until formally released by authorized personnel.
 
-## 5. Scanned/large-document processing
+## 6. Scanned/large-document processing
 
 - All sources must pass ClamAV before any extraction path. Machine-readable PDFs/DOCX/TXT then use local extraction and hashed source chunks.
 - XLSX and scanned/otherwise non-machine-readable sources are routed to the configured Azure Document Intelligence Layout service.
@@ -132,7 +139,7 @@ AI must never be used as the source of company policy.
 - Do not manually set a source to `CLEAN`. Investigate scanner responses and retry through the governed job path. Preserve the source and relevant evidence for incident handling; do not download a quarantined object through ordinary user workflows.
 - Validate clean, detected and unavailable/unrecognized scanner paths in staging with approved synthetic fixtures before production activation. Do not commit malware test files to this repository.
 
-## 6. Source purge / records destruction
+## 7. Source purge / records destruction
 
 `ALLOW_SOURCE_PURGE=false` is the normal safe state.
 
@@ -147,7 +154,7 @@ A source object may be destroyed only when all of the following are true:
 
 Execution is two-phase: the database first records `PENDING_PURGE`, then the private Blob is deleted, then a separate transaction records `PURGED`, the executed request, and audit evidence. If external deletion or finalization fails, leave the pending state in place and investigate/retry through the governed path; do not manually erase the database record. Blob-not-found may be treated as already deleted only during a properly authorized retry. After deletion, ContractTwin preserves the document tombstone and audit history. If there is any uncertainty, do not purge.
 
-## 7. Access review
+## 8. Access review
 
 At the cadence required by company policy:
 
@@ -158,7 +165,7 @@ At the cadence required by company policy:
 - review Entra conditional access/MFA configuration; and
 - review production secrets/credential rotation.
 
-## 8. Database migration
+## 9. Database migration
 
 - Never edit an already-applied ContractTwin migration file.
 - Create a new numbered migration.
@@ -181,7 +188,7 @@ Every migration through `014_release_database_external_identity.sql` is a blocki
 4. verify application and worker versions are deployed together with the schema change; and
 5. apply production migration only under the approved backup/change/rollback procedure.
 
-## 9. Incident response
+## 10. Incident response
 
 For suspected unauthorized access, source leakage, AI data-handling issue, corrupted source integrity, or audit anomaly:
 
@@ -195,13 +202,13 @@ For suspected unauthorized access, source leakage, AI data-handling issue, corru
 8. revalidate model/prompt behavior if inference integrity is implicated; and
 9. document the decision to restore service/reliance.
 
-## 10. Backup and disaster recovery
+## 11. Backup and disaster recovery
 
 Backup cadence, geographic replication, RPO/RTO and retention are environment/company decisions and are not invented by this repository. Production approval should require documented PostgreSQL backup/restore procedures and source-object recovery/retention procedures consistent with the chosen private Blob configuration and corporate policy.
 
 Perform an actual restore drill before treating disaster recovery as operational.
 
-## 11. Release procedure
+## 12. Release procedure
 
 A release candidate must use the committed `package-lock.json` and pass:
 
@@ -218,7 +225,7 @@ A release candidate must use the committed `package-lock.json` and pass:
 
 A release attestation is valid only if it binds the exact tested source SHA and records every required gate above, including application controls, target migration receipts, the live critical-database-control manifest, and runtime-role least-privilege proof. Retain the run-scoped attestation artifact and verify its digest from the workflow summary; the evidence workflow must not commit files back to or otherwise advance the tested source branch. The production workflow must expose the protected migration credential only to the schema-gate step, migrate and verify the target database, verify the separately pulled runtime credential without substituting it for the migrator, stage the exact prebuilt artifact without assigning the production domain, pass the token-protected live release proof, and only then promote that staged URL. Do not infer coverage from an attestation filename or workflow success; verify the gate list for the exact workflow revision and SHA. This runbook does not claim those checks have run. A code-complete attestation does **not** assert that external production infrastructure, company policy, live target-environment behavior, or real-contract legal validation has been approved.
 
-## 12. Live target-environment acceptance
+## 13. Live target-environment acceptance
 
 Before confidential production use, record dated evidence, source/deployment SHAs, environment, tester and approver for each of the following using approved synthetic content:
 
