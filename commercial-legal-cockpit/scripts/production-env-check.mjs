@@ -97,6 +97,9 @@ async function main() {
   if(variables.has("RUNTIME_DATABASE_URL")){
     errors.push("RUNTIME_DATABASE_URL is a gate-only alias and must not be present in Vercel");
   }
+  if(variables.has("MICROSOFT_ACCOUNT_OID_EXPORT")||variables.has("MICROSOFT_ACCOUNT_OID_EXPORT_PATH")){
+    errors.push("Microsoft account directory export must remain a protected migration input and must not be present in Vercel");
+  }
   for(const name of forbiddenDatabaseOverrides){
     if(variables.has(name))errors.push(`${name} must not override the controlled production database transport or search path`);
   }

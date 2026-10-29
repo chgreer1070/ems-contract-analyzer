@@ -44,6 +44,9 @@ try{
     await client.query(`grant select on table public.schema_migrations to ${roleIdentifier}`);
     await client.query(`revoke all privileges on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts from ${roleIdentifier}`);
     await client.query(`grant select on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts to ${roleIdentifier}`);
+    await client.query(`revoke all privileges on table public.microsoft_account_subject_cutover from ${roleIdentifier}`);
+    await client.query(`revoke select(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),insert(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),update(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),references(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source) on table public.microsoft_account_subject_cutover from ${roleIdentifier}`);
+    await client.query(`grant select on table public.microsoft_account_subject_cutover to ${roleIdentifier}`);
     await client.query(`grant usage,select on all sequences in schema public to ${roleIdentifier}`);
     await client.query(`revoke update on all sequences in schema public from public,${roleIdentifier}`);
     const runtimeFunctions=(await client.query(`

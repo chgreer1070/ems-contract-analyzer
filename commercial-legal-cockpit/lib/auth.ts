@@ -32,6 +32,8 @@ export const auth = betterAuth({
         microsoft: {
           clientId: process.env.MICROSOFT_CLIENT_ID as string,
           clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
+          // Better Auth 1.7 owns this account id and sets it from the verified
+          // Entra directory object id (oid), not the app-specific subject (sub).
           tenantId: process.env.MICROSOFT_TENANT_ID as string,
           authority: "https://login.microsoftonline.com",
           prompt: "select_account"

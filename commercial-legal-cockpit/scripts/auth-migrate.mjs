@@ -1,5 +1,6 @@
 import {betterAuth} from "better-auth";
 import {getMigrations} from "better-auth/db/migration";
+import {applyMicrosoftAccountSubjectCutover} from "./microsoft-account-subject.mjs";
 import pg from "pg";
 import {assertTrustedMigrationTarget,verifiedDatabaseConnectionConfig} from "./database-connection-config.mjs";
 import {
@@ -64,6 +65,9 @@ try{
     await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
     await targetClient.query(compiledAuthMigrationSql);
   }
+  await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
+  const microsoftCutover=await applyMicrosoftAccountSubjectCutover(targetClient,process.env);
+  console.log(`Microsoft account subject cutover ${microsoftCutover.status}: rewritten ${microsoftCutover.rewrittenCount}, already aligned ${microsoftCutover.alreadyAlignedCount}, source ${microsoftCutover.evidenceSource}.`);
   await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Post-auth database");
   await assertTrustedMigrationTarget(targetClient);

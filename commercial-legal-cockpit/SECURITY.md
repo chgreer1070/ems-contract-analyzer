@@ -48,6 +48,10 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
 
+Better Auth 1.7.14 identifies a Microsoft account by the verified Entra directory object id (`oid`). Version 1.6 stored the app-specific subject (`sub`). The auth migration rewrites existing `microsoft` and `microsoft-entra-id` rows from a verified stored id token, or from a protected Entra export when no token is stored, and records that cutover before commit. Production sign-in stays paused while Microsoft account rows exist without that record, so an old subject cannot be opened as a second person. The directory export is operator input, not a Microsoft signature, and it is not an application runtime setting.
+
+
+
 ### OpenAI
 
 External inference boundary. Send only content approved for the configured enterprise/API environment. Model output is untrusted until schema validation, source verification and required human review complete.

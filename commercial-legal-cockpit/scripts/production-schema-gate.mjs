@@ -22,7 +22,9 @@ for(const protectedName of [
   "EXPECTED_PRODUCTION_RUNTIME_DATABASE_ENDPOINT_SHA256",
   "EXPECTED_PRODUCTION_MIGRATION_DATABASE_ENDPOINT_SHA256",
   "PRODUCTION_DATABASE_BOOTSTRAP_URL",
-  "EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256"
+  "EXPECTED_PRODUCTION_BOOTSTRAP_DATABASE_ENDPOINT_SHA256",
+  "MICROSOFT_ACCOUNT_OID_EXPORT",
+  "MICROSOFT_ACCOUNT_OID_EXPORT_PATH"
 ]){
   if(variables.has(protectedName))throw new Error(`${protectedName} must not be present in the pulled Vercel production environment.`);
 }
@@ -80,11 +82,23 @@ const preMigrationBinding=await verifyPreMigrationTargetBinding({
   expectedTargetAnchor,
   requireVerifiedTls:true
 });
+const microsoftClientId=variables.get("MICROSOFT_CLIENT_ID")||"";
+const microsoftTenantId=variables.get("MICROSOFT_TENANT_ID")||"";
+if(!microsoftClientId||!microsoftTenantId){
+  throw new Error("Pulled production Microsoft client id and tenant id are required before the Better Auth account cutover.");
+}
+const microsoftAccountOidExport=(process.env.MICROSOFT_ACCOUNT_OID_EXPORT||"").trim();
+if(microsoftAccountOidExport.includes("\n")||microsoftAccountOidExport.includes("\r")){
+  throw new Error("MICROSOFT_ACCOUNT_OID_EXPORT must be a single line of JSON.");
+}
 const migrationEnvironment=childEnvironment({
   DATABASE_URL:migrationDatabaseUrl,
   EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor.databaseId,
   EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding.liveDatabaseFingerprint,
-  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge
+  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge,
+  MICROSOFT_CLIENT_ID:microsoftClientId,
+  MICROSOFT_TENANT_ID:microsoftTenantId,
+  ...(microsoftAccountOidExport?{MICROSOFT_ACCOUNT_OID_EXPORT:microsoftAccountOidExport}:{})
 });
 try{
   await run("db:migrate:preflight",migrationEnvironment);

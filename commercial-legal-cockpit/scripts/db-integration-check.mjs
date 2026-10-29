@@ -104,7 +104,7 @@ async function raceSafeCounselRelationUniqueness(){
 }
 
 try{
-  for(const table of ["user","session","account","verification","matters","documents","audit_events","negotiation_standards","contract_terms","processing_jobs","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies"]){
+  for(const table of ["user","session","account","verification","microsoft_account_subject_cutover","matters","documents","audit_events","negotiation_standards","contract_terms","processing_jobs","api_rate_events","decision_conditions","app_user_capabilities","analysis_review_attestations","analysis_engine_policies"]){
     const result=await client.query("select to_regclass($1) name",[table]);
     if(!result.rows[0].name)throw new Error(`Required migrated table missing: ${table}`);
   }

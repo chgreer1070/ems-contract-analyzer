@@ -225,7 +225,7 @@ assert.match(productionSchemaGate,/MIGRATION_DATABASE_URL/);
 assert.match(productionSchemaGate,/CHILD_ENVIRONMENT_ALLOWLIST/);
 assert.doesNotMatch(productionSchemaGate,/Object\.fromEntries\(variables\)/,"database subprocesses must not inherit pulled Vercel secrets");
 assert.match(productionSchemaGate,/const migrationTransportEnvironment=childEnvironment\(\{DATABASE_URL:migrationDatabaseUrl\}\)/);
-assert.match(productionSchemaGate,/const migrationEnvironment=childEnvironment\(\{\s*DATABASE_URL:migrationDatabaseUrl,\s*EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor\.databaseId,\s*EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding\.liveDatabaseFingerprint,\s*HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding\.challenge\s*\}\)/s);
+assert.match(productionSchemaGate,/const migrationEnvironment=childEnvironment\(\{\s*DATABASE_URL:migrationDatabaseUrl,\s*EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor\.databaseId,\s*EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding\.liveDatabaseFingerprint,\s*HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding\.challenge,\s*MICROSOFT_CLIENT_ID:microsoftClientId,\s*MICROSOFT_TENANT_ID:microsoftTenantId,\s*\.\.\.\(microsoftAccountOidExport\?\{MICROSOFT_ACCOUNT_OID_EXPORT:microsoftAccountOidExport\}:\{\}\)\s*\}\)/s);
 assert.match(productionSchemaGate,/RUNTIME_DATABASE_URL:runtimeDatabaseUrl/);
 assert.doesNotMatch(productionSchemaGate,/childEnvironment\(\{[^}]*MIGRATION_DATABASE_URL/s,"migration credential must never enter a child environment");
 assert.ok(productionSchemaGate.indexOf('run("db:verify-migration-transport"')<productionSchemaGate.indexOf('run("db:migrate"'),"migration TLS evidence must precede migration acceptance");

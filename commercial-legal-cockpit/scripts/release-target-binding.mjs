@@ -317,6 +317,9 @@ async function grantReleaseControlReadAccess(migrationClient,runtimeRoleName){
   await migrationClient.query(`revoke select(singleton,external_database_id,release_database_id,created_at),insert(singleton,external_database_id,release_database_id,created_at),update(singleton,external_database_id,release_database_id,created_at),references(singleton,external_database_id,release_database_id,created_at) on table public.release_database_external_identity from ${role}`);
   await migrationClient.query(`revoke select(nonce_sha256,database_id,source_sha,created_at),insert(nonce_sha256,database_id,source_sha,created_at),update(nonce_sha256,database_id,source_sha,created_at),references(nonce_sha256,database_id,source_sha,created_at) on table public.release_target_receipts from ${role}`);
   await migrationClient.query(`grant select on table public.release_database_identity,public.release_database_external_identity,public.release_target_receipts to ${role}`);
+  await migrationClient.query(`revoke all privileges on table public.microsoft_account_subject_cutover from ${role}`);
+  await migrationClient.query(`revoke select(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),insert(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),update(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source),references(cutover_id,completed_at,rewritten_count,already_aligned_count,evidence_source) on table public.microsoft_account_subject_cutover from ${role}`);
+  await migrationClient.query(`grant select on table public.microsoft_account_subject_cutover to ${role}`);
 }
 
 export async function establishReleaseTargetBinding({
