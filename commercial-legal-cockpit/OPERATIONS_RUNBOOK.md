@@ -38,6 +38,51 @@ Any change to a production OpenAI model, analysis prompt, output schema, graph v
 
 Do not reuse a passing validation record, counsel receipt, graph receipt or economics run from a different engine manifest, input generation, agreement version or formula version.
 
+## 2a. Better Auth 1.7 upgrade
+
+Do not treat this as a silent patch. ContractTwin pins `better-auth@1.7.14` to clear production npm audit findings for GHSA-965c-763c-88jm and the related Better Auth 1.7 advisories. Follow the official [Better Auth 1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide) for the cutover. This section records the ContractTwin-specific operator work.
+
+### Why this is a governed cutover
+
+1. Better Auth 1.7 changes how Microsoft Entra identities are stored: `account.accountId` for `providerId = 'microsoft'` becomes the directory `oid` claim instead of the pairwise, app-specific `sub` claim used in 1.6.
+2. With a concrete `MICROSOFT_TENANT_ID`, Better Auth validates the token issuer as `https://login.microsoftonline.com/<tenantId>/v2.0`. Multi-tenant aliases (`common`, `organizations`, `consumers`) are forbidden in this application because they skip that fixed issuer check.
+3. Databases that briefly ran Better Auth 1.7.0 through 1.7.2 may still have a required `account.issuer` column and `account_issuer_accountId_uidx` unique index. 1.7.3+ no longer writes `issuer`. A direct upgrade from 1.6 to 1.7.14 does not need issuer cleanup; only those intermediate databases must relax the NOT NULL constraint and drop that index before accepting traffic.
+4. Package upgrade, Microsoft account-row migration, and production traffic cutover are separate approved steps. Deploying 1.7.14 without the Microsoft accountId migration can create duplicate Entra-linked accounts.
+
+### Operator procedure before production traffic on 1.7
+
+1. Keep `LEGAL_RELIANCE_ENABLED=false` and schedule an authentication maintenance window.
+2. Install and lock `better-auth@1.7.14` from the committed `package-lock.json` (`npm ci`). Confirm `npm run test:better-auth-upgrade` passes.
+3. On the target database, inventory Microsoft account rows:
+
+```sql
+SELECT id, "userId", "providerId", "accountId", "createdAt"
+FROM account
+WHERE "providerId" IN ('microsoft', 'microsoft-entra-id')
+ORDER BY "createdAt", id;
+```
+
+Also check for duplicate account keys before schema work:
+
+```sql
+SELECT "providerId", "accountId", count(*)
+FROM account
+GROUP BY 1, 2
+HAVING count(*) > 1;
+```
+
+4. If the inventory is empty (no Microsoft account rows yet), record that finding and continue. No `sub`→`oid` rewrite is required.
+5. If Microsoft account rows exist, migrate each row's `accountId` from the old `sub` value to the verified directory `oid` for that Entra user before accepting production sign-in traffic:
+   - Prefer verifying a stored Microsoft ID token and copying its `oid` claim.
+   - When stored ID tokens are unavailable, pause Microsoft Entra sign-in and account linking during the cutover and obtain the mapping from a trusted Microsoft Entra export. Better Auth cannot derive `oid` from the old account row alone.
+6. If the database previously applied Better Auth 1.7.0–1.7.2 migrations and still has a required `issuer` column, relax it and drop `account_issuer_accountId_uidx` before deploying 1.7.14 (see the upgrade guide). Dropping the column is optional cleanup.
+7. Deploy application code that pins 1.7.14 together with the Microsoft provider configuration that requires a concrete tenant GUID.
+8. After cutover, verify Entra sign-in for an existing migrated identity and for a newly linked identity; confirm `/api/readiness` still reports Microsoft configuration correctly; restart any in-flight OAuth flows begun before the upgrade.
+
+### What this upgrade does not authorize
+
+Clearing Better Auth advisories does not authorize production legal reliance, does not replace Entra conditional-access review, and does not prove that every environment's account table has been migrated. Treat each environment's inventory and migration evidence as a separate release gate.
+
 ## 3. Negotiation standard change
 
 1. Admin creates the proposed standard in `/admin`. It is inactive by design.
