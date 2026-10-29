@@ -127,6 +127,14 @@ async function main() {
     if(sslModes.length!==1||sslModes[0]!=="verify-full")errors.push("DATABASE_URL must require exactly one sslmode=verify-full");
   }catch{errors.push("DATABASE_URL must be a valid PostgreSQL URL");}
 
+  const microsoftTenantId=(variables.get("MICROSOFT_TENANT_ID")||"").trim();
+  const ambiguousMicrosoftTenants=new Set(["common","organizations","consumers"]);
+  if(ambiguousMicrosoftTenants.has(microsoftTenantId.toLowerCase())){
+    errors.push("MICROSOFT_TENANT_ID must be a concrete Entra tenant GUID; Better Auth 1.7 rejects common/organizations/consumers so the Microsoft account issuer can be validated");
+  }else if(microsoftTenantId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(microsoftTenantId)){
+    errors.push("MICROSOFT_TENANT_ID must be a concrete Entra tenant GUID");
+  }
+
   if (errors.length > 0) {
     throw new Error(`Production environment gate failed:\n- ${errors.join("\n- ")}`);
   }

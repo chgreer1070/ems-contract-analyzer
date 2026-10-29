@@ -48,9 +48,11 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
 
-Better Auth 1.7.14 identifies a Microsoft account by the verified Entra directory object id (`oid`). Version 1.6 stored the app-specific subject (`sub`). The auth migration rewrites existing `microsoft` and `microsoft-entra-id` rows from a verified stored id token, or from a protected Entra export when no token is stored, and records that cutover before commit. Production sign-in stays paused while Microsoft account rows exist without that record, so an old subject cannot be opened as a second person. The directory export is operator input, not a Microsoft signature, and it is not an application runtime setting.
+Production pins `better-auth` **1.7.14**, which clears GHSA-965c-763c-88jm and the related Better Auth 1.7 advisories. This is a breaking identity cutover, not a silent patch: Microsoft account rows must use the verified Entra directory `oid` as `account.accountId`, and `MICROSOFT_TENANT_ID` must be a concrete tenant GUID so Better Auth can validate the Microsoft account issuer. Ambiguous tenants (`common` / `organizations` / `consumers`) are rejected.
 
+Two cutover procedures are currently in the tree and are not the same operation. The auth migration rewrites existing `microsoft` and `microsoft-entra-id` rows from a verified stored id token, or from a protected Entra export when no token is stored, and records that cutover before commit. Production sign-in stays paused while Microsoft account rows exist without that record. The directory export is operator input, not a Microsoft signature, and it is not an application runtime setting. A separate operator script, `scripts/microsoft-account-oid-cutover.mjs`, can inventory and apply a `sub`→`oid` mapping outside that migration. Follow `OPERATIONS_RUNBOOK.md` and do not treat those procedures as interchangeable.
 
+The same release also hardens the production dependency audit gate by pinning Next.js **16.4.3**, Workflow **4.8.15**, `@vercel/blob` **2.8.2**, and exact overrides for patched transitive packages so `npm audit --omit=dev --audit-level=high` reports zero findings.
 
 ### OpenAI
 
