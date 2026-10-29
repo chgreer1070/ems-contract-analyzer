@@ -14,7 +14,7 @@ A release is frozen only when an attestation records all of the following for on
 
 - exact Git commit SHA and clean source state;
 - locked dependency installation and production dependency audit;
-- Better Auth and ContractTwin migrations through `014` against PostgreSQL 17, including exact ordered filename/hash receipts, idempotent rerun, immutable physical/logical target identity and per-release binding, database-control checks, counsel-authority and decision-rationale controls, worker-concurrency fencing, and live critical-object drift detection;
+- Better Auth 1.7 and ContractTwin migrations through `014` against PostgreSQL 17, including the Microsoft directory-object-id account cutover check, exact ordered filename/hash receipts, idempotent rerun, immutable physical/logical target identity and per-release binding, database-control checks, counsel-authority and decision-rationale controls, worker-concurrency fencing, and live critical-object drift detection;
 - application access, validation/readiness and security-boundary control checks;
 - frozen corpus and deterministic economics checks;
 - TypeScript, production build and CodeQL results;

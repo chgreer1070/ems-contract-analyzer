@@ -71,7 +71,7 @@ flowchart LR
 
 ### 5.1 Identity and authorization
 
-- Microsoft Entra authentication through Better Auth.
+- Microsoft Entra authentication through Better Auth. Version 1.7 stores the directory object id (`oid`), not the older app-specific subject (`sub`). Existing Microsoft account rows have to be moved to that id before sign-in is accepted.
 - Global application roles plus explicit matter owner/member access.
 - Separately administered legal-counsel attestation capability.
 - Capability-based legal review, finance review, executive approval, records administration and platform administration; role rank never implies another profession's authority.

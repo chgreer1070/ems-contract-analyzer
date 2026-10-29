@@ -1,6 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isConcreteEntraTenantId } from "./microsoft-account-identity.mjs";
 
 const requiredExactValues = new Map([
   ["APP_ENV", "production"],
@@ -115,6 +116,9 @@ async function main() {
   }
   if((variables.get("RELEASE_ATTESTATION_TOKEN")||"").length<32){
     errors.push("RELEASE_ATTESTATION_TOKEN must contain at least 32 characters");
+  }
+  if((variables.get("MICROSOFT_TENANT_ID")||"").trim() && !isConcreteEntraTenantId(variables.get("MICROSOFT_TENANT_ID")||"")){
+    errors.push("MICROSOFT_TENANT_ID must be the Entra directory GUID. common, organizations, and consumers are not accepted");
   }
   try{
     const databaseUrl=new URL(variables.get("DATABASE_URL")||"");

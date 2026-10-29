@@ -80,11 +80,16 @@ const preMigrationBinding=await verifyPreMigrationTargetBinding({
   expectedTargetAnchor,
   requireVerifiedTls:true
 });
+// The Entra application id and directory GUID let the auth migrator verify stored
+// Microsoft ID tokens. The client secret stays in the pulled file and is not passed on.
 const migrationEnvironment=childEnvironment({
   DATABASE_URL:migrationDatabaseUrl,
   EXPECTED_PRODUCTION_DATABASE_ID:expectedTargetAnchor.databaseId,
   EXPECTED_LIVE_DATABASE_FINGERPRINT:preMigrationBinding.liveDatabaseFingerprint,
-  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge
+  HELD_PRE_MIGRATION_DATABASE_CHALLENGE:preMigrationBinding.challenge,
+  MICROSOFT_CLIENT_ID:variables.get("MICROSOFT_CLIENT_ID")||"",
+  MICROSOFT_TENANT_ID:variables.get("MICROSOFT_TENANT_ID")||"",
+  MICROSOFT_ACCOUNT_OID_MAPPING_JSON:process.env.MICROSOFT_ACCOUNT_OID_MAPPING_JSON||""
 });
 try{
   await run("db:migrate:preflight",migrationEnvironment);

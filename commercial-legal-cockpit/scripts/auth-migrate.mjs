@@ -8,6 +8,7 @@ import {
   MIGRATION_ADVISORY_XACT_LOCK_QUERY
 } from "./schema-migration-manifest.mjs";
 import {assertHeldPreMigrationTargetChallenge} from "./release-target-binding.mjs";
+import {assertBetterAuth17AccountCutover,parseReviewedOidMapping} from "./microsoft-account-identity.mjs";
 
 const {Pool}=pg;
 if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required.");
@@ -55,6 +56,17 @@ try{
   await assertHeldPreMigrationTargetChallenge(targetClient,{withinTransaction:true});
   await targetClient.query(MIGRATION_ADVISORY_XACT_LOCK_QUERY);
   await assertDatabaseSchemaMigrationReceiptPrefix(targetClient,manifest,"Pre-auth database");
+  const mappingJson=process.env.MICROSOFT_ACCOUNT_OID_MAPPING_JSON||"";
+  let reviewedByRowId=null;
+  if(mappingJson.trim()){
+    try{reviewedByRowId=parseReviewedOidMapping(JSON.parse(mappingJson));}
+    catch(error){throw new Error(`Microsoft account mapping was rejected. ${error instanceof Error?error.message:"Mapping JSON is not valid."}`);}
+  }
+  await assertBetterAuth17AccountCutover(targetClient,{
+    clientId:process.env.MICROSOFT_CLIENT_ID||"",
+    tenantId:process.env.MICROSOFT_TENANT_ID||"",
+    reviewedByRowId
+  });
   const migrationAuth=betterAuth({database:pool});
   const {toBeCreated,toBeAdded,compileMigrations}=await getMigrations(migrationAuth.options);
   console.log(`Better Auth schema: ${toBeCreated.length} tables to create, ${toBeAdded.length} fields/indexes to add.`);
