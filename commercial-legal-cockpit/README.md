@@ -20,7 +20,7 @@ The completion contract and target product are defined in [`ARCHITECTURE.md`](AR
 ### Application and identity
 
 - Next.js 16 / React 19 / TypeScript.
-- Better Auth using Microsoft Entra ID as the production identity provider.
+- Better Auth `1.7.14` using Microsoft Entra ID as the production identity provider. The 1.7 cutover uses Entra `oid` as the stable Microsoft account key; see `OPERATIONS_RUNBOOK.md` section 8 before production traffic.
 - PostgreSQL-backed Better Auth schema plus ContractTwin application schema.
 - Server-enforced `VIEWER`, `LAWYER`, `APPROVER`, and `ADMIN` roles.
 - Restricted matters require explicit matter membership for ordinary users. The current Admin bypass is a known pilot limitation; production privileged-content access requires explicit content authority and audited, time-bound break-glass rather than technical role inheritance.

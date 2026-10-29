@@ -46,7 +46,7 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 ### Microsoft Entra ID / Better Auth
 
-Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
+Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks. Better Auth 1.7 treats the verified Microsoft Entra directory `oid` claim as the stable provider-owned account identifier; pairwise `sub` values must not be used as account keys after the 1.7 cutover. Identity confirmation still does not grant matter or role authority.
 
 ### OpenAI
 

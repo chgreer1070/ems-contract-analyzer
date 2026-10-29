@@ -23,6 +23,12 @@ if (authRequired && process.env.NODE_ENV === "production") {
   }
 }
 
+// Better Auth 1.7 stores the Microsoft Entra directory `oid` claim as the
+// provider-owned account identifier (not the pairwise app-specific `sub`).
+// Existing 1.6 account rows must be rewritten with
+// `npm run db:migrate:microsoft-oid` before production traffic on 1.7.
+// Jumping from 1.6.x to >=1.7.3 (including 1.7.14) does not add an `issuer`
+// column; only databases that briefly ran 1.7.0–1.7.2 need that cleanup.
 export const auth = betterAuth({
   ...(databaseConfigured() ? { database: getPool() } : {}),
   ...(process.env.BETTER_AUTH_SECRET ? { secret: process.env.BETTER_AUTH_SECRET } : {}),
@@ -32,6 +38,7 @@ export const auth = betterAuth({
         microsoft: {
           clientId: process.env.MICROSOFT_CLIENT_ID as string,
           clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
+          // Concrete tenant GUID required so token issuer/oid validation stays tenant-bound.
           tenantId: process.env.MICROSOFT_TENANT_ID as string,
           authority: "https://login.microsoftonline.com",
           prompt: "select_account"
