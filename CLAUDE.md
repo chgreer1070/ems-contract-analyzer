@@ -26,3 +26,11 @@ npm run build
 ```
 
 Follow `commercial-legal-cockpit/OPERATIONS_RUNBOOK.md` for database-backed checks and release handling.
+
+The MVP reading core is the separate Python service in `contracttwin/`, not a port into the Next.js app and not an extension of the historical Flask prototype. The cockpit calls it over HTTP through `commercial-legal-cockpit/lib/contracttwinCoreClient.ts`. That client is not on the legal-reliance path.
+
+```bash
+cd contracttwin
+python -m pip install -e ".[dev]"
+python -m pytest
+```

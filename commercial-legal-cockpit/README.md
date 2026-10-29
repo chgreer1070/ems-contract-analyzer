@@ -214,3 +214,7 @@ Vercel project root directory must be `commercial-legal-cockpit`.
 13. Keep `ALLOW_SOURCE_PURGE=false` unless records-management leadership separately authorizes purge operations and a recovery-tested runbook is in place.
 
 See `PRODUCTION_READINESS.md` for the acceptance checklist.
+
+## Separate reading service
+
+`lib/contracttwinCoreClient.ts` can send agreement text to the Python service in `../contracttwin`. That service returns cited clauses, a notice calendar, and pricing / NCNR / excess-and-obsolete exposure. The matter screens do not call it, and its response is not a legal-reliance record. Run instructions and the HTTP contract are in `../contracttwin/README.md`.

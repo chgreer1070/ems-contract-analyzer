@@ -20,6 +20,16 @@ npm run build
 
 Database-backed acceptance also requires disposable PostgreSQL or an explicitly approved non-production target; see the cockpit runbook.
 
+## Reading service
+
+[`contracttwin/`](contracttwin/README.md) is the separate Python reading service for a base agreement plus amendments. It returns a clause and obligation register, a notice calendar, and a pricing / NCNR / excess-and-obsolete exposure summary. Every fact cites the contract text it came from. Dollar effects say "cannot be determined" unless the text states the amount. The cockpit can call it over HTTP. It does not write the cockpit record, and a passing test is not legal-reliance evidence.
+
+```bash
+cd contracttwin
+python -m pip install -e ".[dev]"
+python -m pytest
+```
+
 ## Historical Flask prototype
 
-`app.py`, `analyzer.py`, `templates/`, the Python fixtures, and `tests.py` are a retained stateless regex prototype. They are non-authoritative historical/demo material, have no persistent governance or legal-reliance controls, and must not be deployed or used for contract conclusions. Their CI job is labeled as legacy coverage while they are being isolated into an archival package.
+`app.py`, `analyzer.py`, `templates/`, the Python fixtures, and `tests.py` are a retained stateless regex prototype. They are non-authoritative historical/demo material, have no persistent governance or legal-reliance controls, and must not be deployed or used for contract conclusions. Their CI job is labeled as legacy coverage while they are being isolated into an archival package. Do not add ContractTwin behavior there.
