@@ -99,6 +99,15 @@ def create_app() -> FastAPI:
         get_repository().append_audit(actor, "versions.listed", agreement_key, None, f"Listed {len(versions)} versions.")
         return versions
 
+    @protected.post("/v1/agreements/{analysis_id}/looked-at")
+    def mark_looked_at(analysis_id: str, actor: str = Depends(require_api_key)) -> dict[str, str]:
+        found = get_repository().get(analysis_id)
+        if found is None:
+            raise HTTPException(status_code=404, detail="No reading with that id is stored.")
+        message = "A person looked at this sample. This is not an approval."
+        get_repository().append_audit(actor, "reading.looked_at", found.agreement_key, found.analysis_id, message)
+        return {"analysis_id": found.analysis_id, "message": message}
+
     @protected.get("/v1/audit", response_model=list[AuditEvent])
     def list_audit() -> list[AuditEvent]:
         return get_repository().list_audit()

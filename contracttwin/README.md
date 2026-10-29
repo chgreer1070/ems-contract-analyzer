@@ -131,6 +131,6 @@ The cockpit file `commercial-legal-cockpit/lib/contracttwinCoreClient.ts` can PO
 - Not the full EMS term list, and not the cockpit's finance engine. The terms it reads are pricing, NCNR, excess and obsolete, liability and exclusions, indemnity, warranty, termination and survival, forecast, last-time-buy, end-of-life, consigned inventory, and late fees.
 - The service key is one shared key. It is not a person signing in. There is no virus scan and no human-approval record.
 - SQLite keeps readings for this service. It is not the cockpit's system of record.
-- Word reading covers paragraphs, tables, and tracked insertions and deletions. It does not cover footnotes, comments, or text boxes. PDF reading covers machine-readable text and tables. A scanned page is flagged and not guessed.
+- Word reading covers paragraphs, tables, footnotes, text boxes, and tracked insertions and deletions. Comments are kept as notes and are not contract text. PDF reading covers machine-readable text and tables. A scanned page is flagged and not guessed.
 - Not a holiday calendar beyond what the contract itself says.
 - Not production evidence. Passing these tests does not make a deployment ready for legal reliance.

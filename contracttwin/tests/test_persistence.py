@@ -73,3 +73,28 @@ def test_audit_log_records_the_key_fingerprint_and_rejects_changes(tmp_path, mon
         assert "append-only" in str(exc)
     reopened = SqliteReadingRepository(str(path))
     assert len(reopened.list_audit()) == len(events)
+
+
+def test_looking_at_a_sample_does_not_change_the_reading(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "looked.sqlite"
+    monkeypatch.setenv("CONTRACTTWIN_DB_PATH", str(path))
+    clear_store()
+    created = client.post(
+        "/v1/agreements",
+        json={"agreement_key": "looked-sample", "base": {"name": "Base", "role": "base", "text": BASE}},
+    )
+    assert created.status_code == 200, created.text
+    analysis_id = created.json()["analysis_id"]
+    before = created.json()["facts"]
+    marked = client.post(f"/v1/agreements/{analysis_id}/looked-at")
+    assert marked.status_code == 200, marked.text
+    assert marked.json()["message"] == "A person looked at this sample. This is not an approval."
+    fetched = client.get(f"/v1/agreements/{analysis_id}")
+    assert fetched.json()["facts"] == before
+    assert fetched.json()["version"] == created.json()["version"]
+    events = client.get("/v1/audit").json()
+    looked = [event for event in events if event["action"] == "reading.looked_at"]
+    assert len(looked) == 1
+    assert looked[0]["actor"].startswith("key:")
+    assert "test-key" not in looked[0]["actor"]
+    assert looked[0]["detail"] == "A person looked at this sample. This is not an approval."

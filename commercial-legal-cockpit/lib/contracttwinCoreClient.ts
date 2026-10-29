@@ -117,6 +117,23 @@ export async function analyzeAgreementText(
   return (await response.json()) as ContractTwinAnalysis;
 }
 
+export async function markAgreementLookedAt(
+  serviceUrl: string,
+  analysisId: string,
+  options: { apiKey: string; fetchImpl?: typeof fetch },
+): Promise<{ message: string }> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(new URL(`/v1/agreements/${encodeURIComponent(analysisId)}/looked-at`, serviceUrl), {
+    method: "POST",
+    headers: { accept: "application/json", "x-api-key": options.apiKey },
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`ContractTwin reading service returned ${response.status}: ${detail}`);
+  }
+  return (await response.json()) as { message: string };
+}
+
 export function describeImpact(impact: ContractTwinImpact): string {
   switch (impact.determination) {
     case "supported":
