@@ -1,0 +1,37 @@
+CEDARLINE MANUFACTURING AGREEMENT
+
+This Cedarline Manufacturing Agreement is entered into as of February 1, 2025 (the "Effective Date"), by and between Cedarline Devices, Inc. ("Customer") and Brightpath Assembly, LLC ("Manufacturer").
+
+1. Liability
+
+1.1 Cap. The aggregate liability of Manufacturer shall not exceed USD 250000.00.
+
+1.2 Exclusions. In no event shall either party be liable for indirect, incidental, special, or consequential damages.
+
+2. Indemnity
+
+2.1 Third Parties. Manufacturer shall indemnify Customer against any third-party claim without limitation.
+
+3. Warranty
+
+3.1 Term. Manufacturer warrants the products for twelve (12) months from the date of shipment and shall repair or replace defective products.
+
+4. Termination
+
+4.1 Convenience. Either party may terminate this Agreement for convenience by written notice at least ninety (90) days before the termination date.
+
+4.2 Survival. Sections 1, 2, and 3 survive expiration or termination of this Agreement.
+
+5. Forecast and Supply
+
+5.1 Forecast. Customer shall provide a rolling twelve (12) month forecast.
+
+5.2 End of Life. Manufacturer shall give written notice of end-of-life at least one hundred eighty (180) days before the last time buy date.
+
+6. Consigned Inventory
+
+6.1 Title. Title to consigned inventory remains with Customer, and Manufacturer shall not buy the consigned inventory unless the parties agree in writing.
+
+7. Late Fees
+
+7.1 Interest. Late amounts shall accrue a late fee of one percent (1%) per month.

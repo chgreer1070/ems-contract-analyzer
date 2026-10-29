@@ -16,3 +16,6 @@ uploads/*
 !uploads/.gitkeep
 instance/
 .webassets-cache
+.pytest_cache/
+*.sqlite
+data/

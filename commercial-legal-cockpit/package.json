@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
+    "test:reading-page": "playwright test",
     "test:economics": "node scripts/economics-check.mjs",
     "test:corpus": "node scripts/corpus-check.mjs",
     "test:access": "node scripts/access-control-check.mjs",
@@ -51,6 +52,7 @@
     "workflow": "4.8.15"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "24.0.0",
     "@types/pg": "8.20.0",
     "@types/react": "19.0.0",

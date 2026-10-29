@@ -214,3 +214,7 @@ Vercel project root directory must be `commercial-legal-cockpit`.
 13. Keep `ALLOW_SOURCE_PURGE=false` unless records-management leadership separately authorizes purge operations and a recovery-tested runbook is in place.
 
 See `PRODUCTION_READINESS.md` for the acceptance checklist.
+
+## Separate reading service
+
+`/reading` calls the Python service for the made-up Harborline sample. It shows which payment and non-cancellable terms are in force, the notice date, and where the dollar impact cannot be determined. A person can mark that they looked at the sample. That mark is not an approval. It needs `CONTRACTTWIN_CORE_URL` and `CONTRACTTWIN_API_KEY`. `lib/contracttwinCoreClient.ts` is the caller. The matter screens do not call it, and its response is not a legal-reliance record. Run `npm run test:reading-page` after a production build. Run instructions and the HTTP contract are in `../contracttwin/README.md`.
