@@ -19,7 +19,7 @@ This is a future-state activation procedure, not current authorization to activa
 11. Grant user roles through `/admin`; separately grant `LEGAL_COUNSEL_ATTEST` only to active, qualified Lawyer/Approver/Admin users under the documented counsel-authority process; configure restricted-matter memberships through each matter workspace.
 12. Load formally approved negotiation standards. New standards remain inactive until a separate Admin activation action.
 13. Run the frozen production validation suite from `/admin` against the exact configured model, prompt, corpus and validation-gate versions. Review every failed, missing, duplicate, unexpected, unsafe, normalized source-containment, or rejected-ungrounded result; do not lower thresholds merely to obtain a pass. The legacy `exact_quote_failure_count` field is not byte-exact because the current evaluator normalizes case and whitespace.
-14. Execute the live target-environment acceptance procedure in section 12 using approved synthetic sources.
+14. Execute the live target-environment acceptance procedure in section 13 using approved synthetic sources.
 15. Complete security/privacy/privilege/records-management review, backup/restore testing and penetration or risk-based security testing.
 16. Confirm `/api/readiness` reports the production infrastructure, exact current validation evidence, complete required standard coverage, and an empty approved evidence-kernel blocker list as ready. Only then consider setting `LEGAL_RELIANCE_ENABLED=true` through approved change management.
 
@@ -144,7 +144,33 @@ At the cadence required by company policy:
 - review Entra conditional access/MFA configuration; and
 - review production secrets/credential rotation.
 
-## 8. Database migration
+## 8. Better Auth 1.7 cutover (Microsoft account identifiers)
+
+Upgrading `better-auth` from 1.6.x to **1.7.14** is a deliberate identity cutover, not a silent dependency bump. Follow the published Better Auth 1.7 upgrade guide for this deployment class (login client + Microsoft social provider + fixed `BETTER_AUTH_URL` behind Vercel).
+
+### What changes
+
+- Package pin moves to `better-auth@1.7.14` (clears GHSA-965c-763c-88jm and related 1.7 advisories).
+- Microsoft account rows are keyed by the stable Entra **`oid`** claim. Better Auth 1.6 stored the pairwise **`sub`** claim in `account."accountId"`.
+- Because this repository upgrades **directly from 1.6 to 1.7.14**, **no issuer schema cleanup** is required. Only databases that already ran Better Auth 1.7.0 through 1.7.2 need to relax/drop the temporary `account.issuer` NOT NULL constraint and unique index.
+- This app uses the built-in `socialProviders.microsoft` path with a concrete `MICROSOFT_TENANT_ID` GUID and a configured `BETTER_AUTH_URL`. It does not use Magic Link, Generic OAuth `microsoftEntraId`, dynamic `baseURL.allowedHosts`, or custom adapters, so those 1.7 sections do not apply.
+
+### Required operator order before production traffic on 1.7
+
+1. Keep `AUTH_REQUIRED`/`LEGAL_RELIANCE_ENABLED` under approved change control; treat SSO as frozen during the identity rewrite.
+2. Back up PostgreSQL.
+3. Apply ordinary schema work with `npm run db:migrate` (ContractTwin receipts, then Better Auth's installed-version schema via `db:migrate:auth`).
+4. Inventory Microsoft rows with a dry-run: `npm run db:migrate:microsoft-oid`.
+5. If any Microsoft rows still use `sub`-form `accountId` values:
+   - Prefer rewriting from a **verified** stored Microsoft ID token (script verifies against the tenant JWKS using `MICROSOFT_TENANT_ID` + `MICROSOFT_CLIENT_ID`); or
+   - Pause Microsoft sign-in/account linking and supply a trusted Entra export through `MICROSOFT_OID_EXPORT_MAP_PATH` (JSON array/object of previous `accountId`/`sub` → `oid`).
+6. Apply only after review: `CONFIRM_MICROSOFT_ACCOUNT_OID_MIGRATION=true npm run db:migrate:microsoft-oid`.
+7. Deploy the 1.7.14 application build and confirm fresh Microsoft sign-in reaches the existing app user (no duplicate `account` row).
+8. Restart any in-flight OAuth sign-in/linking flows created before the upgrade; pre-upgrade state cannot complete.
+
+Empty databases with no Microsoft `account` rows are a documented no-op for step 4–6, but the dry-run still must be executed and retained as release evidence.
+
+## 9. Database migration
 
 - Never edit an already-applied ContractTwin migration file.
 - Create a new numbered migration.
@@ -167,7 +193,7 @@ Every migration through `014_release_database_external_identity.sql` is a blocki
 4. verify application and worker versions are deployed together with the schema change; and
 5. apply production migration only under the approved backup/change/rollback procedure.
 
-## 9. Incident response
+## 10. Incident response
 
 For suspected unauthorized access, source leakage, AI data-handling issue, corrupted source integrity, or audit anomaly:
 
@@ -181,13 +207,13 @@ For suspected unauthorized access, source leakage, AI data-handling issue, corru
 8. revalidate model/prompt behavior if inference integrity is implicated; and
 9. document the decision to restore service/reliance.
 
-## 10. Backup and disaster recovery
+## 11. Backup and disaster recovery
 
 Backup cadence, geographic replication, RPO/RTO and retention are environment/company decisions and are not invented by this repository. Production approval should require documented PostgreSQL backup/restore procedures and source-object recovery/retention procedures consistent with the chosen private Blob configuration and corporate policy.
 
 Perform an actual restore drill before treating disaster recovery as operational.
 
-## 11. Release procedure
+## 12. Release procedure
 
 A release candidate must use the committed `package-lock.json` and pass:
 
@@ -204,7 +230,7 @@ A release candidate must use the committed `package-lock.json` and pass:
 
 A release attestation is valid only if it binds the exact tested source SHA and records every required gate above, including application controls, target migration receipts, the live critical-database-control manifest, and runtime-role least-privilege proof. Retain the run-scoped attestation artifact and verify its digest from the workflow summary; the evidence workflow must not commit files back to or otherwise advance the tested source branch. The production workflow must expose the protected migration credential only to the schema-gate step, migrate and verify the target database, verify the separately pulled runtime credential without substituting it for the migrator, stage the exact prebuilt artifact without assigning the production domain, pass the token-protected live release proof, and only then promote that staged URL. Do not infer coverage from an attestation filename or workflow success; verify the gate list for the exact workflow revision and SHA. This runbook does not claim those checks have run. A code-complete attestation does **not** assert that external production infrastructure, company policy, live target-environment behavior, or real-contract legal validation has been approved.
 
-## 12. Live target-environment acceptance
+## 13. Live target-environment acceptance
 
 Before confidential production use, record dated evidence, source/deployment SHAs, environment, tester and approver for each of the following using approved synthetic content:
 

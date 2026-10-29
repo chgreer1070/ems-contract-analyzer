@@ -48,6 +48,8 @@ External file-security boundary reached by the runtime through the ClamAV INSTRE
 
 Authentication provider and session layer. Authentication is not authorization; every protected operation still performs server-side role/matter checks.
 
+Production pins `better-auth@1.7.14` to clear advisory class GHSA-965c-763c-88jm and the related 1.7 Better Auth findings. This is not a silent patch: Better Auth 1.7 identifies Microsoft accounts by the Entra `oid` claim instead of pairwise `sub`, so any database that already linked Microsoft users on 1.6 must complete the explicit `db:migrate:microsoft-oid` cutover before production traffic. Direct upgrades from 1.6 to 1.7.3+ do not add an `account.issuer` column; only databases that briefly ran 1.7.0–1.7.2 need issuer cleanup.
+
 ### OpenAI
 
 External inference boundary. Send only content approved for the configured enterprise/API environment. Model output is untrusted until schema validation, source verification and required human review complete.
