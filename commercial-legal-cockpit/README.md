@@ -8,6 +8,10 @@ The completion contract and target product are defined in [`ARCHITECTURE.md`](AR
 
 > **Repository boundary:** this GitHub repository is currently public. Keep it code/synthetic-data only. Do not commit confidential contracts, company negotiation standards, credentials, customer data, privileged analysis, or internal production configuration. Move production development to an approved private repository before adding proprietary content.
 
+## Dependency security bump
+
+This line of the cockpit keeps the same application code and moves the locked packages to patched releases. Next.js moves from 16.3.0 to 16.4.3, still on major 16. better-auth moves from 1.6.25 to 1.7.14, a minor security update for sign-in; the existing auth calls did not need code changes. Shared libraries used underneath (undici, zod 4, devalue, XML reading, image processing, and a few small parsers) are pinned to patched versions on the same major line. The workflow package stays on 4.8.1. It was not downgraded to 2.0.6, which the audit tool suggested and which would be a breaking downgrade.
+
 ## Product surfaces
 
 - `/` — persistent database-backed executive portfolio cockpit when configured and authenticated; synthetic data only in explicit demo mode.
