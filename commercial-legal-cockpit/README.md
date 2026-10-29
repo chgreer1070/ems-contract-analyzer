@@ -34,7 +34,7 @@ The completion contract and target product are defined in [`ARCHITECTURE.md`](AR
 - SHA-256 is computed in the browser before upload and independently recomputed server-side before extraction.
 - Source blobs are never rewritten by analysis.
 - PDF text extraction preserves page boundaries where the text layer is machine-readable, but does not yet prove layout/table/signature completeness.
-- DOCX and TXT are normalized into hashed source chunks; the current DOCX path does not preserve tracked changes, comments, footnotes, headers or full table semantics.
+- DOCX uses a bounded OOXML evidence reader. Insertions, deletions, comments, headers, footers, and notes are kept as unapproved negotiation evidence and are not treated as governing text. Unsupported packages publish no analysis chunks and are not flattened through OCR. Legacy `DOCX_RAW_TEXT` cannot feed later analysis. TXT still uses normalized source chunks. See [`DOCX_INGESTION.md`](DOCX_INGESTION.md). This is a synthetic engineering check, not production evidence.
 - Scanned PDFs and XLSX/Office inputs can be delegated to Azure Document Intelligence Layout, but the current publisher flattens provider layout output and is not legal-grade structure preservation.
 - Binary-purged source objects return HTTP 410. Extracted text, source excerpts and derived records currently remain in PostgreSQL under their separate records lifecycle; do not describe binary purge as complete content destruction.
 

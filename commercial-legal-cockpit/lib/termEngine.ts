@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { sourceContainsExcerpt } from "@/lib/analysisEngine";
+import { proposedTextContainsExcerpt, readDocxProjection } from "@/lib/docxEvidence";
 
 export { TERM_PROMPT_VERSION, TERM_SCHEMA_VERSION } from "@/lib/engineVersions";
 import { TERM_PROMPT_VERSION, TERM_SCHEMA_VERSION } from "@/lib/engineVersions";
@@ -68,7 +69,8 @@ export async function extractTerms(source:string):Promise<{terms:ExtractedTerm[]
   const text = outputText(await response.json());
   if (!text) throw new Error("No term extraction output returned.");
   const raw = (JSON.parse(text) as {terms?:ExtractedTerm[]}).terms ?? [];
-  const terms = raw.filter(t => t.exactText.length >= 8 && sourceContainsExcerpt(source,t.exactText)).map(t => ({...t,confidence:Math.max(0,Math.min(1,Number(t.confidence)||0))}));
+  const negotiated=Boolean(readDocxProjection(source));
+  const terms = raw.filter(t => t.exactText.length >= 8 && sourceContainsExcerpt(source,t.exactText)&&proposedTextContainsExcerpt(source,t.exactText)).map(t => ({...t,normalizedStatement:negotiated?`Unapproved proposed text: ${t.normalizedStatement.replace(/^Unapproved proposed text:\s*/i,"")}`:t.normalizedStatement,confidence:Math.max(0,Math.min(1,Number(t.confidence)||0))}));
   return {terms,modelName,rejectedUngrounded:raw.length-terms.length};
 }
 
