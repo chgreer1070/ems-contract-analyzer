@@ -17,6 +17,8 @@ const approvedPins=new Map([
   ["actions/upload-artifact","ea165f8d65b6e75b540449e92b4886f43607fa02"],
   ["github/codeql-action/init","5595ccaf912efad79be6eef63a5619ff05969be3"],
   ["github/codeql-action/analyze","5595ccaf912efad79be6eef63a5619ff05969be3"],
+  // Claude review action v1.0.266. Pinned so the review workflow cannot move without a new review.
+  ["anthropics/claude-code-action","d535f5172dec02b204866b393d6b20b9b2aaf98d"],
 ]);
 
 let actionReferenceCount=0;
