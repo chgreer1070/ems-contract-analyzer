@@ -167,7 +167,7 @@ jobs:
   deploy-preview:
     name: Vercel preview
     needs: preflight
-    if: github.ref != 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.deployment_target == 'preview')
+    if: (github.event_name == 'workflow_dispatch' && inputs.deployment_target == 'preview') || (github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -192,7 +192,8 @@ jobs:
             echo "Vercel deployment is configured."
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Vercel deploy skipped until VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID secrets are configured."
+            echo "::error::Preview was not deployed. Configure VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID in GitHub Actions secrets."
+            exit 1
           fi
       - name: Install pinned Vercel CLI
         if: steps.configured.outputs.enabled == 'true'
