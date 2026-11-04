@@ -1,7 +1,10 @@
+import { createHash } from "node:crypto";
+import { get } from "@vercel/blob";
+import { extractDocument } from "@/lib/documentExtraction";
 import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
-import { analyzeAgreementText, type ContractTwinAnalysis } from "@/lib/contracttwinCoreClient";
+import { analyzeAgreementText } from "@/lib/contracttwinCoreClient";
 import { databaseConfigured, query } from "@/lib/db";
-import { MatterReadingError, buildMatterReadingRequest, type MatterReadingDocument } from "@/lib/matterDocumentReading.mjs";
+import { MatterReadingError, assertReadable, projectReadingCitations, projectReadingFacts, buildMatterReadingRequest, type MatterReadingDocument } from "@/lib/matterDocumentReading.mjs";
 import { internalErrorResponse } from "@/lib/safeErrors";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
@@ -17,6 +20,9 @@ type StoredDocument = {
   security_scan_status: string;
   deletion_status: string;
   source_status: string;
+  blob_pathname: string;
+  mime_type: string;
+  server_sha256: string;
 };
 
 function serviceConfig(): { serviceUrl: string; apiKey: string } | null {
@@ -48,9 +54,9 @@ async function readBody(request: Request): Promise<unknown> {
   }
 }
 
-function documentIds(body: unknown): { baseDocumentId: string; amendmentDocumentIds: string[] } {
+function documentIds(body: unknown): { baseDocumentId: string; amendmentDocumentIds: string[]; amendmentOrderConfirmed: boolean } {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new MatterReadingError("JSON object required.", 400);
-  const record = body as { baseDocumentId?: unknown; amendmentDocumentIds?: unknown };
+  const record = body as { baseDocumentId?: unknown; amendmentDocumentIds?: unknown; amendmentOrderConfirmed?: unknown };
   if (typeof record.baseDocumentId !== "string" || !UUID_PATTERN.test(record.baseDocumentId)) {
     throw new MatterReadingError("Choose the base agreement.", 400);
   }
@@ -58,7 +64,7 @@ function documentIds(body: unknown): { baseDocumentId: string; amendmentDocument
   if (!Array.isArray(amendments) || amendments.some((id) => typeof id !== "string" || !UUID_PATTERN.test(id))) {
     throw new MatterReadingError("Amendments must be a list of documents in this matter.", 400);
   }
-  return { baseDocumentId: record.baseDocumentId, amendmentDocumentIds: amendments };
+  return { baseDocumentId: record.baseDocumentId, amendmentDocumentIds: amendments, amendmentOrderConfirmed: record.amendmentOrderConfirmed === true };
 }
 
 function toReadingDocument(row: StoredDocument): MatterReadingDocument {
@@ -75,22 +81,6 @@ function toReadingDocument(row: StoredDocument): MatterReadingDocument {
   };
 }
 
-function citedFacts(analysis: ContractTwinAnalysis) {
-  const facts = [];
-  for (const fact of analysis.facts) {
-    const citation = fact.citations[0];
-    const quote = citation?.quote ?? "";
-    if (!quote.trim()) continue;
-    facts.push({
-      statement: fact.statement,
-      operative: fact.operative,
-      quote,
-      documentName: citation?.document_name ?? "",
-    });
-  }
-  return facts;
-}
-
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     if (!databaseConfigured()) {
@@ -100,55 +90,73 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await requireMatterAccess(request, id, "VIEW");
     const config = serviceConfig();
     if (!config) return Response.json({ ok: false, error: "The reading service is not configured." }, { status: 503 });
-    const { baseDocumentId, amendmentDocumentIds } = documentIds(await readBody(request));
+    const { baseDocumentId, amendmentDocumentIds, amendmentOrderConfirmed } = documentIds(await readBody(request));
     const ids = [baseDocumentId, ...amendmentDocumentIds];
-    const stored = await query<StoredDocument>(
+    const loadSources = () => query<StoredDocument>(
       `select id, filename, document_type, extraction_method, extraction_status, integrity_status,
-              security_scan_status, deletion_status, source_status
+              security_scan_status, deletion_status, source_status, blob_pathname, mime_type, server_sha256
          from documents
         where matter_id = $1 and id = any($2::uuid[])`,
       [id, ids],
     );
-    const chunks = await query<{ document_id: string; content: string }>(
-      `select document_id, content
-         from document_chunks
-        where matter_id = $1 and document_id = any($2::uuid[])
-        order by document_id, coalesce(page_number, 0), chunk_index, id`,
-      [id, ids],
-    );
+    const stored = await loadSources();
+    const assertSourcesUnchanged = async () => {
+      await requireMatterAccess(request, id, "VIEW");
+      const current = await loadSources();
+      const byId = new Map(current.rows.map(document => [document.id, document]));
+      if (current.rows.length !== stored.rows.length || stored.rows.some(document => {
+        const latest = byId.get(document.id);
+        return !latest || (Object.keys(document) as Array<keyof StoredDocument>).some(key => latest[key] !== document[key]);
+      })) throw new MatterReadingError("The source documents changed during reading. Reload the matter and try again.", 409);
+    };
+    if (ids.length > 12 || new Set(ids).size !== ids.length) throw new MatterReadingError("Choose at most 12 distinct documents.", 400);
+    if (stored.rows.length !== ids.length) throw new MatterReadingError("A selected document is not in this matter.", 404);
+    if (amendmentDocumentIds.length && !amendmentOrderConfirmed) throw new MatterReadingError("Confirm the amendment order from earliest to latest.", 400);
     const chunksByDocumentId = new Map<string, string[]>();
-    for (const chunk of chunks.rows) {
-      const list = chunksByDocumentId.get(chunk.document_id) ?? [];
-      list.push(chunk.content);
-      chunksByDocumentId.set(chunk.document_id, list);
+    const extractionWarnings: string[] = [];
+    let totalCharacters = 0;
+    for (const document of stored.rows) {
+      assertReadable(toReadingDocument(document));
+      const blob = await get(document.blob_pathname, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
+      if (!blob || blob.statusCode !== 200 || !blob.stream) throw new MatterReadingError("The verified source file is unavailable.", 409);
+      const bytes = await new Response(blob.stream).arrayBuffer();
+      const sha = createHash("sha256").update(Buffer.from(bytes)).digest("hex");
+      if (sha !== document.server_sha256?.toLowerCase()) throw new MatterReadingError("The source file no longer matches its verified hash.", 409);
+      const extracted = await extractDocument(bytes, document.mime_type);
+      if (extracted.method !== document.extraction_method || extracted.canonicalText === undefined) throw new MatterReadingError("Canonical agreement text is unavailable.", 409);
+      totalCharacters += extracted.canonicalText.length;
+      if (totalCharacters > 1_500_000) throw new MatterReadingError("The extracted text is too large to read in one request.", 413);
+      chunksByDocumentId.set(document.id, [extracted.canonicalText]);
+      extractionWarnings.push(...extracted.warnings.map(warning => `${document.filename}: ${warning}`));
     }
     const reading = buildMatterReadingRequest({
       documents: stored.rows.map(toReadingDocument),
       chunksByDocumentId,
       baseDocumentId,
       amendmentDocumentIds,
+      amendmentOrderConfirmed,
     });
+    await assertSourcesUnchanged();
     const analysis = await analyzeAgreementText(
       config.serviceUrl,
       {
         agreement_key: `matter-reading:${id}`,
-        base: { name: reading.base.name, role: "base", text: reading.base.text },
-        amendments: reading.amendments.map((amendment) => ({
-          name: amendment.name,
-          role: "amendment",
-          text: amendment.text,
-        })),
+        base: reading.base,
+        amendments: reading.amendments,
       },
       { apiKey: config.apiKey },
     );
-    const facts = citedFacts(analysis);
-    if (facts.length === 0) throw new MatterReadingError("The reading did not include a cited sentence.", 409);
+    await assertSourcesUnchanged();
+    const facts = projectReadingFacts(analysis, reading.documents);
+    if (!facts.some(fact => fact.citations.some(citation => citation.quote.trim()))) reading.notes.push("The reading did not include a cited sentence. No operative conclusion can be drawn.");
     return Response.json({
       ok: true,
       relianceRecord: false,
       approval: false,
       disclaimer: analysis.disclaimer,
-      notes: reading.notes,
+      notes: [...reading.notes, ...extractionWarnings],
+      warnings: analysis.warnings,
+      operativeStatusUncertain: amendmentDocumentIds.length > 0 || analysis.warnings.length > 0 || reading.notes.length > 0 || extractionWarnings.length > 0,
       documents: reading.documents,
       facts,
       impacts: analysis.exposure.domains.flatMap((domain) =>
@@ -158,6 +166,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           summary: impact.summary,
           amount: impact.amount,
           determination: impact.determination,
+          kind: impact.kind,
+          citations: projectReadingCitations(impact.citations, reading.documents),
+          source_fact_ids: impact.source_fact_ids,
         })),
       ),
     });

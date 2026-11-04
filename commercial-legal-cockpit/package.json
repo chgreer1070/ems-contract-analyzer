@@ -24,6 +24,8 @@
     "test:workspace-evidence-ui": "node scripts/workspace-evidence-ui-check.mjs",
     "test:matter-sample-reading": "node scripts/matter-sample-reading-check.mjs",
     "test:matter-document-reading": "node scripts/matter-document-reading-check.mjs",
+    "test:matter-reading-component": "node scripts/matter-reading-component-check.mjs",
+    "test:matter-reading-regressions": "node scripts/matter-reading-regression-check.mjs",
     "test:microsoft-account-cutover": "node scripts/microsoft-account-cutover-check.mjs",
     "test:playbook-kernel": "node scripts/playbook-kernel-check.mjs",
     "test:playbook-integration": "node scripts/playbook-integration-check.mjs",
@@ -62,6 +64,7 @@
     "@types/pg": "8.20.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
+    "esbuild": "0.28.2",
     "typescript": "5.8.3"
   },
   "overrides": {

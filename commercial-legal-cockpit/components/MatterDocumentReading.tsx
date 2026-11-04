@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readingFactLabel } from "@/lib/matterDocumentReading.mjs";
 
 type StoredDocument = {
   id: string;
@@ -17,11 +18,15 @@ type StoredDocument = {
 type ReadingFact = {
   statement: string;
   operative: boolean;
-  quote: string;
-  documentName: string;
+  id: string;
+  kind: "fact" | "inference" | "assumption";
+  citations: Array<{ quote: string; originalFilename: string; section: string | null; sourceDocumentId: string | null }>;
 };
 
 type ReadingImpact = {
+  kind: "fact" | "inference" | "assumption" | null;
+  citations: ReadingFact["citations"];
+  source_fact_ids: string[];
   domain: string;
   area: string;
   summary: string;
@@ -32,6 +37,8 @@ type ReadingImpact = {
 type ReadingResponse = {
   disclaimer: string;
   notes: string[];
+  warnings: string[];
+  operativeStatusUncertain: boolean;
   facts: ReadingFact[];
   impacts: ReadingImpact[];
 };
@@ -67,10 +74,16 @@ function impactLine(impact: ReadingImpact): string {
 }
 
 export default function MatterDocumentReading({ matterId }: { matterId: string }) {
+  // A matter change must discard selections, confirmations and in-flight response state.
+  return <MatterDocumentReadingForMatter key={matterId} matterId={matterId} />;
+}
+
+function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
   const [documents, setDocuments] = useState<StoredDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [baseId, setBaseId] = useState("");
   const [amendmentIds, setAmendmentIds] = useState<string[]>([]);
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState<ReadingResponse | null>(null);
 
@@ -103,7 +116,7 @@ export default function MatterDocumentReading({ matterId }: { matterId: string }
       const response = await fetch(`/api/matters/${matterId}/reading`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: amendmentIds }),
+        body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: amendmentIds, amendmentOrderConfirmed: orderConfirmed }),
       });
       const body = (await response.json()) as ReadingResponse & { error?: string };
       if (!response.ok) throw new Error(body.error || "The matter reading could not be completed.");
@@ -138,8 +151,9 @@ export default function MatterDocumentReading({ matterId }: { matterId: string }
               Base agreement
               <select
                 data-testid="reading-base"
+                disabled={busy}
                 value={baseId}
-                onChange={(event) => setBaseId(event.target.value)}
+                onChange={(event) => { setBaseId(event.target.value); setReading(null); setOrderConfirmed(false); }}
                 style={{ display: "block", marginTop: 4, padding: 8, maxWidth: 480 }}
               >
                 <option value="">Choose a document</option>
@@ -157,8 +171,11 @@ export default function MatterDocumentReading({ matterId }: { matterId: string }
                   <label key={document.id} style={{ display: "block", fontSize: 13 }}>
                     <input
                       type="checkbox"
+                      disabled={busy}
                       checked={amendmentIds.includes(document.id)}
                       onChange={(event) => {
+                        setOrderConfirmed(false);
+                        setReading(null);
                         setAmendmentIds((current) =>
                           event.target.checked ? [...current, document.id] : current.filter((id) => id !== document.id),
                         );
@@ -169,10 +186,32 @@ export default function MatterDocumentReading({ matterId }: { matterId: string }
                 ))}
               </fieldset>
             ) : null}
+            {amendmentIds.length > 0 ? (
+              <div>
+                <p>Amendment order, earliest to latest. Review the documents and move each amendment into the intended order. Checkbox selection order does not establish chronology.</p>
+                <ol>
+                  {amendmentIds.map((id, index) => (
+                    <li key={id}>
+                      {amendments.find(document => document.id === id)?.filename}
+                      <button type="button" disabled={index === 0 || busy} onClick={() => {
+                        setAmendmentIds(current => {
+                          const next = [...current];
+                          [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                          return next;
+                        });
+                        setOrderConfirmed(false);
+                        setReading(null);
+                      }}>Move earlier</button>
+                    </li>
+                  ))}
+                </ol>
+                <label><input type="checkbox" disabled={busy} checked={orderConfirmed} onChange={event => { setOrderConfirmed(event.target.checked); setReading(null); }} /> I have reviewed and confirm this earliest-to-latest order. The reading is conditional on this order, not independently verified effective dates.</label>
+              </div>
+            ) : null}
             <button
               type="button"
               data-testid="read-documents"
-              disabled={!baseId || busy}
+              disabled={!baseId || busy || (amendmentIds.length > 0 && !orderConfirmed)}
               onClick={() => void readDocuments()}
               style={{ justifySelf: "start", padding: "9px 13px", border: 0, borderRadius: 8, background: "#17212b", color: "white", fontWeight: 800 }}
             >
@@ -191,19 +230,32 @@ export default function MatterDocumentReading({ matterId }: { matterId: string }
             {reading.notes.map((note) => (
               <p key={note} data-testid="matter-reading-note">{note}</p>
             ))}
+            {reading.warnings.map((warning, index) => <p role="alert" key={index} data-testid="matter-reading-warning">{warning}</p>)}
             <ul>
               {reading.facts.map((fact) => (
-                <li key={`${fact.documentName}-${fact.quote}`} data-testid="matter-reading-fact">
-                  {fact.operative ? "In force: " : "Replaced: "}
+                <li key={fact.id} data-testid="matter-reading-fact">
+                  {readingFactLabel(fact, reading.operativeStatusUncertain)}
                   {fact.statement}
-                  <blockquote data-testid="matter-reading-quote">{fact.quote}</blockquote>
+                  {fact.citations.map((citation, index) => (
+                    <blockquote key={index} data-testid="matter-reading-quote">
+                      {citation.quote}
+                      <footer>{citation.originalFilename}{citation.section ? ` · Section ${citation.section}` : ""}{citation.sourceDocumentId ? ` · Source ${citation.sourceDocumentId}` : ""}</footer>
+                    </blockquote>
+                  ))}
                 </li>
               ))}
             </ul>
             <ul>
               {reading.impacts.map((impact) => (
                 <li key={`${impact.domain}-${impact.area}`} data-testid="matter-reading-impact">
-                  {impact.area}: {impactLine(impact)}
+                  {impact.kind ? { fact: "Contractual fact", inference: "Calculated inference", assumption: "Assumption" }[impact.kind] : "Not determined"} — {impact.area}: {impactLine(impact)}
+                  {impact.citations.map((citation, index) => (
+                    <blockquote key={index}>
+                      {citation.quote}
+                      <footer>{citation.originalFilename}{citation.section ? ` · Section ${citation.section}` : ""}{citation.sourceDocumentId ? ` · Source ${citation.sourceDocumentId}` : ""}</footer>
+                    </blockquote>
+                  ))}
+                  {impact.source_fact_ids.length > 0 ? <small>Source statements: {impact.source_fact_ids.join(", ")}</small> : null}
                 </li>
               ))}
             </ul>

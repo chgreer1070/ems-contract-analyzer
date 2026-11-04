@@ -28,6 +28,7 @@ function request(documents, chunks, baseDocumentId, amendmentDocumentIds = []) {
     chunksByDocumentId: new Map(chunks),
     baseDocumentId,
     amendmentDocumentIds,
+    amendmentOrderConfirmed: true,
   });
 }
 
@@ -43,11 +44,12 @@ const reading = request(
 assert.equal(reading.base.role, "base");
 assert.equal(reading.base.text, "Payment is thirty (30) days.");
 assert.equal(reading.amendments[0].text, "Payment is forty-five (45) days.");
-assert.deepEqual(reading.notes, ["amendment-1.txt is still a draft."]);
+assert.match(reading.notes[0], /confirmed earliest-to-latest/);
+assert.equal(reading.notes[1], "amendment-1.txt is still a draft.");
 
 const pdf = request(
   [ready({ extractionMethod: "PDF_TEXT", filename: "scan.pdf" })],
-  [[ready().id, ["Page one.", "Page two."]]],
+  [[ready().id, ["Page one.\n\nPage two."]]],
   ready().id,
 );
 assert.equal(pdf.base.text, "Page one.\n\nPage two.");

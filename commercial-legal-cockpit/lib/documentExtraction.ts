@@ -9,6 +9,7 @@ export type ExtractionResult = {
   chunks: SourceChunk[];
   warnings: string[];
   docxEvidence?: DocxEvidence;
+  canonicalText?: string;
 };
 
 export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Promise<ExtractionResult> {
@@ -17,7 +18,7 @@ export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Pro
     const extracted = await extractText(pdf, { mergePages: false });
     const pages = Array.isArray(extracted.text) ? extracted.text : [extracted.text];
     const chunks = pages.flatMap((text, pageIndex) => chunkText(text, { pageNumber: pageIndex + 1 }));
-    return { method:"PDF_TEXT",pageCount:extracted.totalPages,chunks,warnings:chunks.length?[]:["No machine-readable PDF text was extracted. External layout/OCR processing is required."] };
+    return { canonicalText: pages.join("\n\n"), method:"PDF_TEXT",pageCount:extracted.totalPages,chunks,warnings:chunks.length?[]:["No machine-readable PDF text was extracted. External layout/OCR processing is required."] };
   }
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
@@ -40,7 +41,7 @@ export async function extractDocument(bytes: ArrayBuffer, mimeType: string): Pro
 
   if (mimeType === "text/plain") {
     const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-    return { method:"PLAIN_TEXT",pageCount:null,chunks:chunkText(text),warnings:[] };
+    return { canonicalText: text, method:"PLAIN_TEXT",pageCount:null,chunks:chunkText(text),warnings:[] };
   }
 
   throw new Error(`Text extraction is not supported for MIME type ${mimeType}.`);

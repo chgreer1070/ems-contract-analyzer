@@ -14,7 +14,7 @@ function fail(message, status = 409) {
   throw new MatterReadingError(message, status);
 }
 
-function assertReadable(document) {
+export function assertReadable(document) {
   if (document.deletionStatus !== "ACTIVE") fail(`${document.filename} is not an active source file.`);
   if (document.securityScanStatus !== "CLEAN") fail(`${document.filename} has not passed the security scan.`);
   if (document.integrityStatus !== "SERVER_VERIFIED") fail(`${document.filename} has not been verified against the stored source.`);
@@ -58,7 +58,8 @@ export function textFromChunks(document, chunks) {
   if (!Array.isArray(chunks) || chunks.length === 0 || chunks.some((chunk) => typeof chunk !== "string")) {
     fail(`${document.filename} has no extracted text.`);
   }
-  const text = chunks.join("\n\n");
+  if (chunks.length !== 1) fail("A canonical source text is required; retrieval chunks may overlap.");
+  const text = chunks[0];
   if (!text.trim()) fail(`${document.filename} has no extracted text.`);
   if (text.includes("CONTRACTTWIN_DOCX_EVIDENCE_V1")) {
     fail(`Word evidence was found inside ${document.filename}. The reading stopped.`);
@@ -66,7 +67,7 @@ export function textFromChunks(document, chunks) {
   return text;
 }
 
-export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseDocumentId, amendmentDocumentIds }) {
+export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseDocumentId, amendmentDocumentIds, amendmentOrderConfirmed = false }) {
   if (!Array.isArray(documents)) fail("Documents are required.", 400);
   if (typeof baseDocumentId !== "string" || baseDocumentId.length === 0) fail("Choose the base agreement.", 400);
   if (!Array.isArray(amendmentDocumentIds)) fail("Amendments must be a list.", 400);
@@ -85,14 +86,15 @@ export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseD
   for (const amendment of amendments) {
     if (amendment.documentType !== "AMENDMENT") fail(`${amendment.filename} is not an amendment.`, 400);
   }
-  const notes = [];
+  if (amendments.length && amendmentOrderConfirmed !== true) fail("Confirm the amendment order from earliest to latest before reading. Selection order is not verified chronology.", 400);
+  const notes = amendments.length ? ["Amendments use the explicitly confirmed earliest-to-latest order. Effective dates have not been independently verified; this is a conditional reading."] : [];
   const toPayload = (document, role) => {
     const text = textFromChunks(document, chunksByDocumentId.get(document.id) ?? []);
     if (document.extractionMethod === "PDF_TEXT") {
       notes.push(`${document.filename} uses the extracted text layer. This reading does not prove layout, tables, or signatures.`);
     }
     noteForSourceStatus(document, notes);
-    return { name: document.filename, role, text };
+    return { name: `source-${document.id}`, filename: document.filename, role, text };
   };
   const basePayload = toPayload(base, "base");
   const amendmentPayloads = amendments.map((document) => toPayload(document, "amendment"));
@@ -105,9 +107,30 @@ export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseD
     documents: selected.map((document) => ({
       id: document.id,
       filename: document.filename,
+      serviceName: `source-${document.id}`,
       documentType: document.documentType,
       sourceStatus: document.sourceStatus,
       extractionMethod: document.extractionMethod,
     })),
   };
+}
+
+// Preserve every citation and its service identity, adding the stored source identity.
+export function projectReadingCitations(citations, documents) {
+  const byName = new Map(documents.map(document => [document.serviceName, document]));
+  return citations.map(citation => ({
+    ...citation,
+    sourceDocumentId: byName.get(citation.document_name)?.id ?? null,
+    originalFilename: byName.get(citation.document_name)?.filename ?? citation.document_name,
+  }));
+}
+
+export function projectReadingFacts(analysis, documents) {
+  return analysis.facts.map(fact => ({ ...fact, citations: projectReadingCitations(fact.citations, documents) }));
+}
+
+export function readingFactLabel(fact, uncertain) {
+  const kind = { fact: "Contractual fact", inference: "Calculated inference", assumption: "Assumption" }[fact.kind] ?? "Unclassified statement";
+  const status = `${fact.operative ? "current" : "superseded"} in this ${uncertain ? "conditional " : ""}reading${uncertain ? "; operative status requires review" : ""}`;
+  return `${kind} — ${status}: `;
 }
