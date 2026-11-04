@@ -1,0 +1,53 @@
+export class MatterReadingError extends Error {
+  status: number;
+  constructor(message: string, status?: number);
+}
+
+export const MATTER_READING_LIMITS: { documents: number; characters: number };
+
+export type MatterReadingDocument = {
+  id: string;
+  filename: string;
+  documentType: string;
+  extractionMethod: string | null;
+  extractionStatus: string;
+  integrityStatus: string;
+  securityScanStatus: string;
+  deletionStatus: string;
+  sourceStatus: string;
+};
+
+export type MatterReadingPayload = {
+  name: string;
+  role: "base" | "amendment";
+  text: string;
+  filename: string;
+};
+
+export function textFromChunks(document: MatterReadingDocument, chunks: string[]): string;
+
+export function buildMatterReadingRequest(input: {
+  documents: MatterReadingDocument[];
+  chunksByDocumentId: Map<string, string[]>;
+  baseDocumentId: string;
+  amendmentDocumentIds: string[];
+  amendmentOrderConfirmed?: boolean;
+}): {
+  base: MatterReadingPayload;
+  amendments: MatterReadingPayload[];
+  notes: string[];
+  documents: Array<{
+    id: string;
+    filename: string;
+    serviceName: string;
+    documentType: string;
+    sourceStatus: string;
+    extractionMethod: string | null;
+  }>;
+};
+
+export function assertReadable(document: MatterReadingDocument): void;
+export function projectReadingFacts(analysis: import("./contracttwinCoreClient").ContractTwinAnalysis, documents: Array<{ id: string; filename: string; serviceName: string }>): Array<import("./contracttwinCoreClient").ContractTwinAnalysis["facts"][number] & { citations: Array<import("./contracttwinCoreClient").ContractTwinCitation & { sourceDocumentId: string | null; originalFilename: string }> }>;
+export function readingFactLabel(fact: { kind: string; operative: boolean }, uncertain: boolean): string;
+
+export function projectReadingCitations(citations: import("./contracttwinCoreClient").ContractTwinCitation[], documents: Array<{ id: string; filename: string; serviceName: string }>): Array<import("./contracttwinCoreClient").ContractTwinCitation & { sourceDocumentId: string | null; originalFilename: string }>;
