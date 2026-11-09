@@ -10,6 +10,7 @@ import re
 
 from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
+from contracttwin.segment import HEADER_RE
 from contracttwin.terms import term_candidates
 from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
 
@@ -50,9 +51,14 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
         for version in versions:
             candidates.extend(_section_facts(version, warnings))
     for document_id, name, text in amendments:
+        # Lines before the first numbered heading are the preamble. A heading keeps its own number.
+        section = "Preamble"
         for line in text.split("\n"):
+            header = HEADER_RE.match(line)
+            if header is not None:
+                section = header.group("num")
             if "Amendment Effective Date" in line and find_dates(line):
-                dated = _date_fact(line, document_id, name, "amendment_effective", None)
+                dated = _date_fact(line, document_id, name, "amendment_effective", section)
                 if dated is not None:
                     candidates.append(dated)
             if "this Amendment controls" in line:
@@ -62,7 +68,7 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
                         domain="precedence",
                         statement="On and after its effective date, this amendment controls where it conflicts with the agreement.",
                         operative=True,
-                        section=None,
+                        section=section,
                         document_id=document_id,
                         document_name=name,
                         quote=line,

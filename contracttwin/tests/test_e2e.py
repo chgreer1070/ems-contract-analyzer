@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contracttwin.pipeline import AnalysisRequest, analyze
+
 from .conftest import harborline_analysis, read_fixture
 
 
@@ -41,13 +43,37 @@ def test_operative_terms_follow_the_amendment_and_keep_the_old_text() -> None:
     assert superseded_payment.superseded_by_document_id == "doc-amendment-1"
     assert "Net 45" in superseded_payment.citation.quote
 
+    names = {document.document_id: document.name for document in result.documents}
     for fact in result.facts:
         assert fact.kind in {"fact", "inference", "assumption"}
+        assert fact.section and fact.section.strip(), fact.statement
         if fact.kind == "assumption":
             continue
         assert fact.citations, fact.statement
         for citation in fact.citations:
+            assert citation.document_id in names
+            assert citation.document_name == names[citation.document_id]
+            assert citation.section and citation.section.strip(), fact.statement
             assert citation.quote in texts[citation.document_id]
+
+    effective_line = next(
+        line for line in amendment.splitlines() if "entered into" in line and "Amendment Effective Date" in line
+    )
+    controls_line = next(line for line in amendment.splitlines() if line.startswith("If this Amendment conflicts"))
+    amendment_effective = next(fact for fact in result.facts if fact.attributes.get("date_role") == "amendment_effective")
+    assert amendment_effective.section == "Preamble"
+    assert amendment_effective.citations[0].document_id == "doc-amendment-1"
+    assert amendment_effective.citations[0].section == "Preamble"
+    assert amendment_effective.citations[0].quote == effective_line
+    amendment_controls = next(
+        fact
+        for fact in result.facts
+        if fact.domain == "precedence" and fact.citations[0].quote == controls_line
+    )
+    assert amendment_controls.section == "Preamble"
+    assert amendment_controls.citations[0].document_id == "doc-amendment-1"
+    assert amendment_controls.citations[0].section == "Preamble"
+    assert amendment_controls.citations[0].quote == controls_line
 
     for obligation in result.obligation_register:
         assert obligation.kind == "fact"
@@ -124,7 +150,54 @@ def test_survival_cross_references_and_unchanged_sections() -> None:
     precedence = [fact for fact in result.facts if fact.domain == "precedence"]
     assert len(precedence) == 1
     assert precedence[0].operative is True
+    assert precedence[0].section == "Preamble"
     assert "this Amendment controls" in precedence[0].citations[0].quote
+
+
+def test_the_same_amendment_words_inside_a_numbered_section_keep_that_section() -> None:
+    base = """CONTRACT
+
+This Contract is entered into as of January 15, 2024 (the "Effective Date").
+
+2. Pricing
+
+2.2 Payment. Customer shall pay each undisputed invoice within forty-five (45) days after the invoice date (Net 45).
+"""
+    amendment = """AMENDMENT NO. 1
+
+This Amendment No. 1 is entered into as of March 1, 2025 (the "Amendment Effective Date").
+
+If this Amendment conflicts with the Agreement, this Amendment controls on and after the Amendment Effective Date.
+
+A. Section 2.2 of the Agreement is deleted and replaced in its entirety with the following:
+
+2.2 Payment. Customer shall pay each undisputed invoice within sixty (60) days after the invoice date (Net 60).
+If this Amendment conflicts with the Agreement, this Amendment controls.
+The parties entered into the replacement as of April 1, 2025 (the "Amendment Effective Date").
+"""
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=base,
+            amendments=[("Amendment No. 1", amendment, "2025-03-01")],
+        )
+    )
+    dated = {
+        fact.section: fact.citations[0].quote
+        for fact in result.facts
+        if fact.attributes.get("date_role") == "amendment_effective"
+    }
+    assert dated["Preamble"].startswith("This Amendment No. 1 is entered into as of March 1, 2025")
+    assert dated["2.2"].startswith("The parties entered into the replacement as of April 1, 2025")
+    controls = {
+        fact.section: fact.citations[0].quote
+        for fact in result.facts
+        if fact.attributes.get("precedence") == "amendment_controls"
+    }
+    assert controls["Preamble"].startswith("If this Amendment conflicts")
+    assert controls["2.2"] == "If this Amendment conflicts with the Agreement, this Amendment controls."
+    assert _values(result, "net_days", operative=True) == {60}
+    assert _values(result, "net_days", operative=False) == {45}
 
 
 def _values(result, key: str, operative: bool) -> set[object]:

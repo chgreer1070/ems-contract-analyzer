@@ -78,6 +78,8 @@ def _citations_for(
             if candidate.kind == "assumption":
                 continue
             return [], "A fact or inference must cite the contract text it came from."
+        if candidate.kind != "assumption" and (section is None or not section.strip()):
+            return [], "A fact or inference must name the section the quote came from."
         if len(quote) < MIN_QUOTE_CHARS:
             return [], f"The citation is only {len(quote)} characters. A citation must be at least {MIN_QUOTE_CHARS} characters so a short fragment cannot pass."
         if document_id is None or document_id not in documents:

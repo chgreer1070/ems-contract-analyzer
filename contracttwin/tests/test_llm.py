@@ -114,7 +114,7 @@ def test_verbatim_model_quote_is_added() -> None:
         domain="precedence",
         statement="The model copied the control sentence.",
         operative=True,
-        section=None,
+        section="1.1",
         document_id="doc-amendment-1",
         document_name="Amendment No. 1",
         quote="E. Except as amended above, the Agreement remains in full force.",

@@ -42,6 +42,30 @@ def test_fact_without_a_quote_is_rejected() -> None:
     assert "cite" in rejected[0].reason
 
 
+def test_fact_or_inference_without_a_section_is_rejected() -> None:
+    quote = "Customer shall pay each undisputed invoice within forty-five (45) days after the invoice date."
+    for kind in ("fact", "inference"):
+        for section in (None, "", "   "):
+            candidate = _candidate(quote)
+            candidate.kind = kind
+            candidate.section = section
+            accepted, rejected = review_candidates([candidate], DOCUMENTS)
+            assert accepted == []
+            assert "section" in rejected[0].reason
+        quoted = _candidate(quote)
+        quoted.kind = kind
+        quoted.extra_quotes.append(("doc-base", "Harborline MSA", None, quote))
+        accepted, rejected = review_candidates([quoted], DOCUMENTS)
+        assert accepted == []
+        assert "section" in rejected[0].reason
+    assumption = _candidate(quote)
+    assumption.kind = "assumption"
+    assumption.section = None
+    accepted, rejected = review_candidates([assumption], DOCUMENTS)
+    assert rejected == []
+    assert accepted[0].section is None
+
+
 def test_changed_capitalization_is_not_verbatim() -> None:
     accepted, rejected = review_candidates(
         [_candidate("customer shall pay each undisputed invoice within forty-five (45) days after the invoice date.")],
