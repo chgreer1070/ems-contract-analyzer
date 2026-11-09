@@ -12,14 +12,15 @@ The adapter keeps negotiated Word material as evidence and keeps it out of opera
 | Package | Every ZIP part name, size, and SHA-256, plus relationship ids, types, and targets. |
 | Revisions | Inserted and deleted wording, with the author, date, and revision id as supplied. Author display names are not party identity. |
 | Comments | Comment body, author, initials, date, and start/end/reference anchors. Comment text is context. It cannot ground a contract quote. |
-| Stories | Main body, headers, footers, footnotes, and endnotes stay separate. A header is not silently merged into governing body text. |
-| Text hypotheses | Original text leaves out insertions. Proposed text leaves out deletions. Neither hypothesis is an accepted agreement. |
+| Stories | Main body, headers, footers, footnotes, and endnotes stay separate. A header or endnote is not silently merged into governing body text. |
+| Footnotes and text boxes | Footnote words and plain text in a `w:txbxContent` text box are contract-source text. A citation names the document, a structural locator such as "Footnote 2" or "Text box in section 1.1", and a verbatim quote of the words that remain. |
+| Text hypotheses | Original text leaves out insertions. Proposed text leaves out deletions. Neither hypothesis is an accepted agreement or governing text. |
 
-Analysis chunks are complete paragraph envelopes prefixed with `CONTRACTTWIN_DOCX_EVIDENCE_V1`. Quotations must match contiguous decoded contract text. Deleted-only wording and comment text are not operative terms. Candidate terms taken from a negotiated file are labeled `Unapproved proposed text:`.
+Analysis chunks are complete paragraph envelopes prefixed with `CONTRACTTWIN_DOCX_EVIDENCE_V1`. Quotations of footnote and text-box words must match that contract-source text exactly. Deleted-only wording and comment text are not governing text. Candidate terms taken from a negotiated file are labeled `Unapproved proposed text:`. A negotiated Word file is still not an accepted agreement.
 
 ## What still blocks
 
-Unsupported or incomplete packages do not publish analysis chunks and are not sent to flattening OCR. The preserved file remains available. Blocking cases include numbering that is not resolved, tracked moves, fields, content controls, drawings, hidden text, strict OOXML, macro files, bad relationships, unmatched comments, and ZIP features outside the bounded reader (ZIP64, encryption, odd encodings).
+Unsupported or incomplete packages do not publish analysis chunks and are not sent to flattening OCR. The preserved file remains available. Blocking cases include numbering that is not resolved, tracked moves, fields, content controls, drawings or images that have no plain text-box words, hidden text, strict OOXML, macro files, bad relationships, unmatched comments, and ZIP features outside the bounded reader (ZIP64, encryption, odd encodings).
 
 External hyperlinks are recorded and never fetched. That warning does not prove what the link contains.
 
@@ -29,7 +30,7 @@ Full-package layout, numbering labels, authentic Word comparison, and legal reli
 
 ## How this is checked
 
-`node scripts/docx-extraction-check.mjs` builds synthetic OOXML in memory and fails if revisions, comments, headers, or quotes are flattened into governing text.
+`node scripts/docx-extraction-check.mjs` builds synthetic OOXML in memory and fails if revisions, comments, headers, or deleted-only wording are flattened into governing text. It also fails unless a footnote and a plain text box keep their exact words with a document, a section or structural locator, and a verbatim quote.
 
 `node scripts/docx-pipeline-check.mjs` runs the current extraction worker with doubled database, storage, and model boundaries. It fails unless a complete receipt is stored, a blocked file publishes no chunks and no OCR job, legacy `DOCX_RAW_TEXT` cannot reach clause or term analysis, and proposed terms reject deleted-only wording.
 

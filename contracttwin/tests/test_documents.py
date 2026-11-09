@@ -8,7 +8,8 @@ from zipfile import ZipFile
 from fastapi.testclient import TestClient
 
 from contracttwin.api import app
-from contracttwin.ingest import extract_upload
+from contracttwin.ingest import IngestError, extract_upload
+from contracttwin.quote_check import Candidate, review_candidates
 
 from .conftest import API_HEADERS
 
@@ -55,6 +56,85 @@ def test_footnotes_and_text_boxes_are_read_and_comments_stay_out_of_the_text() -
     assert note.operative is False
     assert note.author == "Ada Reviewer"
     assert note.text == "This comment is not contract text."
+
+
+def test_footnote_and_text_box_citations_name_the_document_the_place_and_the_exact_words() -> None:
+    footnote = "The unit price for product NW-100 is USD 9.50 per unit."
+    box = "Customer shall pay a late fee of one percent (1%) per month."
+    deleted = "Customer shall pay the deleted-only penalty within forty-five (45) days."
+    comment = "This comment is not contract text."
+    payload = _docx_with_cited_notes(footnote, box, deleted, comment)
+    extracted = extract_upload("harborline-notes.docx", payload)
+    assert [line for line in extracted.text.splitlines() if line.strip()] == [
+        "1. Pricing",
+        "1.1 Price. See the footnote.",
+        f"[text box] {box}",
+        f"[footnote 1] {footnote}",
+    ]
+    assert any(item.kind == "deletion" and item.text == deleted for item in extracted.revisions)
+    assert len(extracted.annotations) == 1
+    assert extracted.annotations[0].operative is False
+    assert extracted.annotations[0].text == comment
+    documents = {"doc": ("Harborline Notes", extracted.text)}
+    for quote in (deleted, comment):
+        accepted, rejected = review_candidates(
+            [
+                Candidate(
+                    kind="fact",
+                    domain="pricing",
+                    statement="This wording is not the contract.",
+                    operative=True,
+                    section="1.1",
+                    document_id="doc",
+                    document_name="Harborline Notes",
+                    quote=quote,
+                )
+            ],
+            documents,
+        )
+        assert accepted == []
+        assert "verbatim" in rejected[0].reason
+
+    response = client.post(
+        "/v1/agreements/files",
+        data={"manifest": '{"base": {"name": "Harborline Notes", "role": "base", "filename": "harborline-notes.docx"}}'},
+        files=[("files", ("harborline-notes.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+    )
+    assert response.status_code == 200, response.text
+    facts = response.json()["facts"]
+    price = next(fact for fact in facts if fact["attributes"].get("unit_price") == "9.50")
+    price_citation = price["citations"][0]
+    assert price["section"] == "Footnote 1"
+    assert price_citation["document_name"] == "Harborline Notes"
+    assert price_citation["section"] == "Footnote 1"
+    assert price_citation["quote"] == footnote
+    assert price_citation["quote"] in extracted.text
+    box_facts = [fact for fact in facts if any(item["quote"] == box for item in fact["citations"])]
+    assert box_facts
+    for fact in box_facts:
+        citation = fact["citations"][0]
+        assert fact["section"] == "Text box in section 1.1"
+        assert citation["document_name"] == "Harborline Notes"
+        assert citation["section"] == "Text box in section 1.1"
+        assert citation["quote"] == box
+        assert citation["quote"] in extracted.text
+    assert not any(deleted in item["quote"] or comment in item["quote"] for fact in facts for item in fact["citations"])
+
+
+def test_a_word_file_without_a_document_body_is_rejected() -> None:
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr(
+            "word/footnotes.xml",
+            '<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>',
+        )
+    try:
+        extract_upload("incomplete.docx", buffer.getvalue())
+    except IngestError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("An incomplete Word file was read.")
+    assert "no document body" in message
 
 
 def test_a_textless_pdf_is_flagged_and_not_invented() -> None:
@@ -157,6 +237,53 @@ def _docx_with_notes() -> bytes:
 <w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:comment w:id="1" w:author="Ada Reviewer" w:date="2025-03-01T00:00:00Z">
     <w:p><w:r><w:t>This comment is not contract text.</w:t></w:r></w:p>
+  </w:comment>
+</w:comments>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+        package.writestr("word/footnotes.xml", footnotes)
+        package.writestr("word/comments.xml", comments)
+    return buffer.getvalue()
+
+
+def _docx_with_cited_notes(footnote: str, box: str, deleted: str, comment: str) -> bytes:
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+    <w:p>
+      <w:commentRangeStart w:id="1"/>
+      <w:r><w:t>1.1 Price. See the footnote.</w:t></w:r>
+      <w:r><w:footnoteReference w:id="1"/></w:r>
+      <w:commentRangeEnd w:id="1"/>
+      <w:r><w:commentReference w:id="1"/></w:r>
+    </w:p>
+    <w:p><w:r><w:drawing/></w:r></w:p>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent>
+            <w:p><w:r><w:t>{box}</w:t></w:r></w:p>
+          </w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+    <w:p><w:del><w:r><w:delText>{deleted}</w:delText></w:r></w:del></w:p>
+  </w:body>
+</w:document>
+"""
+    footnotes = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:t> </w:t></w:r></w:p></w:footnote>
+  <w:footnote w:id="1"><w:p><w:r><w:t>{footnote}</w:t></w:r></w:p></w:footnote>
+</w:footnotes>
+"""
+    comments = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="1" w:author="Ada Reviewer" w:date="2025-03-01T00:00:00Z">
+    <w:p><w:r><w:t>{comment}</w:t></w:r></w:p>
   </w:comment>
 </w:comments>
 """

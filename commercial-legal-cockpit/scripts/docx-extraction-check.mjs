@@ -112,6 +112,7 @@ for(const [feature,xml,code] of [
   ["fields",'<w:fldSimple w:instr="DATE">'+text("October 8, 2026")+'</w:fldSimple>',"UNSUPPORTED_FLDSIMPLE"],
   ["complex fields",'<w:r><w:fldChar w:fldCharType="begin"/><w:instrText>DATE</w:instrText></w:r>',"UNSUPPORTED_FLDCHAR"],
   ["drawings",'<w:r><w:drawing/></w:r>',"UNSUPPORTED_DRAWING"],
+  ["legacy drawings",'<w:r><w:pict/></w:r>',"UNSUPPORTED_PICT"],
   ["content controls",'<w:sdt><w:sdtContent>'+p(text("Bound data"))+'</w:sdtContent></w:sdt>',"UNSUPPORTED_SDT"],
   ["custom XML",'<w:customXml>'+text("Dynamic data")+'</w:customXml>',"UNSUPPORTED_CUSTOMXML"],
   ["tracked moves",'<w:moveFrom w:id="5" w:author="Synthetic A">'+text("Moved obligation")+'</w:moveFrom>',"UNSUPPORTED_STRUCTURAL_REVISION"],
@@ -120,6 +121,52 @@ for(const [feature,xml,code] of [
   ["unknown content",'<w:futureObligation>'+text("Future schema")+'</w:futureObligation>',"UNKNOWN_WORD_ELEMENT"],
   ["alternate content",'<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Fallback>'+text("Alternative obligation")+'</mc:Fallback></mc:AlternateContent>',"MARKUP_COMPATIBILITY"]
 ])await check(`unsupported ${feature} blocks without publishing partial chunks`,async()=>blocked(extractDocx(await fixture({body:p(text("Supported text ")+xml)})),code));
+await check("a drawing that also contains an image still blocks for visual review",async()=>{
+  const body=p(text("1.1 Price. See the note.")+'<w:r><w:drawing><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>'+p(text("The text box states a late fee of one percent (1%) per month."))+'</w:txbxContent></w:drawing></w:r>');
+  blocked(extractDocx(await fixture({body})),"UNSUPPORTED_DRAWING");
+});
+await check("footnote words and plain text boxes are contract-source text with a locator and a verbatim quote",async()=>{
+  const footnote="The unit price in the footnote is USD 9.50 per unit.";
+  const box="The text box states a late fee of one percent (1%) per month.";
+  const deleted="Customer shall pay the deleted-only penalty within forty-five (45) days.";
+  const commentText="This comment is not contract text.";
+  const body=p(text("1.1 Price. See the footnote.")+'<w:r><w:footnoteReference w:id="1"/></w:r><w:r><w:commentReference w:id="0"/></w:r>')
+    +p('<w:r><w:drawing><w:txbxContent>'+p(text(box))+'</w:txbxContent></w:drawing></w:r>')
+    +p(revision("del","12","Synthetic Flex Counsel",deleted));
+  const result=extractDocx(await fixture({body,parts:{
+    "word/footnotes.xml":{kind:"footnotes",xml:story("footnotes",'<w:footnote w:type="separator" w:id="-1">'+p(text(" "))+'</w:footnote><w:footnote w:id="1">'+p(text(footnote))+'</w:footnote>')},
+    "word/comments.xml":{kind:"comments",xml:story("comments",comment("0",commentText))}
+  }}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  assert.equal(result.evidence.legalEvidenceReady,false);
+  const projections=result.chunks.map(chunk=>readDocxProjection(chunk.text));
+  const footnoteChunk=result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===footnote);
+  const boxChunk=result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===box);
+  const footnoteProjection=readDocxProjection(footnoteChunk.text);
+  const boxProjection=readDocxProjection(boxChunk.text);
+  assert.equal(footnoteProjection.paragraph.source.part,"word/footnotes.xml");
+  assert.equal(footnoteProjection.paragraph.locator,"Footnote 1");
+  assert.equal(footnoteProjection.paragraph.proposedText,footnote);
+  assert.equal(footnoteProjection.context,"UNAPPROVED_NEGOTIATION_EVIDENCE");
+  assert.equal(sourceContainsExcerpt(footnoteChunk.text,footnote),true);
+  assert.equal(proposedTextContainsExcerpt(footnoteChunk.text,footnote),true);
+  assert.equal(boxProjection.paragraph.source.part,"word/document.xml");
+  assert.equal(boxProjection.paragraph.locator,"Text box in section 1.1");
+  assert.equal(boxProjection.paragraph.proposedText,box);
+  assert.equal(sourceContainsExcerpt(boxChunk.text,box),true);
+  assert.equal(proposedTextContainsExcerpt(boxChunk.text,box),true);
+  assert.equal(result.chunks.every(chunk=>sourceContainsExcerpt(chunk.text,commentText)===false),true);
+  assert.equal(result.chunks.every(chunk=>proposedTextContainsExcerpt(chunk.text,deleted)===false),true);
+  assert.equal(projections.some(item=>item.paragraph.proposedText.includes(deleted)),false);
+  assert.deepEqual(
+    {document:footnoteProjection.paragraph.source.part,section:footnoteProjection.paragraph.locator,quote:footnoteProjection.paragraph.proposedText},
+    {document:"word/footnotes.xml",section:"Footnote 1",quote:footnote}
+  );
+  assert.deepEqual(
+    {document:boxProjection.paragraph.source.part,section:boxProjection.paragraph.locator,quote:boxProjection.paragraph.proposedText},
+    {document:"word/document.xml",section:"Text box in section 1.1",quote:box}
+  );
+});
 await check("unused styles are retained; used inherited numbering and style cycles block",async()=>{
   const styleXml='<w:style w:styleId="Unused"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Base"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Base"/></w:style>';
   const parts={"word/styles.xml":{kind:"styles",xml:story("styles",styleXml)}};

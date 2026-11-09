@@ -157,7 +157,10 @@ function sourceLocator(finding:CoreFinding,chunks:Array<{id:string;page_number:n
   const chunk=chunks.find(c=>sourceContainsExcerpt(c.content,finding.sourceExcerpt));
   if(!chunk) return `${filename} · verified source excerpt`;
   const projection=readDocxProjection(chunk.content);
-  if(projection)return `${filename} · ${projection.paragraph.source.part} · ${projection.paragraph.source.path} · unapproved original/proposed negotiation evidence`;
+  if(projection){
+    if(projection.paragraph.locator)return `${filename} · ${projection.paragraph.locator} · unapproved contract-source text`;
+    return `${filename} · ${projection.paragraph.source.part} · ${projection.paragraph.source.path} · unapproved original/proposed negotiation evidence`;
+  }
   return chunk.page_number?`${filename} · p. ${chunk.page_number}`:`${filename} · text chunk ${chunk.chunk_index+1}`;
 }
 

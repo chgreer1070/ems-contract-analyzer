@@ -1,8 +1,10 @@
-"""Read a Word file, including tables and tracked changes.
+"""Read a Word file, including tables, footnotes, text boxes, and tracked changes.
 
 The words a reader would see after accepting the changes are the operative
 text. Insertions are kept. Deletions are left out of that text and listed in
-the redline history. The quote checker uses only the operative text.
+the redline history. Each footnote paragraph is marked ``[footnote N]``. Each
+text-box paragraph is marked ``[text box]``. Comments stay notes. The quote
+checker uses only the operative text.
 """
 
 from __future__ import annotations
@@ -82,8 +84,11 @@ def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
             elif child.tag == f"{WORD_NAMESPACE}txbxContent" or child.tag.endswith("}textbox"):
                 box_text, box_revisions = _paragraphs_in(child, "text box")
                 revisions.extend(box_revisions)
-                if box_text.strip():
-                    chunks.append(box_text)
+                labeled = "\n".join(
+                    f"[text box] {part.strip()}" for part in box_text.split("\n") if part.strip()
+                )
+                if labeled:
+                    chunks.append(("\n" if any(chunk.strip() for chunk in chunks) else "") + labeled)
             elif child.tag in _COMMENT_TAGS:
                 continue
             elif child.tag == f"{WORD_NAMESPACE}t":
@@ -125,8 +130,9 @@ def _footnotes(xml: bytes) -> list[str]:
             continue
         note_id = note.attrib.get(f"{WORD_NAMESPACE}id", "")
         text, _revisions = _paragraphs_in(note, f"footnote {note_id}")
-        if text.strip():
-            lines.append(f"[footnote {note_id}] {text.strip()}")
+        for paragraph in text.split("\n"):
+            if paragraph.strip():
+                lines.append(f"[footnote {note_id}] {paragraph.strip()}")
     return lines
 
 

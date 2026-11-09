@@ -12,15 +12,36 @@ const CT="http://schemas.openxmlformats.org/package/2006/content-types";
 const MC="http://schemas.openxmlformats.org/markup-compatibility/2006";
 const REVISION_NAMES=new Set(["ins","del","moveFrom","moveTo","pPrChange","rPrChange","sectPrChange","tblPrChange","tblGridChange","trPrChange","tcPrChange","cellIns","cellDel","cellMerge","numberingChange"]);
 const STORY_KINDS:Record<string,string>={document:"body",hdr:"header",ftr:"footer",footnotes:"footnotes",endnotes:"endnotes",comments:"comments"};
-const CONTENT_NAMES=new Set(["document","body","hdr","ftr","footnotes","footnote","endnotes","endnote","comments","comment","p","r","t","delText","tab","br","cr","ins","del","hyperlink","bookmarkStart","bookmarkEnd","commentRangeStart","commentRangeEnd","commentReference","tbl","tblGrid","gridCol","tr","tc","sectPr","headerReference","footerReference","footnoteReference","endnoteReference","footnoteRef","endnoteRef","separator","continuationSeparator","lastRenderedPageBreak","proofErr","permStart","permEnd"]);
+const CONTENT_NAMES=new Set(["document","body","hdr","ftr","footnotes","footnote","endnotes","endnote","comments","comment","p","r","t","delText","tab","br","cr","ins","del","hyperlink","bookmarkStart","bookmarkEnd","commentRangeStart","commentRangeEnd","commentReference","tbl","tblGrid","gridCol","tr","tc","sectPr","headerReference","footerReference","footnoteReference","endnoteReference","footnoteRef","endnoteRef","separator","continuationSeparator","lastRenderedPageBreak","proofErr","permStart","permEnd","txbxContent"]);
 const PROPERTY_ROOTS=new Set(["pPr","rPr","tblPr","trPr","tcPr","sectPr"]);
 const UNSUPPORTED:Record<string,string>={
-  drawing:"Drawing/image/text-box content requires visual/layout review.",pict:"Legacy drawing/text-box content requires visual/layout review.",object:"Embedded objects are not interpreted.",altChunk:"Alternative-format content is not interpreted.",sdt:"Content controls and data bindings are not interpreted.",customXml:"Custom XML content may affect document meaning.",fldSimple:"Fields are not evaluated; cached values can be stale.",fldChar:"Complex fields are not evaluated; cached values can be stale.",instrText:"Field instructions are not evaluated.",delInstrText:"Deleted field instructions are not evaluated.",sym:"Font-dependent symbols are not decoded.",vanish:"Hidden text affects the displayed agreement.",webHidden:"Hidden text affects the displayed agreement.",bidi:"Bidirectional layout requires visual review.",rtl:"Right-to-left layout requires visual review.",moveFrom:"Tracked moves require validated move-pair interpretation.",moveTo:"Tracked moves require validated move-pair interpretation.",moveFromRangeStart:"Tracked move ranges require validated move-pair interpretation.",moveToRangeStart:"Tracked move ranges require validated move-pair interpretation.",subDoc:"Linked subdocuments are not loaded.",numPr:"Automatic numbering is preserved but labels are not resolved.",framePr:"Floating paragraph placement requires layout review."
+  drawing:"A drawing or image without plain text-box words requires visual review.",pict:"A legacy drawing or image without plain text-box words requires visual review.",object:"Embedded objects are not interpreted.",altChunk:"Alternative-format content is not interpreted.",sdt:"Content controls and data bindings are not interpreted.",customXml:"Custom XML content may affect document meaning.",fldSimple:"Fields are not evaluated; cached values can be stale.",fldChar:"Complex fields are not evaluated; cached values can be stale.",instrText:"Field instructions are not evaluated.",delInstrText:"Deleted field instructions are not evaluated.",sym:"Font-dependent symbols are not decoded.",vanish:"Hidden text affects the displayed agreement.",webHidden:"Hidden text affects the displayed agreement.",bidi:"Bidirectional layout requires visual review.",rtl:"Right-to-left layout requires visual review.",moveFrom:"Tracked moves require validated move-pair interpretation.",moveTo:"Tracked moves require validated move-pair interpretation.",moveFromRangeStart:"Tracked move ranges require validated move-pair interpretation.",moveToRangeStart:"Tracked move ranges require validated move-pair interpretation.",subDoc:"Linked subdocuments are not loaded.",numPr:"Automatic numbering is preserved but labels are not resolved.",framePr:"Floating paragraph placement requires layout review."
 };
 const local=(node:XmlNode)=>node.name.split(":").at(-1)!;
 const attr=(node:XmlNode,name:string,namespace=W)=>node.attributes.find(a=>a.namespace===namespace&&a.name.split(":").at(-1)===name)?.value??null;
 const child=(node:XmlNode,name:string)=>node.children.find(n=>n.namespace===W&&local(n)===name)??null;
 const descendants=(node:XmlNode,predicate:(n:XmlNode)=>boolean):XmlNode[]=>{const found:XmlNode[]=[];const visit=(n:XmlNode)=>{if(predicate(n))found.push(n);n.children.forEach(visit);};visit(node);return found;};
+const IMAGE_PARTS=new Set(["blip","imagedata","object","oleObj","movie"]);
+function plainTextBox(node:XmlNode){
+  const boxes=descendants(node,n=>n!==node&&n.namespace===W&&local(n)==="txbxContent");
+  if(!boxes.length)return false;
+  const words=descendants(node,n=>n.namespace===W&&["t","delText","tab","br","cr"].includes(local(n)));
+  if(!words.length||!words.every(word=>boxes.some(box=>word.source.path.startsWith(`${box.source.path}/`))))return false;
+  return !descendants(node,n=>IMAGE_PARTS.has(local(n))).length;
+}
+function ancestorName(name:string){return name.split(":").at(-1)??"";}
+function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>,sectionLabel:string){
+  const footnote=paragraph.ancestors.find(item=>ancestorName(item.name)==="footnote");
+  if(footnote){
+    const node=nodeIndex.get(footnote.source.path);
+    if(!node)return null;
+    const type=attr(node,"type");
+    if(type&&["separator","continuationSeparator","continuationNotice"].includes(type))return null;
+    const id=attr(node,"id");
+    return id===null?null:`Footnote ${id}`;
+  }
+  return paragraph.ancestors.some(item=>ancestorName(item.name)==="txbxContent")?`Text box in section ${sectionLabel}`:null;
+}
 function plainText(node:XmlNode):string{
   if(node.namespace===W&&["t","delText"].includes(local(node)))return node.children.map(n=>n.text??"").join("");
   if(node.namespace===W&&local(node)==="tab")return "\t";
@@ -182,8 +203,9 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
             if(local(part.tree!)==="comments")issue("UNSUPPORTED_COMMENT_REVISION","Tracked edits inside comment bodies are retained but their current rationale is not resolved.",n.source);
             if(!["ins","del"].includes(name)||inProperties)issue("UNSUPPORTED_STRUCTURAL_REVISION","Property, paragraph-mark, table and move revisions are retained but their before/after semantics are not resolved.",n.source);
           }
-          if(UNSUPPORTED[name])issue(`UNSUPPORTED_${name.toUpperCase()}`,UNSUPPORTED[name],n.source);
-          else if(!property&&!CONTENT_NAMES.has(name)&&!REVISION_NAMES.has(name))issue("UNKNOWN_WORD_ELEMENT",`Uninterpreted Word element: ${name}.`,n.source);
+          const textBoxHost=(name==="drawing"||name==="pict")&&plainTextBox(n);
+          if(UNSUPPORTED[name]&&!textBoxHost)issue(`UNSUPPORTED_${name.toUpperCase()}`,UNSUPPORTED[name],n.source);
+          else if(!textBoxHost&&!property&&!CONTENT_NAMES.has(name)&&!REVISION_NAMES.has(name))issue("UNKNOWN_WORD_ELEMENT",`Uninterpreted Word element: ${name}.`,n.source);
         }else issue("UNSUPPORTED_NAMESPACE","Non-Word story content requires another validated adapter.",n.source);
         n.children.forEach(c=>scan(c,property));
       };scan(part.tree!);
@@ -207,7 +229,8 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       const tree=part.tree!,kind=STORY_KINDS[local(tree)],paragraphs:DocxParagraph[]=[],activeComments=new Set<string>();let storyOffset=0,activeCommentBytes=0;
       const collect=(n:XmlNode,ancestors:Array<{name:string;source:XmlSource}>,inheritedRevisions:string[])=>{
         if(n.namespace===W&&local(n)==="p"){
-          const pPr=child(n,"pPr"),paragraph:DocxParagraph={source:n.source,ancestors,style:pPr?attr(child(pPr,"pStyle")??pPr,"val"):null,numbering:pPr?child(pPr,"numPr"):null,tableContext:null,runs:[],originalText:"",proposedText:""};let paragraphOffset=0;
+          const pPr=child(n,"pPr"),paragraph:DocxParagraph={source:n.source,ancestors,style:pPr?attr(child(pPr,"pStyle")??pPr,"val"):null,numbering:pPr?child(pPr,"numPr"):null,tableContext:null,runs:[],originalText:"",proposedText:"",locator:null};let paragraphOffset=0;
+          const nestedBoxes:Array<{item:XmlNode;revisions:string[]}>=[];
           const inline=(item:XmlNode,revisions:string[])=>{
             if(item.text!==null)return;
             const name=local(item),key=revisionByPath.get(sourceKey(item.source)),next=key?[...revisions,key]:revisions;
@@ -237,8 +260,14 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
               if(!types.some(type=>["del","moveFrom"].includes(type)))paragraph.proposedText+=text;
               paragraphOffset+=text.length;storyOffset+=text.length;return;
             }
+            if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next});return;}
             item.children.forEach(c=>inline(c,next));
-          };n.children.forEach(c=>inline(c,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;return;
+          };n.children.forEach(c=>inline(c,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;
+          for(const box of nestedBoxes){
+            const boxAncestors=[...ancestors,{name:n.name,source:n.source},{name:box.item.name,source:box.item.source}];
+            box.item.children.forEach(child=>collect(child,boxAncestors,box.revisions));
+          }
+          return;
         }
         const key=revisionByPath.get(sourceKey(n.source)),revisions=key?[...inheritedRevisions,key]:inheritedRevisions;
         n.children.forEach(c=>collect(c,n.text===null?[...ancestors,{name:n.name,source:n.source}]:ancestors,revisions));
@@ -288,6 +317,14 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
         contextBytes+=Buffer.byteLength(JSON.stringify(context));
         if(contextBytes>4*1024*1024){issue("TABLE_CONTEXT_LIMIT","Table analysis context exceeds the supported evidence budget.",paragraph.source);break;}
         paragraph.tableContext=context;
+      }
+      let sectionLabel="1";
+      const heading=/^(\d+(?:\.\d+)*)(?:\.|\s)\s*\S/;
+      for(const paragraph of paragraphs){
+        const structural=paragraph.ancestors.some(item=>["txbxContent","footnote","endnote"].includes(ancestorName(item.name)));
+        const visible=paragraph.proposedText.replace(/\s+/g," ").trim();
+        if(!structural){const match=visible.match(heading);if(match)sectionLabel=match[1];}
+        paragraph.locator=structuralLocator(paragraph,nodeIndex,sectionLabel);
       }
       if(activeComments.size)issue("UNMATCHED_COMMENT_START","Comment range remains open at the end of its story.",tree.source);
       evidence.stories.push({part:part.part,kind,paragraphs});
