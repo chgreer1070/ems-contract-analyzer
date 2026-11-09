@@ -7,7 +7,6 @@ date or dollar figure is not created here; later steps do that and label it.
 from __future__ import annotations
 
 import re
-from dataclasses import replace
 
 from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
@@ -101,11 +100,11 @@ def _preamble_facts(version: SectionVersion, agreement: bool) -> list[Candidate]
 def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candidate]:
     found: list[Candidate] = []
     for raw_line in _lines(version.text):
-        section, line = _located_line(version, raw_line)
-        located = version if section == version.number else replace(version, number=section)
-        found.extend(_definitions(line, located))
-        found.extend(_days(line, located, warnings))
-        found.extend(_percents(line, located, warnings))
+        locator, line = _citation_locator(version, raw_line)
+        start = len(found)
+        found.extend(_definitions(line, version))
+        found.extend(_days(line, version, warnings))
+        found.extend(_percents(line, version, warnings))
         price = PRICE_RE.search(line)
         if price and not _span_is_historical(line, price.start(), price.end()):
             per_unit = "per unit" in line.lower()
@@ -121,10 +120,10 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                     kind="fact",
                     domain="pricing",
                     statement=statement,
-                    operative=located.operative,
-                    section=section,
-                    document_id=located.document_id,
-                    document_name=located.document_name,
+                    operative=version.operative,
+                    section=version.number,
+                    document_id=version.document_id,
+                    document_name=version.document_name,
                     quote=line,
                     attributes={
                         "sku": sku,
@@ -144,10 +143,10 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                         kind="fact",
                         domain=_explicit_domain(area),
                         statement=f"The text states a {area.replace('_', ' ')} exposure of USD {exposure.group('amount')}.",
-                        operative=located.operative,
-                        section=section,
-                        document_id=located.document_id,
-                        document_name=located.document_name,
+                        operative=version.operative,
+                        section=version.number,
+                        document_id=version.document_id,
+                        document_name=version.document_name,
                         quote=line,
                         attributes={
                             "explicit_amount": exposure.group("amount"),
@@ -164,10 +163,10 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                     kind="fact",
                     domain="survival",
                     statement=f"Sections {numbers.replace(',', ', ')} survive expiration or termination.",
-                    operative=located.operative,
-                    section=section,
-                    document_id=located.document_id,
-                    document_name=located.document_name,
+                    operative=version.operative,
+                    section=version.number,
+                    document_id=version.document_id,
+                    document_name=version.document_name,
                     quote=line,
                     attributes={"surviving_sections": numbers},
                 )
@@ -178,10 +177,10 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                     kind="fact",
                     domain=_domain_for_line(line),
                     statement=line.strip(),
-                    operative=located.operative,
-                    section=section,
-                    document_id=located.document_id,
-                    document_name=located.document_name,
+                    operative=version.operative,
+                    section=version.number,
+                    document_id=version.document_id,
+                    document_name=version.document_name,
                     quote=line,
                     attributes={"obligation": True},
                 )
@@ -194,15 +193,18 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                         kind="fact",
                         domain="notice",
                         statement=f"The text names the calendar quarter ending {quarter_end.isoformat()} for this notice.",
-                        operative=located.operative,
-                        section=section,
-                        document_id=located.document_id,
-                        document_name=located.document_name,
+                        operative=version.operative,
+                        section=version.number,
+                        document_id=version.document_id,
+                        document_name=version.document_name,
                         quote=line,
                         attributes={"quarter_end": quarter_end.isoformat()},
                     )
                 )
-        found.extend(term_candidates(line, located, warnings))
+        found.extend(term_candidates(line, version, warnings))
+        if locator is not None:
+            for candidate in found[start:]:
+                candidate.citation_section = locator
     return found
 
 
@@ -210,8 +212,8 @@ _FOOTNOTE_LINE = re.compile(r"^\[footnote (?P<id>[^\]\n]+)\] (?P<body>.+)$")
 _TEXT_BOX_LINE = re.compile(r"^\[text box\] (?P<body>.+)$")
 
 
-def _located_line(version: SectionVersion, line: str) -> tuple[str, str]:
-    """Name a footnote or text box without changing the words that are quoted."""
+def _citation_locator(version: SectionVersion, line: str) -> tuple[str | None, str]:
+    """Keep the numbered section for comparisons, and name the quote's place."""
 
     footnote = _FOOTNOTE_LINE.match(line)
     if footnote and footnote.group("body").strip():
@@ -219,7 +221,7 @@ def _located_line(version: SectionVersion, line: str) -> tuple[str, str]:
     box = _TEXT_BOX_LINE.match(line)
     if box and box.group("body").strip():
         return f"Text box in section {version.number}", box.group("body").strip()
-    return version.number, line
+    return None, line
 
 
 def _definitions(line: str, version: SectionVersion) -> list[Candidate]:

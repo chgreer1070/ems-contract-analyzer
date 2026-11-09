@@ -185,11 +185,13 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       for(const n of descendants(part.tree!,n=>n.namespace===W&&["footnote","endnote"].includes(local(n)))){
         const id=attr(n,"id"),key=`${local(n)}:${id}`;if(id===null||noteById.has(key))issue("DUPLICATE_OR_MISSING_NOTE_ID","Note identifiers must be unique.",n.source);else noteById.set(key,n.source);
       }
-      const scan=(n:XmlNode,inProperties=false)=>{
+      const scan=(n:XmlNode,inProperties=false,inTextBox=false)=>{
         if(n.text!==null)return;
         const name=local(n),property=inProperties||(n.namespace===W&&PROPERTY_ROOTS.has(name));
-        if(n.namespace===MC||n.attributes.some(a=>a.namespace===MC&&a.name.split(":").at(-1)!=="Ignorable"))issue("MARKUP_COMPATIBILITY","Alternate/extension semantics are not yet resolved.",n.source);
-        if(n.attributes.some(a=>a.namespace&&!([W,R,MC,"http://www.w3.org/XML/1998/namespace","http://www.w3.org/2000/xmlns/"].includes(a.namespace))&&!(a.namespace==="http://schemas.microsoft.com/office/word/2010/wordml"&&["paraId","textId"].includes(a.name.split(":").at(-1)!))))issue("UNKNOWN_EXTENSION_ATTRIBUTE","Uninterpreted extension attributes can affect document meaning.",n.source);
+        const textBoxHost=!inTextBox&&((n.namespace===W&&(name==="drawing"||name==="pict"))||(n.namespace===MC&&name==="AlternateContent"))&&plainTextBox(n);
+        const insideTextBox=inTextBox||textBoxHost;
+        if(!insideTextBox&&(n.namespace===MC||n.attributes.some(a=>a.namespace===MC&&a.name.split(":").at(-1)!=="Ignorable")))issue("MARKUP_COMPATIBILITY","Alternate/extension semantics are not yet resolved.",n.source);
+        if((!insideTextBox||n.namespace===W)&&n.attributes.some(a=>a.namespace&&!([W,R,MC,"http://www.w3.org/XML/1998/namespace","http://www.w3.org/2000/xmlns/"].includes(a.namespace))&&!(a.namespace==="http://schemas.microsoft.com/office/word/2010/wordml"&&["paraId","textId"].includes(a.name.split(":").at(-1)!))))issue("UNKNOWN_EXTENSION_ATTRIBUTE","Uninterpreted extension attributes can affect document meaning.",n.source);
         if(n.namespace===W){
           if(REVISION_NAMES.has(name)){
             const key=sourceKey(n.source),id=attr(n,"id"),author=attr(n,"author");
@@ -203,11 +205,11 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
             if(local(part.tree!)==="comments")issue("UNSUPPORTED_COMMENT_REVISION","Tracked edits inside comment bodies are retained but their current rationale is not resolved.",n.source);
             if(!["ins","del"].includes(name)||inProperties)issue("UNSUPPORTED_STRUCTURAL_REVISION","Property, paragraph-mark, table and move revisions are retained but their before/after semantics are not resolved.",n.source);
           }
-          const textBoxHost=(name==="drawing"||name==="pict")&&plainTextBox(n);
-          if(UNSUPPORTED[name]&&!textBoxHost)issue(`UNSUPPORTED_${name.toUpperCase()}`,UNSUPPORTED[name],n.source);
-          else if(!textBoxHost&&!property&&!CONTENT_NAMES.has(name)&&!REVISION_NAMES.has(name))issue("UNKNOWN_WORD_ELEMENT",`Uninterpreted Word element: ${name}.`,n.source);
-        }else issue("UNSUPPORTED_NAMESPACE","Non-Word story content requires another validated adapter.",n.source);
-        n.children.forEach(c=>scan(c,property));
+          const textBoxShape=insideTextBox&&(name==="drawing"||name==="pict");
+          if(UNSUPPORTED[name]&&!textBoxShape)issue(`UNSUPPORTED_${name.toUpperCase()}`,UNSUPPORTED[name],n.source);
+          else if(!textBoxShape&&!property&&!CONTENT_NAMES.has(name)&&!REVISION_NAMES.has(name))issue("UNKNOWN_WORD_ELEMENT",`Uninterpreted Word element: ${name}.`,n.source);
+        }else if(!insideTextBox)issue("UNSUPPORTED_NAMESPACE","Non-Word story content requires another validated adapter.",n.source);
+        n.children.forEach(c=>scan(c,property,insideTextBox));
       };scan(part.tree!);
     }
     for(const part of evidence.parts){
@@ -263,9 +265,21 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
             if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next});return;}
             item.children.forEach(c=>inline(c,next));
           };n.children.forEach(c=>inline(c,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;
+          const firstBox=new Map<string,DocxParagraph>();
           for(const box of nestedBoxes){
+            const preview=plainText(box.item).replace(/\s+/g," ").trim();
+            const existing=preview?firstBox.get(preview):undefined;
+            // Word stores the same text-box words twice, once for current Word and once for older Word.
+            // Keep one quoted copy and point the repeat at the same paragraph so it is not lost.
+            if(existing){
+              for(const node of descendants(box.item,item=>item.namespace===W&&["t","delText","tab","br","cr"].includes(local(item))))existing.runs.push({text:plainText(node),source:node.source,revisionKeys:box.revisions,commentIds:[],kind:local(node)});
+              continue;
+            }
+            const before=paragraphs.length;
             const boxAncestors=[...ancestors,{name:n.name,source:n.source},{name:box.item.name,source:box.item.source}];
             box.item.children.forEach(child=>collect(child,boxAncestors,box.revisions));
+            const created=paragraphs.slice(before).find(item=>item.runs.some(run=>run.text.length));
+            if(preview&&created)firstBox.set(preview,created);
           }
           return;
         }

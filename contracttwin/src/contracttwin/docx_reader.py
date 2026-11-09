@@ -88,7 +88,8 @@ def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
                     f"[text box] {part.strip()}" for part in box_text.split("\n") if part.strip()
                 )
                 if labeled:
-                    chunks.append(("\n" if any(chunk.strip() for chunk in chunks) else "") + labeled)
+                    prefix = "\n" if any(chunk.strip() for chunk in chunks) else ""
+                    chunks.append(f"{prefix}{labeled}\n")
             elif child.tag in _COMMENT_TAGS:
                 continue
             elif child.tag == f"{WORD_NAMESPACE}t":

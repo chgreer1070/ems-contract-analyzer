@@ -121,6 +121,21 @@ for(const [feature,xml,code] of [
   ["unknown content",'<w:futureObligation>'+text("Future schema")+'</w:futureObligation>',"UNKNOWN_WORD_ELEMENT"],
   ["alternate content",'<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Fallback>'+text("Alternative obligation")+'</mc:Fallback></mc:AlternateContent>',"MARKUP_COMPATIBILITY"]
 ])await check(`unsupported ${feature} blocks without publishing partial chunks`,async()=>blocked(extractDocx(await fixture({body:p(text("Supported text ")+xml)})),code));
+await check("ordinary text-box wrappers keep one copy of the words",async()=>{
+  const box="The text box states a late fee of one percent (1%) per month.";
+  const inner=`<w:txbxContent>${p(text(box))}</w:txbxContent>`;
+  const vml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="width:100pt"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="urn:synthetic"><wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:txbx>${inner}</wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice><mc:Fallback>${vml}</mc:Fallback></mc:AlternateContent>`;
+  for(const wrapper of [`<w:r>${vml}</w:r>`,`<w:r>${alternate}</w:r>`]){
+    const result=extractDocx(await fixture({body:p(text("1.2 Fees. The body states the fee rule."))+p(wrapper)}));
+    assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+    const matches=result.chunks.map(chunk=>readDocxProjection(chunk.text)).filter(item=>item.paragraph.proposedText===box);
+    assert.equal(matches.length,1);
+    assert.equal(matches[0].paragraph.locator,"Text box in section 1.2");
+    assert.equal(matches[0].paragraph.proposedText,box);
+    assert.equal(matches[0].paragraph.source.part,"word/document.xml");
+  }
+});
 await check("a drawing that also contains an image still blocks for visual review",async()=>{
   const body=p(text("1.1 Price. See the note.")+'<w:r><w:drawing><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>'+p(text("The text box states a late fee of one percent (1%) per month."))+'</w:txbxContent></w:drawing></w:r>');
   blocked(extractDocx(await fixture({body})),"UNSUPPORTED_DRAWING");

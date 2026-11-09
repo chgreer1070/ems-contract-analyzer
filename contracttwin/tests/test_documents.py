@@ -104,7 +104,7 @@ def test_footnote_and_text_box_citations_name_the_document_the_place_and_the_exa
     facts = response.json()["facts"]
     price = next(fact for fact in facts if fact["attributes"].get("unit_price") == "9.50")
     price_citation = price["citations"][0]
-    assert price["section"] == "Footnote 1"
+    assert price["section"] == "1.1"
     assert price_citation["document_name"] == "Harborline Notes"
     assert price_citation["section"] == "Footnote 1"
     assert price_citation["quote"] == footnote
@@ -113,12 +113,74 @@ def test_footnote_and_text_box_citations_name_the_document_the_place_and_the_exa
     assert box_facts
     for fact in box_facts:
         citation = fact["citations"][0]
-        assert fact["section"] == "Text box in section 1.1"
+        assert fact["section"] == "1.1"
         assert citation["document_name"] == "Harborline Notes"
         assert citation["section"] == "Text box in section 1.1"
         assert citation["quote"] == box
         assert citation["quote"] in extracted.text
     assert not any(deleted in item["quote"] or comment in item["quote"] for fact in facts for item in fact["citations"])
+
+
+def test_a_text_box_and_the_words_after_it_stay_separate() -> None:
+    box = "Customer shall pay a late fee."
+    following = "Customer shall deliver goods."
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent><w:p><w:r><w:t>{box}</w:t></w:r></w:p></w:txbxContent>
+        </w:drawing>
+      </w:r>
+      <w:r><w:t>{following}</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    extracted = extract_upload("split-box.docx", buffer.getvalue())
+    assert f"[text box] {box}" in extracted.text.splitlines()
+    assert following in extracted.text.splitlines()
+    assert f"{box}{following}" not in extracted.text
+
+
+def test_a_text_box_that_disagrees_with_its_section_is_still_a_conflict() -> None:
+    body = "Customer shall pay each undisputed invoice within thirty (30) days after the invoice date."
+    box = "Customer shall pay each undisputed invoice within sixty (60) days after the invoice date."
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1.1 Payment. {body}</w:t></w:r></w:p>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent><w:p><w:r><w:t>{box}</w:t></w:r></w:p></w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    payload = buffer.getvalue()
+    response = client.post(
+        "/v1/agreements/files",
+        data={"manifest": '{"base": {"name": "Harborline Notes", "role": "base", "filename": "conflict.docx"}}'},
+        files=[("files", ("conflict.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+    )
+    assert response.status_code == 200, response.text
+    body_json = response.json()
+    nets = [fact for fact in body_json["facts"] if "net_days" in fact["attributes"]]
+    assert {fact["attributes"]["net_days"] for fact in nets} == {30, 60}
+    assert {fact["section"] for fact in nets} == {"1.1"}
+    assert {fact["citations"][0]["section"] for fact in nets} == {"1.1", "Text box in section 1.1"}
+    assert all(fact["attributes"].get("conflicting") is True for fact in nets)
+    assert any("Section 1.1 states more than one net days" in warning for warning in body_json["warnings"])
 
 
 def test_a_word_file_without_a_document_body_is_rejected() -> None:
