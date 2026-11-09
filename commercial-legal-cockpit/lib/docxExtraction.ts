@@ -232,10 +232,12 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       const collect=(n:XmlNode,ancestors:Array<{name:string;source:XmlSource}>,inheritedRevisions:string[])=>{
         if(n.namespace===W&&local(n)==="p"){
           const pPr=child(n,"pPr"),paragraph:DocxParagraph={source:n.source,ancestors,style:pPr?attr(child(pPr,"pStyle")??pPr,"val"):null,numbering:pPr?child(pPr,"numPr"):null,tableContext:null,runs:[],originalText:"",proposedText:"",locator:null};let paragraphOffset=0;
-          const nestedBoxes:Array<{item:XmlNode;revisions:string[]}>=[];
-          const inline=(item:XmlNode,revisions:string[])=>{
+          const nestedBoxes:Array<{item:XmlNode;revisions:string[];commentIds:string[];alternatePath:string|null;branch:"Choice"|"Fallback"|null}>=[];
+          const inline=(item:XmlNode,revisions:string[],alternatePath:string|null=null,branch:"Choice"|"Fallback"|null=null)=>{
             if(item.text!==null)return;
             const name=local(item),key=revisionByPath.get(sourceKey(item.source)),next=key?[...revisions,key]:revisions;
+            if(item.namespace===MC&&name==="AlternateContent"){item.children.forEach(child=>inline(child,next,item.source.path,null));return;}
+            if(alternatePath&&item.namespace===MC&&(name==="Choice"||name==="Fallback")){item.children.forEach(child=>inline(child,next,alternatePath,name==="Choice"?"Choice":"Fallback"));return;}
             if(item.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(name)){
               const id=attr(item,"id"),comment=id===null?null:commentById.get(id),anchorKind=name==="commentRangeStart"?"start":name==="commentRangeEnd"?"end":"reference";
               if(!comment)issue("MISSING_COMMENT_BODY","Comment anchor has no comment body.",item.source);
@@ -262,25 +264,66 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
               if(!types.some(type=>["del","moveFrom"].includes(type)))paragraph.proposedText+=text;
               paragraphOffset+=text.length;storyOffset+=text.length;return;
             }
-            if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next});return;}
-            item.children.forEach(c=>inline(c,next));
-          };n.children.forEach(c=>inline(c,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;
-          const firstBox=new Map<string,DocxParagraph>();
+            if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next,commentIds:[...activeComments],alternatePath,branch});return;}
+            item.children.forEach(child=>inline(child,next,alternatePath,branch));
+          };n.children.forEach(child=>inline(child,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;
+          const boxViews=(node:XmlNode,inherited:string[])=>{
+            let original="",proposed="";
+            const walk=(item:XmlNode,revisions:string[])=>{
+              if(item.text!==null)return;
+              const itemName=local(item),itemKey=revisionByPath.get(sourceKey(item.source)),next=itemKey?[...revisions,itemKey]:revisions;
+              if(item.namespace===W&&["t","delText","tab","br","cr"].includes(itemName)){
+                const text=plainText(item),types=next.map(id=>evidence.revisions.find(revision=>revision.key===id)!.kind);
+                if(!types.some(type=>["ins","moveTo"].includes(type)))original+=text;
+                if(!types.some(type=>["del","moveFrom"].includes(type)))proposed+=text;
+                return;
+              }
+              item.children.forEach(child=>walk(child,next));
+            };
+            walk(node,inherited);
+            return `${original}\u0000${proposed}`;
+          };
+          const drop=new Set<XmlNode>();
+          const groups=new Map<string,{choice:typeof nestedBoxes;fallback:typeof nestedBoxes}>();
           for(const box of nestedBoxes){
-            const preview=plainText(box.item).replace(/\s+/g," ").trim();
-            const existing=preview?firstBox.get(preview):undefined;
-            // Word stores the same text-box words twice, once for current Word and once for older Word.
-            // Keep one quoted copy and point the repeat at the same paragraph so it is not lost.
-            if(existing){
-              for(const node of descendants(box.item,item=>item.namespace===W&&["t","delText","tab","br","cr"].includes(local(item))))existing.runs.push({text:plainText(node),source:node.source,revisionKeys:box.revisions,commentIds:[],kind:local(node)});
-              continue;
-            }
+            if(!box.alternatePath||!box.branch)continue;
+            const group=groups.get(box.alternatePath)??{choice:[],fallback:[]};
+            group[box.branch==="Choice"?"choice":"fallback"].push(box);
+            groups.set(box.alternatePath,group);
+          }
+          for(const group of groups.values()){
+            if(!group.choice.length||!group.fallback.length)continue;
+            const same=group.choice.map(box=>boxViews(box.item,box.revisions)).join("\n")===group.fallback.map(box=>boxViews(box.item,box.revisions)).join("\n");
+            if(!same)issue("DIVERGENT_ALTERNATE_TEXT","Choice and fallback text boxes do not say the same words, so neither is published as the contract text.",group.choice[0].item.source);
+            else group.fallback.forEach(box=>drop.add(box.item));
+          }
+          const commentBytes=(ids:Iterable<string>)=>[...ids].reduce((total,id)=>total+Buffer.byteLength(id)+8,0);
+          const afterParagraph=[...activeComments];
+          const closedInside=new Set<string>(),openedInside=new Set<string>(),hosts=new Map<string,DocxParagraph>();
+          for(const box of nestedBoxes){
+            if(drop.has(box.item))continue;
+            activeComments.clear();
+            box.commentIds.forEach(id=>activeComments.add(id));
+            activeCommentBytes=commentBytes(activeComments);
             const before=paragraphs.length;
             const boxAncestors=[...ancestors,{name:n.name,source:n.source},{name:box.item.name,source:box.item.source}];
             box.item.children.forEach(child=>collect(child,boxAncestors,box.revisions));
             const created=paragraphs.slice(before).find(item=>item.runs.some(run=>run.text.length));
-            if(preview&&created)firstBox.set(preview,created);
+            if(created&&box.alternatePath&&!hosts.has(box.alternatePath))hosts.set(box.alternatePath,created);
+            const afterBox=new Set(activeComments);
+            for(const id of box.commentIds)if(!afterBox.has(id))closedInside.add(id);
+            for(const id of afterBox)if(!box.commentIds.includes(id))openedInside.add(id);
           }
+          for(const box of nestedBoxes){
+            if(!drop.has(box.item)||!box.alternatePath)continue;
+            const host=hosts.get(box.alternatePath);
+            if(!host)continue;
+            for(const node of descendants(box.item,item=>item.namespace===W&&["t","delText","tab","br","cr"].includes(local(item))))host.runs.push({text:plainText(node),source:node.source,revisionKeys:box.revisions,commentIds:[...box.commentIds],kind:local(node)});
+          }
+          activeComments.clear();
+          for(const id of afterParagraph)if(!closedInside.has(id))activeComments.add(id);
+          for(const id of openedInside)activeComments.add(id);
+          activeCommentBytes=commentBytes(activeComments);
           return;
         }
         const key=revisionByPath.get(sourceKey(n.source)),revisions=key?[...inheritedRevisions,key]:inheritedRevisions;

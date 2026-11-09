@@ -20,7 +20,7 @@ Analysis chunks are complete paragraph envelopes prefixed with `CONTRACTTWIN_DOC
 
 ## What still blocks
 
-Unsupported or incomplete packages do not publish analysis chunks and are not sent to flattening OCR. The preserved file remains available. Blocking cases include numbering that is not resolved, tracked moves, fields, content controls, drawings or images that have no plain text-box words, hidden text, strict OOXML, macro files, bad relationships, unmatched comments, and ZIP features outside the bounded reader (ZIP64, encryption, odd encodings).
+Unsupported or incomplete packages do not publish analysis chunks and are not sent to flattening OCR. The preserved file remains available. Blocking cases include numbering that is not resolved, tracked moves, fields, content controls, drawings or images that have no plain text-box words, text-box branches that do not say the same words, hidden text, strict OOXML, macro files, bad relationships, unmatched comments, and ZIP features outside the bounded reader (ZIP64, encryption, odd encodings).
 
 External hyperlinks are recorded and never fetched. That warning does not prove what the link contains.
 

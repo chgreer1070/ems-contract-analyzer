@@ -136,6 +136,35 @@ await check("ordinary text-box wrappers keep one copy of the words",async()=>{
     assert.equal(matches[0].paragraph.source.part,"word/document.xml");
   }
 });
+await check("different choice and fallback text boxes block instead of becoming two clauses",async()=>{
+  const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch("Customer shall pay within thirty (30) days of invoice.")}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch("Customer shall pay within sixty (60) days of invoice.")}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  blocked(extractDocx(await fixture({body:p(text("1.3 Payment. See the box."))+p(`<w:r>${alternate}</w:r>`)})),"DIVERGENT_ALTERNATE_TEXT");
+});
+await check("a separate text box keeps current words when an earlier box only deletes them",async()=>{
+  const sentence="Customer shall pay a late fee of one percent (1%) per month.";
+  const deleted=`<w:r><w:drawing><w:txbxContent>${p(revision("del","30","Synthetic Flex Counsel",sentence))}</w:txbxContent></w:drawing></w:r>`;
+  const current=`<w:r><w:drawing><w:txbxContent>${p(text(sentence))}</w:txbxContent></w:drawing></w:r>`;
+  const duplicate=`<w:r><w:drawing><w:txbxContent>${p(text(sentence))}</w:txbxContent></w:drawing></w:r>`;
+  const result=extractDocx(await fixture({body:p(text("1.4 Fees. ")+deleted+current+duplicate)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const proposed=result.chunks.map(chunk=>readDocxProjection(chunk.text)).filter(item=>item.paragraph.proposedText===sentence);
+  assert.equal(proposed.length,2);
+  assert.equal(proposedTextContainsExcerpt(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===sentence).text,sentence),true);
+});
+await check("a comment wrapped around a text box stays with the box words",async()=>{
+  const box="The text box states a late fee of one percent (1%) per month.";
+  const note="This comment explains the text box and is not contract text.";
+  const body=p('<w:commentRangeStart w:id="0"/>'+`<w:r><w:drawing><w:txbxContent>${p(text(box))}</w:txbxContent></w:drawing></w:r>`+'<w:commentRangeEnd w:id="0"/><w:r><w:commentReference w:id="0"/></w:r>');
+  const result=extractDocx(await fixture({body,parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comment("0",note))}}}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const projection=readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===box).text);
+  assert.equal(projection.paragraph.proposedText,box);
+  assert.ok(projection.paragraph.runs.some(run=>run.commentIds.includes("0")));
+  assert.equal(projection.comments.length,1);
+  assert.equal(projection.comments[0].text,note);
+  assert.equal(sourceContainsExcerpt(result.chunks.map(chunk=>chunk.text).join("\n\n"),note),false);
+});
 await check("a drawing that also contains an image still blocks for visual review",async()=>{
   const body=p(text("1.1 Price. See the note.")+'<w:r><w:drawing><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>'+p(text("The text box states a late fee of one percent (1%) per month."))+'</w:txbxContent></w:drawing></w:r>');
   blocked(extractDocx(await fixture({body})),"UNSUPPORTED_DRAWING");
