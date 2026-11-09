@@ -1,6 +1,10 @@
+import { rm, stat } from "node:fs/promises";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-test("the sample agreement page shows the Harborline reading", async ({ page }) => {
+const harborlineReadingScreenshot = path.join("e2e-success", "harborline-reading.png");
+
+test("the sample agreement page shows the Harborline reading", async ({ page }, testInfo) => {
   await page.goto("/reading");
   await expect(page.getByTestId("operative-payment")).toContainText("60 days", { timeout: 20000 });
   await expect(page.getByTestId("citation")).toContainText("sixty (60)");
@@ -23,6 +27,18 @@ test("the sample agreement page shows the Harborline reading", async ({ page }) 
     "A person looked at this sample. This is not an approval.",
   );
   await expect(page.getByTestId("operative-payment")).toContainText("60 days");
+
+  const configFile = testInfo.config.configFile;
+  if (!configFile) throw new Error("Playwright config file is required for the Harborline screenshot path.");
+  const screenshotPath = path.resolve(path.dirname(configFile), harborlineReadingScreenshot);
+  await rm(screenshotPath, { force: true });
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  const screenshot = await stat(screenshotPath).catch((error: unknown) => {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  });
+  expect(screenshot?.isFile() ?? false, "Harborline reading screenshot is missing").toBe(true);
+  expect(screenshot?.size ?? 0, "Harborline reading screenshot is empty").toBeGreaterThan(0);
 });
 
 test("a matter opens the made-up sample reading and does not approve it", async ({ page }) => {

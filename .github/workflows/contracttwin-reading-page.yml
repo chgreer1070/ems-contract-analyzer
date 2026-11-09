@@ -1,6 +1,8 @@
 name: ContractTwin reading page
 
 on:
+  # Manual runs only re-check the sample reading page. They do not deploy.
+  workflow_dispatch:
   pull_request:
     paths:
       - "contracttwin/**"
@@ -62,3 +64,10 @@ jobs:
           CONTRACTTWIN_API_KEY: e2e-reading-key
           CONTRACTTWIN_CORE_URL: http://127.0.0.1:8080
         run: npx playwright test
+
+      - name: Upload the Harborline reading screenshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harborline-reading-screenshot
+          path: commercial-legal-cockpit/e2e-success/harborline-reading.png
+          if-no-files-found: error
