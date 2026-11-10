@@ -174,9 +174,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const access = accessErrorResponse(error);
     if (access) return access;
     if (error instanceof MatterReadingError) return Response.json({ ok: false, error: error.message }, { status: error.status });
-    if (error instanceof ContractTwinRequestError && error.status === 400) {
-      return Response.json({ ok: false, error: error.message }, { status: 400 });
-    }
+    if (error instanceof ContractTwinRequestError && error.status !== 400) return internalErrorResponse(error, "The matter reading could not be completed.");
+    if (error instanceof ContractTwinRequestError) return Response.json({ ok: false, error: error.message }, { status: 400 });
     return internalErrorResponse(error, "The matter reading could not be completed.");
   }
 }
