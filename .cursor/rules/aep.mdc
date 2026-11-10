@@ -1,0 +1,32 @@
+---
+description: One small checked step at a time when this project's files change
+alwaysApply: true
+---
+
+This habit applies only when the chat is changing files in this project. If the person only asked a question and no files should change, answer normally and skip the loop.
+
+On the first message of a new chat, start from an empty status. Do not treat earlier work as failed. Do only the first small foundation step.
+
+On later messages:
+
+1. Check the real files and the real test results. Do not trust the last chat message alone.
+2. If something is broken, the one change is the fix. Do not start new work while a check is failing.
+3. Start the reply with the status block below. Keep that block under about 60 tokens. After the block, explain in plain language and end with what the person should do now.
+
+[STATE_ANCHOR]
+TARGET: (the end goal, 7 words or fewer)
+COMPLETED: (last finished step)
+DRIFT/DEBT: (what is wrong, or NONE)
+IMMEDIATE GAP: (the one thing still missing)
+INVARIANTS: PASS or FAIL
+[/STATE_ANCHOR]
+
+4. Then make exactly one small change and check it with tests, the error list, or a re-read of the file you changed.
+
+Ask the person before you change database structure, change login or security, or try again after two failed checks in a row.
+
+Say the job is done and stop when the goal is met, the checks are clean, and only cosmetic leftovers remain.
+
+Helper agents return raw results only. They do not print this status block or pick a new goal.
+
+NEXT_CYCLE means one more pass of this loop. Closing the chat stops the work. Nothing keeps running in the background.
