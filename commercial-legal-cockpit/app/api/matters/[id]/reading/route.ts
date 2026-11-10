@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { get } from "@vercel/blob";
 import { extractDocument } from "@/lib/documentExtraction";
 import { accessErrorResponse, requireMatterAccess } from "@/lib/access";
-import { analyzeAgreementText } from "@/lib/contracttwinCoreClient";
+import { ContractTwinRequestError, analyzeAgreementText } from "@/lib/contracttwinCoreClient";
 import { databaseConfigured, query } from "@/lib/db";
 import { MatterReadingError, assertReadable, projectReadingCitations, projectReadingFacts, buildMatterReadingRequest, type MatterReadingDocument } from "@/lib/matterDocumentReading.mjs";
 import { internalErrorResponse } from "@/lib/safeErrors";
@@ -54,9 +54,9 @@ async function readBody(request: Request): Promise<unknown> {
   }
 }
 
-function documentIds(body: unknown): { baseDocumentId: string; amendmentDocumentIds: string[]; amendmentOrderConfirmed: boolean } {
+function documentIds(body: unknown): { baseDocumentId: string; amendmentDocumentIds: string[] } {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new MatterReadingError("JSON object required.", 400);
-  const record = body as { baseDocumentId?: unknown; amendmentDocumentIds?: unknown; amendmentOrderConfirmed?: unknown };
+  const record = body as { baseDocumentId?: unknown; amendmentDocumentIds?: unknown };
   if (typeof record.baseDocumentId !== "string" || !UUID_PATTERN.test(record.baseDocumentId)) {
     throw new MatterReadingError("Choose the base agreement.", 400);
   }
@@ -64,7 +64,7 @@ function documentIds(body: unknown): { baseDocumentId: string; amendmentDocument
   if (!Array.isArray(amendments) || amendments.some((id) => typeof id !== "string" || !UUID_PATTERN.test(id))) {
     throw new MatterReadingError("Amendments must be a list of documents in this matter.", 400);
   }
-  return { baseDocumentId: record.baseDocumentId, amendmentDocumentIds: amendments, amendmentOrderConfirmed: record.amendmentOrderConfirmed === true };
+  return { baseDocumentId: record.baseDocumentId, amendmentDocumentIds: amendments };
 }
 
 function toReadingDocument(row: StoredDocument): MatterReadingDocument {
@@ -90,7 +90,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await requireMatterAccess(request, id, "VIEW");
     const config = serviceConfig();
     if (!config) return Response.json({ ok: false, error: "The reading service is not configured." }, { status: 503 });
-    const { baseDocumentId, amendmentDocumentIds, amendmentOrderConfirmed } = documentIds(await readBody(request));
+    const { baseDocumentId, amendmentDocumentIds } = documentIds(await readBody(request));
     const ids = [baseDocumentId, ...amendmentDocumentIds];
     const loadSources = () => query<StoredDocument>(
       `select id, filename, document_type, extraction_method, extraction_status, integrity_status,
@@ -111,7 +111,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     };
     if (ids.length > 12 || new Set(ids).size !== ids.length) throw new MatterReadingError("Choose at most 12 distinct documents.", 400);
     if (stored.rows.length !== ids.length) throw new MatterReadingError("A selected document is not in this matter.", 404);
-    if (amendmentDocumentIds.length && !amendmentOrderConfirmed) throw new MatterReadingError("Confirm the amendment order from earliest to latest.", 400);
     const chunksByDocumentId = new Map<string, string[]>();
     const extractionWarnings: string[] = [];
     let totalCharacters = 0;
@@ -134,7 +133,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       chunksByDocumentId,
       baseDocumentId,
       amendmentDocumentIds,
-      amendmentOrderConfirmed,
     });
     await assertSourcesUnchanged();
     const analysis = await analyzeAgreementText(
@@ -156,7 +154,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       disclaimer: analysis.disclaimer,
       notes: [...reading.notes, ...extractionWarnings],
       warnings: analysis.warnings,
-      operativeStatusUncertain: amendmentDocumentIds.length > 0 || analysis.warnings.length > 0 || reading.notes.length > 0 || extractionWarnings.length > 0,
+      operativeStatusUncertain: analysis.warnings.length > 0 || reading.notes.length > 0 || extractionWarnings.length > 0,
       documents: reading.documents,
       facts,
       impacts: analysis.exposure.domains.flatMap((domain) =>
@@ -176,6 +174,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const access = accessErrorResponse(error);
     if (access) return access;
     if (error instanceof MatterReadingError) return Response.json({ ok: false, error: error.message }, { status: error.status });
+    if (error instanceof ContractTwinRequestError && error.status === 400) {
+      return Response.json({ ok: false, error: error.message }, { status: 400 });
+    }
     return internalErrorResponse(error, "The matter reading could not be completed.");
   }
 }

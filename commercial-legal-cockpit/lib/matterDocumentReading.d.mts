@@ -31,7 +31,6 @@ export function buildMatterReadingRequest(input: {
   chunksByDocumentId: Map<string, string[]>;
   baseDocumentId: string;
   amendmentDocumentIds: string[];
-  amendmentOrderConfirmed?: boolean;
 }): {
   base: MatterReadingPayload;
   amendments: MatterReadingPayload[];

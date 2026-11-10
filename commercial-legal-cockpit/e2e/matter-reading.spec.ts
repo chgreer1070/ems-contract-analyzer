@@ -91,33 +91,79 @@ test("a matter reads its own text and leaves Word files as evidence", async ({ p
   await expect(page.getByTestId("matter-reading-impact")).not.toContainText("USD");
 });
 
-test("amendments require explicit ordered confirmation and reset it after changes", async ({ page }) => {
+test("amendments are sent in selection order without a user-confirmed chronology", async ({ page }) => {
   const earlierId = "00000000-0000-4000-8000-0000000000b1";
   const laterId = "00000000-0000-4000-8000-0000000000b2";
   const documents = [[baseId, "Base", "MSA"], [laterId, "Later", "AMENDMENT"], [earlierId, "Earlier", "AMENDMENT"]].map(([id, filename, document_type]) => ({
     id, filename, document_type, extraction_method: "PLAIN_TEXT", extraction_status: "EXTRACTED", integrity_status: "SERVER_VERIFIED", security_scan_status: "CLEAN", deletion_status: "ACTIVE", source_status: "EXECUTED",
   }));
+  const posts: Array<{ baseDocumentId?: string; amendmentDocumentIds?: string[]; amendmentOrderConfirmed?: boolean }> = [];
   await page.route(`**/api/matters/${matterId}/documents`, route => route.fulfill({ json: { ok: true, documents } }));
   await page.route(`**/api/matters/${matterId}/reading`, async route => {
-    expect(route.request().postDataJSON()).toEqual({ baseDocumentId: baseId, amendmentDocumentIds: [earlierId, laterId], amendmentOrderConfirmed: true });
-    await route.fulfill({ json: { disclaimer: "Conditional reading", notes: [], warnings: ["Order is not independently verified."], operativeStatusUncertain: true, impacts: [], facts: [
-      { id: "inference", kind: "inference", operative: true, statement: "Calculated notice deadline", citations: [] },
-      { id: "assumption", kind: "assumption", operative: true, statement: "February 28 convention", citations: [] },
-    ] } });
+    posts.push(route.request().postDataJSON());
+    await route.fulfill({ json: {
+      ok: true,
+      relianceRecord: false,
+      approval: false,
+      disclaimer: "This is a reading aid. It is not a legal conclusion.",
+      notes: [],
+      warnings: [],
+      operativeStatusUncertain: false,
+      impacts: [],
+      facts: [
+        { id: "payment", kind: "fact", operative: true, statement: "The payment term is 30 days.", citations: [{ quote: "within thirty (30) days", originalFilename: "Later", section: "1.1", sourceDocumentId: laterId }] },
+      ],
+    } });
   });
   await page.goto(`/matters/${matterId}`);
   await page.getByTestId("reading-base").selectOption(baseId);
   await page.getByLabel("Later", { exact: true }).check();
   await page.getByLabel("Earlier", { exact: true }).check();
-  await expect(page.getByTestId("read-documents")).toBeDisabled();
-  await page.getByRole("button", { name: "Move earlier" }).nth(1).click();
-  const confirmation = page.getByLabel(/I have reviewed and confirm/);
-  await confirmation.check();
+  await expect(page.getByTestId("reading-amendment-order")).toContainText("effective date written in each amendment");
+  await expect(page.getByTestId("reading-amendment-order")).toContainText("ambiguous");
+  await expect(page.getByRole("button", { name: "Move earlier" })).toHaveCount(0);
+  await expect(page.getByLabel(/I have reviewed and confirm/)).toHaveCount(0);
+  await expect(page.getByTestId("read-documents")).toBeEnabled();
   await page.getByTestId("read-documents").click();
-  await expect(page.getByTestId("matter-reading-fact").nth(0)).toContainText("Calculated inference — current in this conditional reading; operative status requires review");
-  await expect(page.getByTestId("matter-reading-fact").nth(1)).toContainText("Assumption — current in this conditional reading; operative status requires review");
-  await page.getByRole("button", { name: "Move earlier" }).nth(1).click();
-  await expect(confirmation).not.toBeChecked();
-  await expect(page.getByTestId("read-documents")).toBeDisabled();
+  await expect(page.getByTestId("matter-reading-fact")).toContainText("The payment term is 30 days.");
+  await page.getByTestId("matter-document-reading").screenshot({ path: "test-results/stated-date-reading.png" });
+  await page.getByLabel("Later", { exact: true }).uncheck();
+  await page.getByLabel("Earlier", { exact: true }).uncheck();
+  await page.getByLabel("Earlier", { exact: true }).check();
+  await page.getByLabel("Later", { exact: true }).check();
+  await page.getByTestId("read-documents").click();
+  await expect(page.getByTestId("matter-reading-fact")).toContainText("The payment term is 30 days.");
+  expect(posts).toEqual([
+    { baseDocumentId: baseId, amendmentDocumentIds: [laterId, earlierId] },
+    { baseDocumentId: baseId, amendmentDocumentIds: [earlierId, laterId] },
+  ]);
+  expect(posts.every(post => post.amendmentOrderConfirmed === undefined)).toBe(true);
+});
+
+test("an undated amendment and a tied date are shown with the stated reason", async ({ page }) => {
+  const undatedId = "00000000-0000-4000-8000-0000000000c1";
+  const documents = [[baseId, "Base", "MSA"], [undatedId, "Undated", "AMENDMENT"]].map(([id, filename, document_type]) => ({
+    id, filename, document_type, extraction_method: "PLAIN_TEXT", extraction_status: "EXTRACTED", integrity_status: "SERVER_VERIFIED", security_scan_status: "CLEAN", deletion_status: "ACTIVE", source_status: "EXECUTED",
+  }));
+  await page.route(`**/api/matters/${matterId}/documents`, route => route.fulfill({ json: { ok: true, documents } }));
+  await page.route(`**/api/matters/${matterId}/reading`, async route => {
+    await route.fulfill({
+      status: 400,
+      json: { ok: false, error: "Undated has no stated effective date, so it was not read. An amendment is ordered only by the effective date written in that amendment." },
+    });
+  });
+  await page.goto(`/matters/${matterId}`);
+  await page.getByTestId("reading-base").selectOption(baseId);
+  await page.getByLabel("Undated", { exact: true }).check();
+  await page.getByTestId("read-documents").click();
+  await expect(page.getByTestId("matter-reading-error")).toContainText("no stated effective date");
+  await page.route(`**/api/matters/${matterId}/reading`, async route => {
+    await route.fulfill({
+      status: 400,
+      json: { ok: false, error: "Earlier and Later state the same effective date 2025-03-01, so their order is ambiguous and the reading stopped." },
+    });
+  });
+  await page.getByTestId("read-documents").click();
+  await expect(page.getByTestId("matter-reading-error")).toContainText("ambiguous");
   await expect(page.getByTestId("matter-reading-fact")).toHaveCount(0);
 });

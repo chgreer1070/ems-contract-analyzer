@@ -83,7 +83,6 @@ function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [baseId, setBaseId] = useState("");
   const [amendmentIds, setAmendmentIds] = useState<string[]>([]);
-  const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState<ReadingResponse | null>(null);
 
@@ -116,7 +115,7 @@ function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
       const response = await fetch(`/api/matters/${matterId}/reading`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: amendmentIds, amendmentOrderConfirmed: orderConfirmed }),
+        body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: amendmentIds }),
       });
       const body = (await response.json()) as ReadingResponse & { error?: string };
       if (!response.ok) throw new Error(body.error || "The matter reading could not be completed.");
@@ -153,7 +152,7 @@ function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
                 data-testid="reading-base"
                 disabled={busy}
                 value={baseId}
-                onChange={(event) => { setBaseId(event.target.value); setReading(null); setOrderConfirmed(false); }}
+                onChange={(event) => { setBaseId(event.target.value); setReading(null); }}
                 style={{ display: "block", marginTop: 4, padding: 8, maxWidth: 480 }}
               >
                 <option value="">Choose a document</option>
@@ -174,7 +173,6 @@ function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
                       disabled={busy}
                       checked={amendmentIds.includes(document.id)}
                       onChange={(event) => {
-                        setOrderConfirmed(false);
                         setReading(null);
                         setAmendmentIds((current) =>
                           event.target.checked ? [...current, document.id] : current.filter((id) => id !== document.id),
@@ -187,31 +185,16 @@ function MatterDocumentReadingForMatter({ matterId }: { matterId: string }) {
               </fieldset>
             ) : null}
             {amendmentIds.length > 0 ? (
-              <div>
-                <p>Amendment order, earliest to latest. Review the documents and move each amendment into the intended order. Checkbox selection order does not establish chronology.</p>
-                <ol>
-                  {amendmentIds.map((id, index) => (
-                    <li key={id}>
-                      {amendments.find(document => document.id === id)?.filename}
-                      <button type="button" disabled={index === 0 || busy} onClick={() => {
-                        setAmendmentIds(current => {
-                          const next = [...current];
-                          [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                          return next;
-                        });
-                        setOrderConfirmed(false);
-                        setReading(null);
-                      }}>Move earlier</button>
-                    </li>
-                  ))}
-                </ol>
-                <label><input type="checkbox" disabled={busy} checked={orderConfirmed} onChange={event => { setOrderConfirmed(event.target.checked); setReading(null); }} /> I have reviewed and confirm this earliest-to-latest order. The reading is conditional on this order, not independently verified effective dates.</label>
-              </div>
+              <p data-testid="reading-amendment-order">
+                Amendments are read by the effective date written in each amendment. The order you select them does not
+                matter. An amendment with no stated effective date is refused. If two amendments state the same effective
+                date, the reading stops because that order is ambiguous.
+              </p>
             ) : null}
             <button
               type="button"
               data-testid="read-documents"
-              disabled={!baseId || busy || (amendmentIds.length > 0 && !orderConfirmed)}
+              disabled={!baseId || busy}
               onClick={() => void readDocuments()}
               style={{ justifySelf: "start", padding: "9px 13px", border: 0, borderRadius: 8, background: "#17212b", color: "white", fontWeight: 800 }}
             >

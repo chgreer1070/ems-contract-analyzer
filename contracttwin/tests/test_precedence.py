@@ -32,6 +32,77 @@ A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the
 """
 
 
+def test_stated_dates_beat_typed_dates_and_input_order() -> None:
+    """The date written in each amendment places it. A reversed typed date does not."""
+
+    early_text = FIRST.replace("March 1, 2025", "March 1, 2024")
+    late_text = SECOND
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("Typed later", early_text, "2026-01-01"),
+                ("Typed earlier", late_text, "2020-01-01"),
+            ],
+        )
+    )
+    net = [(fact.operative, fact.attributes["net_days"]) for fact in result.facts if "net_days" in fact.attributes]
+    assert (True, 30) in net
+    assert (False, 20) in net
+    reversed_result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("Typed earlier", late_text, "2020-01-01"),
+                ("Typed later", early_text, "2026-01-01"),
+            ],
+        )
+    )
+    reversed_net = [
+        (fact.operative, fact.attributes["net_days"]) for fact in reversed_result.facts if "net_days" in fact.attributes
+    ]
+    assert reversed_net == net
+
+
+def test_an_undated_amendment_is_refused() -> None:
+    undated = """AMENDMENT
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date (Net 20).
+"""
+    try:
+        analyze(AnalysisRequest(base_name="Base", base_text=BASE, amendments=[("No date", undated, "2025-03-01")]))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("An amendment with no stated effective date must be refused.")
+    assert "No date" in message
+    assert "no stated effective date" in message
+
+
+def test_tied_stated_dates_are_refused_as_ambiguous() -> None:
+    same_day = SECOND.replace("June 1, 2025", "March 1, 2025")
+    try:
+        analyze(
+            AnalysisRequest(
+                base_name="Base",
+                base_text=BASE,
+                amendments=[("Amendment No. 2", same_day, "2025-06-01"), ("Amendment No. 1", FIRST, "2025-03-01")],
+            )
+        )
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Two amendments with the same stated effective date must be refused.")
+    assert "ambiguous" in message
+    assert "2025-03-01" in message
+    assert "Amendment No. 1" in message
+    assert "Amendment No. 2" in message
+
+
 def test_later_amendment_wins_and_the_price_section_is_unchanged() -> None:
     result = analyze(
         AnalysisRequest(

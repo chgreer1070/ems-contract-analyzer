@@ -50,7 +50,7 @@ Tests do not call a model and do not need a network. The sample files are `tests
 
 ## Send an agreement
 
-`POST /v1/agreements` takes JSON. The first document is the base agreement. Later documents are amendments. `effective_date` is only used to apply amendments in date order. The date written in the contract is the one that shows up as a fact.
+`POST /v1/agreements` takes JSON. The first document is the base agreement. Later documents are amendments. Each amendment is placed by the effective date written in that amendment. `effective_date` is a date typed in beside the file. It is compared with the written date and does not set the order. The date written in the contract is the one that shows up as a fact.
 
 ```bash
 curl -s http://127.0.0.1:8080/v1/agreements \
@@ -100,7 +100,7 @@ Facts, inferences, and assumptions are separate items. They are not mixed into o
 
 ## Amendment order
 
-Amendments are applied from earliest date you type in to the latest. The date written in the document is the fact. If those two dates disagree, the reading says so. A sentence that says a section "is deleted and replaced in its entirety," or that a definition "is deleted and replaced," replaces that section. A later amendment wins over an earlier one on the same section. Sections the amendment does not mention stay as they were. Old text is kept and marked not operative. A survival sentence such as "Sections 3, 4, 5, and 7 survive" marks those operative sections.
+Each amendment is applied by the effective date written in that amendment. The line that counts names "Amendment Effective Date" and states a real date after "as of" or "entered into". The first such date places the amendment. A later repeat of that label, including one inside replacement text, does not move it. The order of the files does not set the order, and neither does a date typed in beside the file. If an amendment does not state an effective date, the reading stops and says which amendment and why. If two amendments state the same effective date, the reading stops and says the order is ambiguous. It does not guess by file order. If the typed date and the written date disagree, the reading says so and still uses the written date. A sentence that says a section "is deleted and replaced in its entirety," or that a definition "is deleted and replaced," replaces that section. A later amendment wins over an earlier one on the same section. Sections the amendment does not mention stay as they were. Old text is kept and marked not operative. A survival sentence such as "Sections 3, 4, 5, and 7 survive" marks those operative sections.
 
 ## Quote check
 

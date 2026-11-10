@@ -23,12 +23,19 @@ const baseId = '00000000-0000-4000-8000-000000000001';
 const aId = '00000000-0000-4000-8000-000000000002';
 const bId = '00000000-0000-4000-8000-000000000003';
 const base = 'Manufacturing Agreement\n\n1.1 Payment. Customer shall pay each undisputed invoice within ten (10) days after the invoice date (Net 10).\n\n1.2 Unit Prices. The unit price for product NW-100 is USD 12.40 per unit.\n';
-const amend = days => `AMENDMENT\n\nA. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n1.1 Payment. Customer shall pay each undisputed invoice within ${days} days after the invoice date.\n`;
+const amend = (days, stated) => `AMENDMENT\n\nThis Amendment is entered into as of ${stated} (the "Amendment Effective Date").\n\nA. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n1.1 Payment. Customer shall pay each undisputed invoice within ${days} days after the invoice date.\n`;
 const hash = text => createHash('sha256').update(text).digest('hex');
 let texts, documents, sent, serviceCalls = 0, tamper = false, changeDuringAnalysis = false;
 function fixture(extra = {}) {
-  texts = { [baseId]: base, [aId]: amend('twenty (20)'), [bId]: amend('thirty (30)') };
+  texts = { [baseId]: base, [aId]: amend('twenty (20)', 'March 1, 2025'), [bId]: amend('thirty (30)', 'June 1, 2025') };
   documents = Object.entries(texts).map(([id, text]) => ({ id, filename: 'x'.repeat(251) + '.txt', document_type: id === baseId ? 'MSA' : 'AMENDMENT', extraction_method: 'PLAIN_TEXT', extraction_status: 'EXTRACTED', integrity_status: 'SERVER_VERIFIED', security_scan_status: 'CLEAN', deletion_status: 'ACTIVE', source_status: 'EXECUTED', blob_pathname: id, mime_type: 'text/plain', server_sha256: hash(text), ...extra }));
+}
+class ContractTwinRequestError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'ContractTwinRequestError';
+    this.status = status;
+  }
 }
 const { POST } = load('app/api/matters/[id]/reading/route.ts', {
   '@/lib/access': { accessErrorResponse: () => null, requireMatterAccess: async () => {} },
@@ -37,31 +44,48 @@ const { POST } = load('app/api/matters/[id]/reading/route.ts', {
   '@/lib/documentExtraction': { extractDocument },
   '@/lib/safeErrors': { internalErrorResponse: error => { throw error; } },
   '@vercel/blob': { get: async path => ({ statusCode: 200, stream: new Response(texts[path] + (tamper ? 'tampered' : '')).body }) },
-  '@/lib/contracttwinCoreClient': { analyzeAgreementText: async (_url, body) => {
+  '@/lib/contracttwinCoreClient': { ContractTwinRequestError, analyzeAgreementText: async (_url, body) => {
     sent = body; serviceCalls++;
     if (changeDuringAnalysis) documents[0].security_scan_status = "QUARANTINED";
-    return JSON.parse(execFileSync('python', ['-c', `import json,sys
+    const raw = execFileSync('python', ['-c', `import json,sys
 from contracttwin.models import AgreementInput
 from contracttwin.pipeline import AnalysisRequest,analyze
 x=AgreementInput.model_validate(json.load(sys.stdin))
-r=analyze(AnalysisRequest(base_name=x.base.name,base_text=x.base.text,base_filename=x.base.filename,amendments=[(a.name,a.text,a.effective_date) for a in x.amendments],amendment_filenames=[a.filename for a in x.amendments]))
-print(r.model_dump_json())`], { input: JSON.stringify(body), encoding: 'utf8' }));
+try:
+    r=analyze(AnalysisRequest(base_name=x.base.name,base_text=x.base.text,base_filename=x.base.filename,amendments=[(a.name,a.text,a.effective_date) for a in x.amendments],amendment_filenames=[a.filename for a in x.amendments]))
+except ValueError as exc:
+    print('REFUSAL:' + str(exc))
+else:
+    print(r.model_dump_json())`], { input: JSON.stringify(body), encoding: 'utf8' });
+    if (raw.startsWith('REFUSAL:')) throw new ContractTwinRequestError(raw.slice('REFUSAL:'.length).trim(), 400);
+    return JSON.parse(raw);
   } },
 });
 process.env.CONTRACTTWIN_CORE_URL = 'http://unused.test';
 process.env.CONTRACTTWIN_API_KEY = 'synthetic-test';
-async function read(ids = [], confirmed = false) {
-  const response = await POST(new Request('http://local/reading', { method: 'POST', body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: ids, amendmentOrderConfirmed: confirmed }) }), { params: Promise.resolve({ id: 'synthetic-matter' }) });
+async function read(ids = []) {
+  const response = await POST(new Request('http://local/reading', { method: 'POST', body: JSON.stringify({ baseDocumentId: baseId, amendmentDocumentIds: ids }) }), { params: Promise.resolve({ id: 'synthetic-matter' }) });
   return { status: response.status, body: await response.json() };
 }
+function operativeDays(body) {
+  return body.facts.filter(fact => fact.operative && fact.attributes.net_days !== undefined).map(fact => fact.attributes.net_days);
+}
 fixture();
-assert.equal((await read([bId, aId])).status, 400);
-assert.equal(serviceCalls, 0);
-let result = await read([aId, bId], true);
+let result = await read([aId, bId]);
 assert.equal(result.status, 200);
-assert.ok(result.body.facts.some(f => f.operative && f.attributes.net_days === 30));
+assert.equal(result.body.relianceRecord, false);
+assert.equal(result.body.approval, false);
+assert.deepEqual(operativeDays(result.body), [30]);
 assert.ok(result.body.facts.some(f => !f.operative && f.attributes.net_days === 20));
 assert.equal(result.body.operativeStatusUncertain, true);
+const selectedFirst = sent.amendments.map(item => item.name);
+let reversed = await read([bId, aId]);
+assert.equal(reversed.status, 200);
+assert.deepEqual(operativeDays(reversed.body), [30]);
+assert.deepEqual(sent.amendments.map(item => item.name), [...selectedFirst].reverse());
+assert.equal(reversed.body.relianceRecord, false);
+assert.equal(reversed.body.approval, false);
+console.log('SAMPLE_API_JSON ' + JSON.stringify({ ok: reversed.body.ok, relianceRecord: reversed.body.relianceRecord, approval: reversed.body.approval, operativeStatusUncertain: reversed.body.operativeStatusUncertain, operativeNetDays: operativeDays(reversed.body) }));
 assert.equal(sent.base.filename.length, 255);
 for (const document of [sent.base, ...sent.amendments]) assert.ok(document.name.length <= 200);
 assert.notEqual(sent.amendments[0].name, sent.amendments[1].name);
@@ -70,12 +94,27 @@ for (const fact of result.body.facts) for (const citation of fact.citations) {
   assert.equal(citation.originalFilename.length, 255);
   assert.ok(texts[citation.sourceDocumentId].includes(citation.quote));
 }
-result = await read([bId, aId], true);
-assert.ok(result.body.facts.some(f => f.operative && f.attributes.net_days === 20));
-assert.equal(result.body.operativeStatusUncertain, true);
-fixture(); texts[aId] = 'Section 1.1 is deleted and replaced with language to be agreed.';
+fixture();
+texts[aId] = 'AMENDMENT\n\nA. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date.\n';
 documents[1].server_sha256 = hash(texts[aId]);
-result = await read([aId], true);
+result = await read([aId]);
+assert.equal(result.status, 400);
+assert.equal(result.body.ok, false);
+assert.match(result.body.error, /no stated effective date/);
+console.log('UNDATED_REFUSAL ' + JSON.stringify({ ok: result.body.ok, error: result.body.error }));
+fixture();
+texts[aId] = amend('twenty (20)', 'March 1, 2025');
+texts[bId] = amend('thirty (30)', 'March 1, 2025');
+documents[1].server_sha256 = hash(texts[aId]);
+documents[2].server_sha256 = hash(texts[bId]);
+result = await read([bId, aId]);
+assert.equal(result.status, 400);
+assert.match(result.body.error, /ambiguous/);
+assert.match(result.body.error, /2025-03-01/);
+console.log('TIED_DATE_REFUSAL ' + JSON.stringify({ ok: result.body.ok, error: result.body.error }));
+fixture(); texts[aId] = 'This Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").\nSection 1.1 is deleted and replaced with language to be agreed.';
+documents[1].server_sha256 = hash(texts[aId]);
+result = await read([aId]);
 assert.ok(result.body.warnings.some(w => w.includes('could not be read')));
 assert.equal(result.body.operativeStatusUncertain, true);
 fixture();
@@ -101,7 +140,7 @@ assert.equal(projected[0].citations.length, 2);
 assert.equal(projected[2].citations.length, 0);
 assert.match(helpers.readingFactLabel(projected[1], false), /^Calculated inference/);
 assert.match(helpers.readingFactLabel(projected[2], true), /^Assumption — current in this conditional reading; operative status requires review/);
-console.log('PR30 regressions passed: route + real Python engine; chronology gate, warnings, canonical text, filenames, provenance, kinds, integrity guards. DB/blob/access/PDF extraction mocked.');
+console.log('Matter reading regressions passed: stated-date order, undated refusal, tied-date refusal, warnings, canonical text, filenames, provenance, kinds, integrity guards. DB/blob/access/PDF extraction mocked.');
 fixture();
 texts[baseId] = `LEAP MANUFACTURING AGREEMENT
 

@@ -10,6 +10,12 @@ on:
       - "commercial-legal-cockpit/components/MatterSampleReadingLink.tsx"
       - "commercial-legal-cockpit/scripts/matter-sample-reading-check.mjs"
       - "commercial-legal-cockpit/e2e/**"
+      - "commercial-legal-cockpit/components/MatterDocumentReading.tsx"
+      - "commercial-legal-cockpit/app/api/matters/**"
+      - "commercial-legal-cockpit/lib/matterDocumentReading.mjs"
+      - "commercial-legal-cockpit/lib/contracttwinCoreClient.ts"
+      - "commercial-legal-cockpit/scripts/matter-reading-regression-check.mjs"
+      - "commercial-legal-cockpit/scripts/matter-document-reading-check.mjs"
       - "commercial-legal-cockpit/playwright.config.ts"
       - "commercial-legal-cockpit/scripts/start-reading-e2e.sh"
       - ".github/workflows/contracttwin-reading-page.yml"
@@ -40,6 +46,10 @@ jobs:
       - name: Install the cockpit
         working-directory: commercial-legal-cockpit
         run: npm ci --no-audit --no-fund
+
+      - name: Check matter readings use stated amendment dates
+        working-directory: commercial-legal-cockpit
+        run: npm run test:matter-reading-regressions
 
       - name: Install the browser
         working-directory: commercial-legal-cockpit

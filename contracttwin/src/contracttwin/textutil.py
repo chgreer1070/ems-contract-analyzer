@@ -128,6 +128,24 @@ def date_after_phrase(text: str, phrase: str) -> date | None:
     return None
 
 
+def stated_amendment_effective_date(text: str) -> date | None:
+    """The first effective date this amendment states for itself.
+
+    A line counts when it names "Amendment Effective Date" and a real date
+    follows "as of" or "entered into" on that same line. That is the same
+    line rule the fact reader uses. A later line that repeats the label does
+    not change which date places the amendment.
+    """
+
+    for line in text.split("\n"):
+        if "Amendment Effective Date" not in line or not find_dates(line):
+            continue
+        found = date_after_phrase(line, "as of") or date_after_phrase(line, "entered into")
+        if found is not None:
+            return found
+    return None
+
+
 def trailing_number_words(label: str) -> int | None:
     """Read the number words at the end of a label, such as 'at least sixty'."""
 
