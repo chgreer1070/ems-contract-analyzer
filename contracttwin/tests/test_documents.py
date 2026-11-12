@@ -147,6 +147,72 @@ def test_a_text_box_and_the_words_after_it_stay_separate() -> None:
     assert f"{box}{following}" not in extracted.text
 
 
+def test_a_text_box_in_the_first_table_cell_does_not_cover_the_later_cell() -> None:
+    """A late-fee text box in the first cell stays in that cell.
+
+    The unit price in a later cell keeps the section locator. The two quotes
+    do not share a line. Synthetic words only.
+    """
+
+    box = "Customer shall pay a late fee of one percent (1%) per month."
+    price = "The unit price for product NW-100 is USD 12.40 per unit."
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:r>
+              <w:drawing>
+                <w:txbxContent><w:p><w:r><w:t>{box}</w:t></w:r></w:p></w:txbxContent>
+              </w:drawing>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>{price}</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    payload = buffer.getvalue()
+    extracted = extract_upload("synthetic-table-box.docx", payload)
+    assert extracted.text.splitlines() == [
+        "1. Pricing",
+        f"[text box] {box}",
+        price,
+    ]
+    assert f"[text box] {box} | {price}" not in extracted.text
+
+    response = client.post(
+        "/v1/agreements/files",
+        data={"manifest": '{"base": {"name": "Synthetic Table Notes", "role": "base", "filename": "synthetic-table-box.docx"}}'},
+        files=[("files", ("synthetic-table-box.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+    )
+    assert response.status_code == 200, response.text
+    facts = response.json()["facts"]
+    price_fact = next(fact for fact in facts if fact["attributes"].get("unit_price") == "12.40")
+    price_citation = price_fact["citations"][0]
+    assert price_fact["section"] == "1"
+    assert price_citation["section"] == "1"
+    assert price_citation["quote"] == price
+    assert box not in price_citation["quote"]
+    fee_fact = next(fact for fact in facts if fact["attributes"].get("late_fee_percent") == "1")
+    fee_citation = fee_fact["citations"][0]
+    assert fee_fact["section"] == "1"
+    assert fee_citation["section"] == "Text box in section 1"
+    assert fee_citation["quote"] == box
+    assert price not in fee_citation["quote"]
+    for fact in facts:
+        for citation in fact["citations"]:
+            assert not (box in citation["quote"] and price in citation["quote"])
+
+
 def test_a_text_box_that_disagrees_with_its_section_is_still_a_conflict() -> None:
     body = "Customer shall pay each undisputed invoice within thirty (30) days after the invoice date."
     box = "Customer shall pay each undisputed invoice within sixty (60) days after the invoice date."

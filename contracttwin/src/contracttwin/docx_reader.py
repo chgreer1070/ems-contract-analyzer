@@ -6,8 +6,9 @@ the redline history. Each footnote paragraph is marked ``[footnote N]``. Each
 text-box paragraph is marked ``[text box]``. That label stays off to the side
 when a numbered heading is recognized, and when the next amendment instruction
 is recognized, so a heading or instruction inside a box is still found. The
-label stays on the stored line. Comments stay notes. The quote checker uses
-only the operative text.
+label stays on the stored line. Inside a table, that line stays on its own
+line: other cells in the row are not joined onto it. Comments stay notes. The
+quote checker uses only the operative text.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from zipfile import BadZipFile, ZipFile
 from contracttwin.models import Annotation, Revision
 
 WORD_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_TEXT_BOX_LABEL = "[text box] "
 _COMMENT_TAGS = {
     f"{WORD_NAMESPACE}commentRangeStart",
     f"{WORD_NAMESPACE}commentRangeEnd",
@@ -88,7 +90,7 @@ def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
                 box_text, box_revisions = _paragraphs_in(child, "text box")
                 revisions.extend(box_revisions)
                 labeled = "\n".join(
-                    f"[text box] {part.strip()}" for part in box_text.split("\n") if part.strip()
+                    f"{_TEXT_BOX_LABEL}{part.strip()}" for part in box_text.split("\n") if part.strip()
                 )
                 if labeled:
                     prefix = "\n" if any(chunk.strip() for chunk in chunks) else ""
@@ -176,7 +178,7 @@ def _table(table) -> tuple[list[str], list[Revision]]:
     lines: list[str] = []
     revisions: list[Revision] = []
     for row_number, row in enumerate(table.findall(f"{WORD_NAMESPACE}tr"), start=1):
-        cells: list[str] = []
+        cell_parts: list[list[str]] = []
         location = f"table row {row_number}"
         for cell in row.findall(f"{WORD_NAMESPACE}tc"):
             parts: list[str] = []
@@ -185,7 +187,79 @@ def _table(table) -> tuple[list[str], list[Revision]]:
                 revisions.extend(found)
                 if text.strip():
                     parts.append(text.strip())
-            cells.append(" ".join(parts))
-        if any(cell.strip() for cell in cells):
-            lines.append(" | ".join(cells))
+            cell_parts.append(parts)
+        lines.extend(_flatten_row(cell_parts))
     return lines, revisions
+
+
+def _flatten_row(cell_parts: list[list[str]]) -> list[str]:
+    """Join ordinary cells with `` | ``. Keep each text-box line on its own line.
+
+    A text-box label applies only to that box. Joining the next cell onto the
+    same line would make the label cover words that are outside the box.
+    A row with no text box stays one line, including empty cells.
+    """
+
+    plain_cells = [" ".join(parts) for parts in cell_parts]
+    if not any(cell.strip() for cell in plain_cells):
+        return []
+    segments = [_cell_segments(parts) for parts in cell_parts]
+    if not any(kind == "box" for cell_segments in segments for kind, _text in cell_segments):
+        return [" | ".join(plain_cells)]
+    lines: list[str] = []
+    ordinary: list[str] = []
+
+    def flush() -> None:
+        if ordinary:
+            lines.append(" | ".join(ordinary))
+            ordinary.clear()
+
+    for cell_segments in segments:
+        for kind, text in cell_segments:
+            if kind == "box":
+                flush()
+                lines.append(text)
+            elif text.strip():
+                ordinary.append(text)
+    flush()
+    return lines
+
+
+def _cell_segments(parts: list[str]) -> list[tuple[str, str]]:
+    """Split one cell into ordinary text and text-box lines, in reading order."""
+
+    segments: list[tuple[str, str]] = []
+    ordinary_parts: list[str] = []
+
+    def flush_ordinary() -> None:
+        if ordinary_parts:
+            segments.append(("text", " ".join(ordinary_parts)))
+            ordinary_parts.clear()
+
+    for part in parts:
+        lines = part.split("\n")
+        if not any(_is_text_box_line(line.strip()) for line in lines):
+            ordinary_parts.append(part)
+            continue
+        kept: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if _is_text_box_line(stripped):
+                chunk = "\n".join(kept).strip()
+                kept = []
+                if chunk:
+                    ordinary_parts.append(chunk)
+                flush_ordinary()
+                segments.append(("box", stripped))
+            else:
+                kept.append(line)
+        chunk = "\n".join(kept).strip()
+        if chunk:
+            ordinary_parts.append(chunk)
+    flush_ordinary()
+    return segments
+
+
+def _is_text_box_line(line: str) -> bool:
+    body = line[len(_TEXT_BOX_LABEL) :] if line.startswith(_TEXT_BOX_LABEL) else ""
+    return bool(body.strip())
