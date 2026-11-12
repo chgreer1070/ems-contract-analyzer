@@ -89,21 +89,61 @@ function eachVisible(node:XmlNode,visit:(item:XmlNode)=>void){
   const preferred=node.namespace===MC&&local(node)==="AlternateContent"?preferredTextBoxBranch(node):null;
   (preferred?[preferred]:node.children).forEach(child=>eachVisible(child,visit));
 }
-function footnoteNumbering(sectPr:XmlNode|null):{start:number;restart:"continuous"|"eachSect";explicitStart:boolean}|null{
-  const props=sectPr?child(sectPr,"footnotePr"):null;
-  if(!props)return {start:1,restart:"continuous",explicitStart:false};
-  let start=1,restart:"continuous"|"eachSect"="continuous",explicitStart=false;
+type FootnoteRestart="continuous"|"eachSect";
+type FootnoteField<T>={kind:"unset"}|{kind:"set";value:T}|{kind:"unresolved"};
+type FootnoteFields={fmt:FootnoteField<"decimal">;start:FootnoteField<number>;restart:FootnoteField<FootnoteRestart>};
+const unsetFootnoteFields=():FootnoteFields=>({fmt:{kind:"unset"},start:{kind:"unset"},restart:{kind:"unset"}});
+const unresolvedFootnoteFields=():FootnoteFields=>({fmt:{kind:"unresolved"},start:{kind:"unresolved"},restart:{kind:"unresolved"}});
+function assignFootnoteField<T>(current:FootnoteField<T>,accepted:T|null):FootnoteField<T>{
+  if(current.kind==="unresolved"||accepted===null)return {kind:"unresolved"};
+  if(current.kind==="set")return current.value===accepted?current:{kind:"unresolved"};
+  return {kind:"set",value:accepted};
+}
+function readFootnoteFields(props:XmlNode|null):FootnoteFields|"absent"{
+  if(!props)return "absent";
+  const fields=unsetFootnoteFields();
   for(const item of props.children){
     if(item.text!==null)continue;
-    if(item.namespace!==W)return null;
+    if(item.namespace!==W)return unresolvedFootnoteFields();
     const name=local(item),value=attr(item,"val");
     if(name==="pos")continue;
-    if(name==="numFmt"){if(value!=="decimal")return null;continue;}
-    if(name==="numStart"){if(value===null||!/^[0-9]{1,9}$/.test(value))return null;start=Number(value);explicitStart=true;continue;}
-    if(name==="numRestart"){if(value!=="continuous"&&value!=="eachSect")return null;restart=value;continue;}
-    return null;
+    // An unsupported or repeated value stays unresolved. A later supported value cannot clear it.
+    if(name==="numFmt"){fields.fmt=assignFootnoteField(fields.fmt,value==="decimal"?"decimal":null);continue;}
+    if(name==="numStart"){fields.start=assignFootnoteField(fields.start,value!==null&&/^[0-9]{1,9}$/.test(value)?Number(value):null);continue;}
+    if(name==="numRestart"){fields.restart=assignFootnoteField(fields.restart,value==="continuous"||value==="eachSect"?value:null);continue;}
+    return unresolvedFootnoteFields();
   }
-  return {start,restart,explicitStart};
+  return fields;
+}
+function mergeFootnoteFields(base:FootnoteFields,overlay:FootnoteFields):FootnoteFields{
+  const pick=<T>(current:FootnoteField<T>,next:FootnoteField<T>)=>next.kind==="unset"?current:next;
+  return {fmt:pick(base.fmt,overlay.fmt),start:pick(base.start,overlay.start),restart:pick(base.restart,overlay.restart)};
+}
+function footnoteMode(fields:FootnoteFields,explicitStart:boolean):{start:number;restart:FootnoteRestart;explicitStart:boolean}|null{
+  if(fields.fmt.kind!=="set"||fields.start.kind!=="set"||fields.restart.kind!=="set")return null;
+  return {start:fields.start.value,restart:fields.restart.value,explicitStart};
+}
+// Document defaults live in word/settings.xml. A section w:footnotePr replaces
+// only the properties it names. A format this reader cannot count stays unresolved.
+function documentFootnoteDefaults(parts:DocxEvidence["parts"],relationships:DocxEvidence["relationships"],mainPart:string):FootnoteFields|null{
+  const implicit:FootnoteFields={fmt:{kind:"set",value:"decimal"},start:{kind:"set",value:1},restart:{kind:"set",value:"continuous"}};
+  const links=relationships.filter(item=>item.part===mainPart&&!item.external&&item.type===`${R}/settings`);
+  if(!links.length)return implicit;
+  if(links.length!==1||!links[0].resolvedTarget)return null;
+  const tree=parts.find(part=>part.part===links[0].resolvedTarget)?.tree??null;
+  if(!tree||tree.namespace!==W||local(tree)!=="settings")return null;
+  const props=tree.children.filter(node=>node.text===null&&node.namespace===W&&local(node)==="footnotePr");
+  if(props.length>1)return null;
+  if(!props.length)return implicit;
+  const fields=readFootnoteFields(props[0]);
+  return fields==="absent"?implicit:mergeFootnoteFields(implicit,fields);
+}
+function sectionFootnoteMode(defaults:FootnoteFields,sectPr:XmlNode|null){
+  const props=sectPr?sectPr.children.filter(node=>node.text===null&&node.namespace===W&&local(node)==="footnotePr"):[];
+  if(props.length>1)return null;
+  const sectionFields=readFootnoteFields(props[0]??null);
+  if(sectionFields==="absent")return footnoteMode(defaults,false);
+  return footnoteMode(mergeFootnoteFields(defaults,sectionFields),sectionFields.start.kind==="set");
 }
 function bodySections(body:XmlNode){
   const sections:Array<{nodes:XmlNode[];sectPr:XmlNode|null}>=[];
@@ -126,10 +166,11 @@ function footnoteReferences(nodes:XmlNode[]){
   return found;
 }
 // w:id locates the note in XML. It is not the number Word shows. Count the
-// displayed number when every section uses decimal numbering this reader can
-// follow. Otherwise say the XML id outright instead of sending a reader to the
-// wrong footnote.
-function displayedFootnoteLabels(main:XmlNode,stories:Array<{part:string;tree:XmlNode|null}>):Map<string,string>|null{
+// displayed number when settings and each section use decimal numbering this
+// reader can follow. Otherwise say the XML id outright instead of sending a
+// reader to the wrong footnote.
+function displayedFootnoteLabels(main:XmlNode,stories:Array<{part:string;tree:XmlNode|null}>,defaults:FootnoteFields|null):Map<string,string>|null{
+  if(!defaults)return null;
   for(const story of stories){
     if(!story.tree||story.part===main.source.part)continue;
     const kind=STORY_KINDS[local(story.tree)];
@@ -143,7 +184,7 @@ function displayedFootnoteLabels(main:XmlNode,stories:Array<{part:string;tree:Xm
   const labels=new Map<string,string>(),used=new Set<string>();
   let next:number|null=null;
   for(const section of bodySections(body)){
-    const mode=footnoteNumbering(section.sectPr);
+    const mode=sectionFootnoteMode(defaults,section.sectPr);
     if(!mode)return null;
     if(next===null||mode.restart==="eachSect")next=mode.start;
     else if(mode.explicitStart&&mode.start!==next)return null;
@@ -304,7 +345,7 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       return `${original}\u0000${proposed}`;
     };
     const storyParts=evidence.parts.filter(p=>p.tree?.namespace===W&&STORY_KINDS[local(p.tree)]);
-    const footnoteLabels=displayedFootnoteLabels(main,storyParts);
+    const footnoteLabels=displayedFootnoteLabels(main,storyParts,documentFootnoteDefaults(evidence.parts,evidence.relationships,main.source.part));
     const footnoteLabel=(id:string)=>footnoteLabels?.get(id)??`Footnote XML id ${id}`;
     for(const part of storyParts){
       const kind=STORY_KINDS[local(part.tree!)];if(kind==="body")continue;
@@ -439,15 +480,24 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
           const commentBytes=(ids:Iterable<string>)=>[...ids].reduce((total,id)=>total+Buffer.byteLength(id)+8,0);
           const afterParagraph=[...activeComments];
           const closedInside=new Set<string>(),openedInside=new Set<string>();
+          // A point commentReference does not open a range, so it never enters
+          // activeComments. The outer paragraph may also have no words of its
+          // own once they move into the box. Keep that point comment on the box.
+          const pointCommentIds=[...commentById.values()].filter(comment=>{
+            const onParagraph=comment.anchors.some(anchor=>anchor.kind==="reference"&&anchor.paragraphPath===n.source.path&&anchor.source.part===n.source.part);
+            const ranged=comment.anchors.some(anchor=>anchor.kind==="start"||anchor.kind==="end");
+            return onParagraph&&!ranged;
+          }).map(comment=>comment.id);
           for(const box of nestedBoxes){
             activeComments.clear();
             box.commentIds.forEach(id=>activeComments.add(id));
+            pointCommentIds.forEach(id=>activeComments.add(id));
             activeCommentBytes=commentBytes(activeComments);
             const boxAncestors=[...ancestors,{name:n.name,source:n.source},{name:box.item.name,source:box.item.source}];
             box.item.children.forEach(child=>collect(child,boxAncestors,box.revisions));
             const afterBox=new Set(activeComments);
             for(const id of box.commentIds)if(!afterBox.has(id))closedInside.add(id);
-            for(const id of afterBox)if(!box.commentIds.includes(id))openedInside.add(id);
+            for(const id of afterBox)if(!box.commentIds.includes(id)&&!pointCommentIds.includes(id))openedInside.add(id);
           }
           activeComments.clear();
           for(const id of afterParagraph)if(!closedInside.has(id))activeComments.add(id);

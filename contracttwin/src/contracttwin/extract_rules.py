@@ -10,7 +10,7 @@ import re
 
 from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
-from contracttwin.segment import HEADER_RE
+from contracttwin.segment import match_heading
 from contracttwin.terms import term_candidates
 from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
 
@@ -54,7 +54,7 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
         # Lines before the first numbered heading are the preamble. A heading keeps its own number.
         section = "Preamble"
         for line in text.split("\n"):
-            header = HEADER_RE.match(line)
+            header = match_heading(line)
             if header is not None:
                 section = header.group("num")
             if "Amendment Effective Date" in line and find_dates(line):

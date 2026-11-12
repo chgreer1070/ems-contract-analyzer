@@ -183,6 +183,52 @@ def test_a_text_box_that_disagrees_with_its_section_is_still_a_conflict() -> Non
     assert any("Section 1.1 states more than one net days" in warning for warning in body_json["warnings"])
 
 
+def test_a_numbered_heading_inside_a_text_box_still_starts_a_section() -> None:
+    heading = "1. Pricing"
+    price = "The unit price for product NW-100 is USD 9.50 per unit."
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent>
+            <w:p><w:r><w:t>{heading}</w:t></w:r></w:p>
+            <w:p><w:r><w:t>{price}</w:t></w:r></w:p>
+          </w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    payload = buffer.getvalue()
+    extracted = extract_upload("pricing-box.docx", payload)
+    assert extracted.text.splitlines() == [
+        f"[text box] {heading}",
+        f"[text box] {price}",
+    ]
+    response = client.post(
+        "/v1/agreements/files",
+        data={"manifest": '{"base": {"name": "Harborline Notes", "role": "base", "filename": "pricing-box.docx"}}'},
+        files=[("files", ("pricing-box.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert any(section["section"] == "1" and section["title"] == "Pricing" for section in body["operative_sections"])
+    fact = next(item for item in body["facts"] if item["attributes"].get("sku") == "NW-100")
+    assert fact["operative"] is True
+    assert fact["section"] == "1"
+    assert fact["attributes"]["unit_price"] == "9.50"
+    citation = fact["citations"][0]
+    assert citation["section"] == "Text box in section 1"
+    assert citation["quote"] == price
+    assert citation["quote"] in extracted.text
+
+
 def test_a_word_file_without_a_document_body_is_rejected() -> None:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as package:

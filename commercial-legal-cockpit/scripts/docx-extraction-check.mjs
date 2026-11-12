@@ -327,6 +327,52 @@ await check("a footnote number that depends on page layout is labeled as an XML 
   assert.equal(customResult.evidence.analysisEligible,true,JSON.stringify(customResult.evidence.issues));
   assert.equal(readDocxProjection(customResult.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===note).text).paragraph.locator,"Footnote XML id 42");
 });
+await check("document-wide footnote numbering is read before a section override",async()=>{
+  const note="The unit price in the footnote is USD 9.50 per unit.";
+  const notes=story("footnotes",'<w:footnote w:id="42">'+p(text(note))+'</w:footnote>');
+  const body=p(text("1.1 Price. See the footnote.")+'<w:r><w:footnoteReference w:id="42"/></w:r>');
+  const settings=(fmt,start)=>story("settings",`<w:footnotePr><w:numFmt w:val="${fmt}"/><w:numStart w:val="${start}"/></w:footnotePr>`);
+  const label=result=>readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===note).text).paragraph.locator;
+  const roman=extractDocx(await fixture({body,parts:{"word/footnotes.xml":{kind:"footnotes",xml:notes},"word/settings.xml":{kind:"settings",xml:settings("lowerRoman","5")}}}));
+  assert.equal(roman.evidence.analysisEligible,true,JSON.stringify(roman.evidence.issues));
+  assert.equal(label(roman),"Footnote XML id 42");
+  assert.equal(roman.chunks.some(chunk=>readDocxProjection(chunk.text).paragraph.locator==="Footnote 1"),false);
+  const decimal=extractDocx(await fixture({body,parts:{"word/footnotes.xml":{kind:"footnotes",xml:notes},"word/settings.xml":{kind:"settings",xml:settings("decimal","5")}}}));
+  assert.equal(decimal.evidence.analysisEligible,true,JSON.stringify(decimal.evidence.issues));
+  assert.equal(label(decimal),"Footnote 5");
+  const override=document(body).replace("<w:sectPr/>",'<w:sectPr><w:footnotePr><w:numFmt w:val="decimal"/><w:numStart w:val="8"/></w:footnotePr></w:sectPr>');
+  const overridden=extractDocx(await fixture({main:override,parts:{"word/footnotes.xml":{kind:"footnotes",xml:notes},"word/settings.xml":{kind:"settings",xml:settings("lowerRoman","5")}}}));
+  assert.equal(overridden.evidence.analysisEligible,true,JSON.stringify(overridden.evidence.issues));
+  assert.equal(label(overridden),"Footnote 8");
+  const contradictory=[
+    '<w:footnotePr><w:numFmt w:val="lowerRoman"/><w:numFmt w:val="decimal"/></w:footnotePr>',
+    '<w:footnotePr><w:numRestart w:val="eachPage"/><w:numRestart w:val="continuous"/></w:footnotePr>',
+    '<w:footnotePr><w:numFmt w:val="decimal"/><w:numStart w:val="1"/></w:footnotePr><w:footnotePr><w:numFmt w:val="lowerRoman"/></w:footnotePr>'
+  ];
+  for(const properties of contradictory){
+    const marked=document(body).replace("<w:sectPr/>",`<w:sectPr>${properties}</w:sectPr>`);
+    const result=extractDocx(await fixture({main:marked,parts:{"word/footnotes.xml":{kind:"footnotes",xml:notes}}}));
+    assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+    assert.equal(label(result),"Footnote XML id 42");
+  }
+});
+await check("a point comment after a text box stays with the box words",async()=>{
+  const box="The text box states a late fee of one percent (1%) per month.";
+  const note="This point comment explains the text box and is not contract text.";
+  const following="Customer shall deliver goods.";
+  const body=p(`<w:r><w:drawing><w:txbxContent>${p(text(box))}</w:txbxContent></w:drawing></w:r>`+'<w:r><w:commentReference w:id="0"/></w:r>')+p(text(following));
+  const result=extractDocx(await fixture({body,parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comment("0",note))}}}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const projection=readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===box).text);
+  assert.equal(projection.paragraph.proposedText,box);
+  assert.ok(projection.paragraph.runs.some(run=>run.commentIds.includes("0")));
+  assert.equal(projection.comments.length,1);
+  assert.equal(projection.comments[0].text,note);
+  const nextParagraph=readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===following).text);
+  assert.equal(nextParagraph.comments.length,0);
+  assert.ok(nextParagraph.paragraph.runs.every(run=>!run.commentIds.includes("0")));
+  assert.equal(sourceContainsExcerpt(result.chunks.map(chunk=>chunk.text).join("\n\n"),note),false);
+});
 await check("unused styles are retained; used inherited numbering and style cycles block",async()=>{
   const styleXml='<w:style w:styleId="Unused"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Base"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Base"/></w:style>';
   const parts={"word/styles.xml":{kind:"styles",xml:story("styles",styleXml)}};
