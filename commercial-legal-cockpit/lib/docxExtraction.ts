@@ -22,25 +22,46 @@ const attr=(node:XmlNode,name:string,namespace=W)=>node.attributes.find(a=>a.nam
 const child=(node:XmlNode,name:string)=>node.children.find(n=>n.namespace===W&&local(n)===name)??null;
 const descendants=(node:XmlNode,predicate:(n:XmlNode)=>boolean):XmlNode[]=>{const found:XmlNode[]=[];const visit=(n:XmlNode)=>{if(predicate(n))found.push(n);n.children.forEach(visit);};visit(node);return found;};
 const IMAGE_PARTS=new Set(["blip","imagedata","object","oleObj","movie"]);
-// Current Word text boxes name one of these shape features in mc:Choice Requires.
-const SUPPORTED_TEXT_BOX_CHOICE=new Set(["wps","wpg","wpc"]);
+const XMLNS="http://www.w3.org/2000/xmlns/";
+// mc:Choice Requires lists prefixes. A prefix counts only when that prefix is bound, in scope, to one of these shape namespaces.
+const SUPPORTED_TEXT_BOX_NAMESPACE=new Set(["http://schemas.microsoft.com/office/word/2010/wordprocessingShape","http://schemas.microsoft.com/office/word/2010/wordprocessingGroup","http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"]);
+const xmlParents=new WeakMap<XmlNode,XmlNode>();
 const branchChildren=(node:XmlNode)=>node.children.filter(child=>child.text===null&&child.namespace===MC&&(local(child)==="Choice"||local(child)==="Fallback"));
+function namespaceBindings(node:XmlNode){
+  const chain:XmlNode[]=[];
+  for(let current:XmlNode|undefined=node;current;current=xmlParents.get(current))chain.push(current);
+  const bindings=new Map<string,string>();
+  for(const item of chain.reverse())for(const attribute of item.attributes){
+    if(attribute.namespace!==XMLNS&&!attribute.name.startsWith("xmlns:"))continue;
+    if(attribute.name==="xmlns")continue;
+    const prefix=attribute.name.startsWith("xmlns:")?attribute.name.slice("xmlns:".length):attribute.name.split(":").at(-1)!;
+    if(prefix)bindings.set(prefix,attribute.value);
+  }
+  return bindings;
+}
+function choiceUsesSupportedShape(node:XmlNode){
+  const tokens=(attr(node,"Requires","")??attr(node,"Requires",MC)??"").trim().split(/\s+/).filter(Boolean);
+  if(!tokens.length)return false;
+  const bindings=namespaceBindings(node);
+  return tokens.every(token=>SUPPORTED_TEXT_BOX_NAMESPACE.has(bindings.get(token)??""));
+}
 function preferredTextBoxBranch(node:XmlNode){
   const branches=branchChildren(node);
-  const supported=branches.find(child=>{
-    if(local(child)!=="Choice")return false;
-    const tokens=(attr(child,"Requires","")??attr(child,"Requires",MC)??"").trim().split(/\s+/).filter(Boolean);
-    return tokens.length>0&&tokens.every(token=>SUPPORTED_TEXT_BOX_CHOICE.has(token))&&plainTextBox(child);
-  });
+  const supported=branches.find(child=>local(child)==="Choice"&&choiceUsesSupportedShape(child)&&plainTextBox(child));
   if(supported)return supported;
   return branches.find(child=>local(child)==="Fallback"&&plainTextBox(child))??null;
+}
+function outsideTextBox(boxes:XmlNode[],item:XmlNode){
+  return !boxes.some(box=>item.source.path===box.source.path||item.source.path.startsWith(`${box.source.path}/`));
 }
 function plainTextBox(node:XmlNode){
   const boxes=descendants(node,n=>n!==node&&n.namespace===W&&local(n)==="txbxContent");
   if(!boxes.length)return false;
   const words=descendants(node,n=>n.namespace===W&&["t","delText","tab","br","cr"].includes(local(n)));
   if(!words.length||!words.every(word=>boxes.some(box=>word.source.path.startsWith(`${box.source.path}/`))))return false;
-  return !descendants(node,n=>IMAGE_PARTS.has(local(n))).length;
+  if(descendants(node,n=>IMAGE_PARTS.has(local(n))).length)return false;
+  const wordArt=descendants(node,n=>outsideTextBox(boxes,n)&&local(n)==="textpath"&&(n.attributes.find(a=>a.name.split(":").at(-1)==="string")?.value??"").trim()!=="");
+  return !wordArt.length;
 }
 // Same gate as w:vanish: words that are not on the page are not contract text.
 const SHAPE_HIDDEN_FLAG=new Set(["docPr","cNvPr","shape","group","rect","roundrect","oval"]);
@@ -258,7 +279,9 @@ function parseXml(bytes:Buffer,part:string,budget:{nodes:number;treeBytes:number
       const key=`${n.nodeType===1?(n as Element).namespaceURI??"":""}:${name}`,index=(counters.get(key)??0)+1;counters.set(key,index);
       return convert(n,`${sourcePath}/${name}[${index}]`,depth+1);
     });
-    return {name:node.nodeName,namespace:element?.namespaceURI??"",attributes,source:{part,path:sourcePath},text:element?null:node.nodeValue,children};
+    const converted:XmlNode={name:node.nodeName,namespace:element?.namespaceURI??"",attributes,source:{part,path:sourcePath},text:element?null:node.nodeValue,children};
+    for(const item of children)if(item.text===null)xmlParents.set(item,converted);
+    return converted;
   };
   return convert(doc.documentElement,`/${doc.documentElement.nodeName}[1]`,0);
 }
@@ -353,7 +376,15 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       const incoming=evidence.relationships.filter(r=>r.resolvedTarget===part.part);
       if(overrides.get(part.part)!==expectedType||!incoming.length||incoming.some(r=>r.part!==main.source.part||r.type!==`${R}/${kind}`))issue("STORY_RELATIONSHIP_MISMATCH","Story root, content type and main-document relationship type must agree.",part.tree!.source);
     }
-    const usedStyles=new Set(storyParts.flatMap(p=>descendants(p.tree!,n=>n.namespace===W&&["pStyle","rStyle","tblStyle"].includes(local(n))).map(n=>attr(n,"val")).filter((id):id is string=>id!==null)));
+    const markSkippedBranches=(node:XmlNode)=>{
+      if(node.text!==null||underSkipped(node.source))return;
+      const name=local(node);
+      const preferred=node.namespace===MC&&name==="AlternateContent"?preferredTextBoxBranch(node):null;
+      if(preferred)for(const item of branchChildren(node))if(item!==preferred)skipBranch(item);
+      node.children.forEach(markSkippedBranches);
+    };
+    for(const part of storyParts)if(part.tree)markSkippedBranches(part.tree);
+    const usedStyles=new Set(storyParts.flatMap(p=>descendants(p.tree!,n=>n.namespace===W&&["pStyle","rStyle","tblStyle"].includes(local(n))&&!underSkipped(n.source)).map(n=>attr(n,"val")).filter((id):id is string=>id!==null)));
     const styleNodes=styles.flatMap(p=>descendants(p.tree!,n=>n.namespace===W&&local(n)==="style"));
     for(const n of styleNodes)if(attr(n,"default")==="1"||attr(n,"default")==="true")usedStyles.add(attr(n,"styleId")??"");
     const visitedStyles=new Set<string>();

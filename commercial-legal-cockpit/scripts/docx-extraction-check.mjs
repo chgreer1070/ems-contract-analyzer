@@ -146,7 +146,7 @@ await check("ordinary text-box wrappers keep one copy of the words",async()=>{
   const box="The text box states a late fee of one percent (1%) per month.";
   const inner=`<w:txbxContent>${p(text(box))}</w:txbxContent>`;
   const vml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="width:100pt"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="urn:synthetic"><wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:txbx>${inner}</wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice><mc:Fallback>${vml}</mc:Fallback></mc:AlternateContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing><wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="urn:synthetic"><wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:txbx>${inner}</wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice><mc:Fallback>${vml}</mc:Fallback></mc:AlternateContent>`;
   for(const wrapper of [`<w:r>${vml}</w:r>`,`<w:r>${alternate}</w:r>`]){
     const result=extractDocx(await fixture({body:p(text("1.2 Fees. The body states the fee rule."))+p(wrapper)}));
     assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
@@ -161,7 +161,7 @@ await check("a supported choice is the only published text when fallback payment
   const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
   const choiceWords="Customer shall pay within thirty (30) days of invoice.";
   const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch(choiceWords)}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing>${branch(choiceWords)}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
   const result=extractDocx(await fixture({body:p(text("1.3 Payment. See the box."))+p(`<w:r>${alternate}</w:r>`)}));
   assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
   const boxChunks=result.chunks.filter(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===choiceWords);
@@ -182,7 +182,7 @@ await check("an unsupported choice uses the fallback text box alone",async()=>{
 await check("identical choice and fallback text boxes yield a single chunk",async()=>{
   const words="Customer shall pay within thirty (30) days of invoice.";
   const branch=`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing>${branch}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch}</w:pict></mc:Fallback></mc:AlternateContent>`;
   const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
   assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
   assert.equal(result.chunks.length,1);
@@ -191,7 +191,7 @@ await check("identical choice and fallback text boxes yield a single chunk",asyn
 });
 await check("a picture in the older copy does not block the supported text box",async()=>{
   const choiceWords="Customer shall pay within thirty (30) days of invoice.";
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text("Customer shall pay within sixty (60) days of invoice."))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text("Customer shall pay within sixty (60) days of invoice."))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
   const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
   assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
   assert.equal(result.chunks.length,1);
@@ -202,7 +202,7 @@ await check("a comment on the unread text-box copy does not block the chosen wor
   const choiceWords="Customer shall pay within thirty (30) days of invoice.";
   const note="This comment is on the older text box and is not contract text.";
   const marked=words=>p('<w:commentRangeStart w:id="0"/>'+text(words)+'<w:commentRangeEnd w:id="0"/>');
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${marked(choiceWords)}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${marked("Customer shall pay within sixty (60) days of invoice.")}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${marked(choiceWords)}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${marked("Customer shall pay within sixty (60) days of invoice.")}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
   const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`),parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comment("0",note))}}}));
   assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
   const chosen=result.chunks.filter(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===choiceWords);
@@ -451,6 +451,52 @@ await check("extractDocument routes DOCX to evidence, keeps TXT behavior and nev
   assert.equal(result.method,"DOCX_OOXML_EVIDENCE");assert.equal(result.docxEvidence.analysisEligible,true);assert.equal(result.pageCount,null);
   const bad=await extractDocument(new Uint8Array([1,2,3]).buffer,type);assert.equal(bad.docxEvidence.analysisEligible,false);assert.deepEqual(bad.chunks,[]);
   const plain=await extractDocument(new TextEncoder().encode("Ordinary plain source.").buffer,"text/plain");assert.equal(plain.method,"PLAIN_TEXT");assert.equal(plain.chunks[0].text,"Ordinary plain source.");
+});
+
+await check("a supported shape feature is recognized by its namespace, not the prefix spelling",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
+  const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
+  const features=[
+    ["shape","http://schemas.microsoft.com/office/word/2010/wordprocessingShape"],
+    ["group","http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"],
+    ["canvas","http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"]
+  ];
+  for(const [prefix,uri] of features){
+    const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:${prefix}="${uri}"><mc:Choice Requires="${prefix}"><w:drawing>${branch(choiceWords)}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
+    const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+    assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+    assert.equal(result.chunks.some(chunk=>chunk.text.includes("thirty")),true,prefix);
+    assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false,prefix);
+  }
+  const other=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:shape="urn:not-a-shape"><mc:Choice Requires="shape"><w:drawing>${branch(choiceWords)}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const fallbackOnly=extractDocx(await fixture({body:p(`<w:r>${other}</w:r>`)}));
+  assert.equal(fallbackOnly.evidence.analysisEligible,true,JSON.stringify(fallbackOnly.evidence.issues));
+  assert.equal(fallbackOnly.chunks.some(chunk=>chunk.text.includes("sixty")),true);
+  assert.equal(fallbackOnly.chunks.some(chunk=>chunk.text.includes("thirty")),false);
+});
+await check("a text box grouped with WordArt is not read as plain contract text",async()=>{
+  const clause="Customer shall pay within thirty (30) days of invoice.";
+  const wordArt="DRAFT - NOT BINDING";
+  const body=p(`<w:r><w:pict><v:group xmlns:v="urn:schemas-microsoft-com:vml"><v:shape><v:textbox><w:txbxContent>${p(text(clause))}</w:txbxContent></v:textbox></v:shape><v:shape><v:textpath on="t" string="${wordArt}"/></v:shape></v:group></w:pict></w:r>`);
+  const result=extractDocx(await fixture({body}));
+  blocked(result,"UNSUPPORTED_NAMESPACE");
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes(clause)||chunk.text.includes(wordArt)),false);
+});
+await check("a style used only by the unread text-box copy does not block the chosen words",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
+  const parts={"word/styles.xml":{kind:"styles",xml:story("styles",'<w:style w:styleId="Hidden"><w:rPr><w:vanish/></w:rPr></w:style>')}};
+  const hidden=words=>`<w:p><w:pPr><w:pStyle w:val="Hidden"/></w:pPr>${text(words)}</w:p>`;
+  const wps='xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"';
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ${wps}><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${hidden(fallbackWords)}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`),parts}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  assert.equal(result.evidence.issues.some(issue=>issue.code==="STYLE_SEMANTICS_UNRESOLVED"),false);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("thirty")),true);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+  const chosenHidden=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ${wps}><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${hidden(choiceWords)}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${p(text(fallbackWords))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  blocked(extractDocx(await fixture({body:p(`<w:r>${chosenHidden}</w:r>`),parts})),"STYLE_SEMANTICS_UNRESOLVED");
 });
 
 console.log(`DOCX evidence regression checks passed: ${cases} synthetic scenarios. No external AI, customer source, database or deployment was used.`);
