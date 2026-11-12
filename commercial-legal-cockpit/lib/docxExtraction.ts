@@ -22,6 +22,19 @@ const attr=(node:XmlNode,name:string,namespace=W)=>node.attributes.find(a=>a.nam
 const child=(node:XmlNode,name:string)=>node.children.find(n=>n.namespace===W&&local(n)===name)??null;
 const descendants=(node:XmlNode,predicate:(n:XmlNode)=>boolean):XmlNode[]=>{const found:XmlNode[]=[];const visit=(n:XmlNode)=>{if(predicate(n))found.push(n);n.children.forEach(visit);};visit(node);return found;};
 const IMAGE_PARTS=new Set(["blip","imagedata","object","oleObj","movie"]);
+// Current Word text boxes name one of these shape features in mc:Choice Requires.
+const SUPPORTED_TEXT_BOX_CHOICE=new Set(["wps","wpg","wpc"]);
+const branchChildren=(node:XmlNode)=>node.children.filter(child=>child.text===null&&child.namespace===MC&&(local(child)==="Choice"||local(child)==="Fallback"));
+function preferredTextBoxBranch(node:XmlNode){
+  const branches=branchChildren(node);
+  const supported=branches.find(child=>{
+    if(local(child)!=="Choice")return false;
+    const tokens=(attr(child,"Requires","")??attr(child,"Requires",MC)??"").trim().split(/\s+/).filter(Boolean);
+    return tokens.length>0&&tokens.every(token=>SUPPORTED_TEXT_BOX_CHOICE.has(token))&&plainTextBox(child);
+  });
+  if(supported)return supported;
+  return branches.find(child=>local(child)==="Fallback"&&plainTextBox(child))??null;
+}
 function plainTextBox(node:XmlNode){
   const boxes=descendants(node,n=>n!==node&&n.namespace===W&&local(n)==="txbxContent");
   if(!boxes.length)return false;
@@ -153,6 +166,25 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
     // direct paragraph property. Retain it, but block unresolved display rules.
     const revisionByPath=new Map<string,string>(),revisionIdentity=new Map<string,string|null>(),commentById=new Map<string,DocxEvidence["comments"][number]>(),noteById=new Map<string,XmlSource>();let revisionBytes=0;
     const sourceKey=(source:XmlSource)=>`${source.part}:${source.path}`;
+    const skippedBranches:XmlSource[]=[];
+    const underSkipped=(source:XmlSource)=>skippedBranches.some(item=>item.part===source.part&&(source.path===item.path||source.path.startsWith(`${item.path}/`)));
+    const skipBranch=(node:XmlNode)=>{if(!underSkipped(node.source))skippedBranches.push(node.source);};
+    const branchWording=(node:XmlNode)=>{
+      let original="",proposed="";
+      const walk=(item:XmlNode,revisions:string[])=>{
+        if(item.text!==null)return;
+        const itemName=local(item),itemKey=revisionByPath.get(sourceKey(item.source)),next=itemKey?[...revisions,itemKey]:revisions;
+        if(item.namespace===W&&["t","delText","tab","br","cr"].includes(itemName)){
+          const text=plainText(item),types=next.map(id=>evidence.revisions.find(revision=>revision.key===id)!.kind);
+          if(!types.some(type=>["ins","moveTo"].includes(type)))original+=text;
+          if(!types.some(type=>["del","moveFrom"].includes(type)))proposed+=text;
+          return;
+        }
+        item.children.forEach(child=>walk(child,next));
+      };
+      walk(node,[]);
+      return `${original}\u0000${proposed}`;
+    };
     const storyParts=evidence.parts.filter(p=>p.tree?.namespace===W&&STORY_KINDS[local(p.tree)]);
     for(const part of storyParts){
       const kind=STORY_KINDS[local(part.tree!)];if(kind==="body")continue;
@@ -186,9 +218,11 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
         const id=attr(n,"id"),key=`${local(n)}:${id}`;if(id===null||noteById.has(key))issue("DUPLICATE_OR_MISSING_NOTE_ID","Note identifiers must be unique.",n.source);else noteById.set(key,n.source);
       }
       const scan=(n:XmlNode,inProperties=false,inTextBox=false)=>{
-        if(n.text!==null)return;
+        if(n.text!==null||underSkipped(n.source))return;
         const name=local(n),property=inProperties||(n.namespace===W&&PROPERTY_ROOTS.has(name));
-        const textBoxHost=!inTextBox&&((n.namespace===W&&(name==="drawing"||name==="pict"))||(n.namespace===MC&&name==="AlternateContent"))&&plainTextBox(n);
+        const preferred=n.namespace===MC&&name==="AlternateContent"?preferredTextBoxBranch(n):null;
+        if(preferred)for(const child of branchChildren(n))if(child!==preferred)skipBranch(child);
+        const textBoxHost=!inTextBox&&((n.namespace===W&&(name==="drawing"||name==="pict")&&plainTextBox(n))||Boolean(preferred&&plainTextBox(preferred)));
         const insideTextBox=inTextBox||textBoxHost;
         if(!insideTextBox&&(n.namespace===MC||n.attributes.some(a=>a.namespace===MC&&a.name.split(":").at(-1)!=="Ignorable")))issue("MARKUP_COMPATIBILITY","Alternate/extension semantics are not yet resolved.",n.source);
         if((!insideTextBox||n.namespace===W)&&n.attributes.some(a=>a.namespace&&!([W,R,MC,"http://www.w3.org/XML/1998/namespace","http://www.w3.org/2000/xmlns/"].includes(a.namespace))&&!(a.namespace==="http://schemas.microsoft.com/office/word/2010/wordml"&&["paraId","textId"].includes(a.name.split(":").at(-1)!))))issue("UNKNOWN_EXTENSION_ATTRIBUTE","Uninterpreted extension attributes can affect document meaning.",n.source);
@@ -232,12 +266,24 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       const collect=(n:XmlNode,ancestors:Array<{name:string;source:XmlSource}>,inheritedRevisions:string[])=>{
         if(n.namespace===W&&local(n)==="p"){
           const pPr=child(n,"pPr"),paragraph:DocxParagraph={source:n.source,ancestors,style:pPr?attr(child(pPr,"pStyle")??pPr,"val"):null,numbering:pPr?child(pPr,"numPr"):null,tableContext:null,runs:[],originalText:"",proposedText:"",locator:null};let paragraphOffset=0;
-          const nestedBoxes:Array<{item:XmlNode;revisions:string[];commentIds:string[];alternatePath:string|null;branch:"Choice"|"Fallback"|null}>=[];
-          const inline=(item:XmlNode,revisions:string[],alternatePath:string|null=null,branch:"Choice"|"Fallback"|null=null)=>{
-            if(item.text!==null)return;
+          const nestedBoxes:Array<{item:XmlNode;revisions:string[];commentIds:string[]}>=[];
+          const inline=(item:XmlNode,revisions:string[])=>{
+            if(item.text!==null||underSkipped(item.source))return;
             const name=local(item),key=revisionByPath.get(sourceKey(item.source)),next=key?[...revisions,key]:revisions;
-            if(item.namespace===MC&&name==="AlternateContent"){item.children.forEach(child=>inline(child,next,item.source.path,null));return;}
-            if(alternatePath&&item.namespace===MC&&(name==="Choice"||name==="Fallback")){item.children.forEach(child=>inline(child,next,alternatePath,name==="Choice"?"Choice":"Fallback"));return;}
+            if(item.namespace===MC&&name==="AlternateContent"){
+              const preferred=preferredTextBoxBranch(item),branches=branchChildren(item);
+              if(preferred){inline(preferred,next);return;}
+              const choices=branches.filter(child=>local(child)==="Choice"),fallback=branches.find(child=>local(child)==="Fallback")??null;
+              if(choices.length&&fallback){
+                const different=choices.map(branchWording).join("\n")!==branchWording(fallback);
+                if(different)issue("DIVERGENT_ALTERNATE_TEXT","The text box has two versions that do not say the same words, and neither version is a form this reader can choose as the contract. This file is not read as the contract.",item.source);
+                else inline(choices[0],next);
+                for(const child of branches)if(different||child!==choices[0])skipBranch(child);
+                return;
+              }
+              item.children.forEach(child=>inline(child,next));
+              return;
+            }
             if(item.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(name)){
               const id=attr(item,"id"),comment=id===null?null:commentById.get(id),anchorKind=name==="commentRangeStart"?"start":name==="commentRangeEnd"?"end":"reference";
               if(!comment)issue("MISSING_COMMENT_BODY","Comment anchor has no comment body.",item.source);
@@ -264,61 +310,21 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
               if(!types.some(type=>["del","moveFrom"].includes(type)))paragraph.proposedText+=text;
               paragraphOffset+=text.length;storyOffset+=text.length;return;
             }
-            if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next,commentIds:[...activeComments],alternatePath,branch});return;}
-            item.children.forEach(child=>inline(child,next,alternatePath,branch));
+            if(item.namespace===W&&name==="txbxContent"){nestedBoxes.push({item,revisions:next,commentIds:[...activeComments]});return;}
+            item.children.forEach(child=>inline(child,next));
           };n.children.forEach(child=>inline(child,inheritedRevisions));paragraphs.push(paragraph);storyOffset++;
-          const boxViews=(node:XmlNode,inherited:string[])=>{
-            let original="",proposed="";
-            const walk=(item:XmlNode,revisions:string[])=>{
-              if(item.text!==null)return;
-              const itemName=local(item),itemKey=revisionByPath.get(sourceKey(item.source)),next=itemKey?[...revisions,itemKey]:revisions;
-              if(item.namespace===W&&["t","delText","tab","br","cr"].includes(itemName)){
-                const text=plainText(item),types=next.map(id=>evidence.revisions.find(revision=>revision.key===id)!.kind);
-                if(!types.some(type=>["ins","moveTo"].includes(type)))original+=text;
-                if(!types.some(type=>["del","moveFrom"].includes(type)))proposed+=text;
-                return;
-              }
-              item.children.forEach(child=>walk(child,next));
-            };
-            walk(node,inherited);
-            return `${original}\u0000${proposed}`;
-          };
-          const drop=new Set<XmlNode>();
-          const groups=new Map<string,{choice:typeof nestedBoxes;fallback:typeof nestedBoxes}>();
-          for(const box of nestedBoxes){
-            if(!box.alternatePath||!box.branch)continue;
-            const group=groups.get(box.alternatePath)??{choice:[],fallback:[]};
-            group[box.branch==="Choice"?"choice":"fallback"].push(box);
-            groups.set(box.alternatePath,group);
-          }
-          for(const group of groups.values()){
-            if(!group.choice.length||!group.fallback.length)continue;
-            const same=group.choice.map(box=>boxViews(box.item,box.revisions)).join("\n")===group.fallback.map(box=>boxViews(box.item,box.revisions)).join("\n");
-            if(!same)issue("DIVERGENT_ALTERNATE_TEXT","Choice and fallback text boxes do not say the same words, so neither is published as the contract text.",group.choice[0].item.source);
-            else group.fallback.forEach(box=>drop.add(box.item));
-          }
           const commentBytes=(ids:Iterable<string>)=>[...ids].reduce((total,id)=>total+Buffer.byteLength(id)+8,0);
           const afterParagraph=[...activeComments];
-          const closedInside=new Set<string>(),openedInside=new Set<string>(),hosts=new Map<string,DocxParagraph>();
+          const closedInside=new Set<string>(),openedInside=new Set<string>();
           for(const box of nestedBoxes){
-            if(drop.has(box.item))continue;
             activeComments.clear();
             box.commentIds.forEach(id=>activeComments.add(id));
             activeCommentBytes=commentBytes(activeComments);
-            const before=paragraphs.length;
             const boxAncestors=[...ancestors,{name:n.name,source:n.source},{name:box.item.name,source:box.item.source}];
             box.item.children.forEach(child=>collect(child,boxAncestors,box.revisions));
-            const created=paragraphs.slice(before).find(item=>item.runs.some(run=>run.text.length));
-            if(created&&box.alternatePath&&!hosts.has(box.alternatePath))hosts.set(box.alternatePath,created);
             const afterBox=new Set(activeComments);
             for(const id of box.commentIds)if(!afterBox.has(id))closedInside.add(id);
             for(const id of afterBox)if(!box.commentIds.includes(id))openedInside.add(id);
-          }
-          for(const box of nestedBoxes){
-            if(!drop.has(box.item)||!box.alternatePath)continue;
-            const host=hosts.get(box.alternatePath);
-            if(!host)continue;
-            for(const node of descendants(box.item,item=>item.namespace===W&&["t","delText","tab","br","cr"].includes(local(item))))host.runs.push({text:plainText(node),source:node.source,revisionKeys:box.revisions,commentIds:[...box.commentIds],kind:local(node)});
           }
           activeComments.clear();
           for(const id of afterParagraph)if(!closedInside.has(id))activeComments.add(id);
@@ -386,10 +392,11 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       if(activeComments.size)issue("UNMATCHED_COMMENT_START","Comment range remains open at the end of its story.",tree.source);
       evidence.stories.push({part:part.part,kind,paragraphs});
       const covered=new Set(paragraphs.flatMap(p=>p.runs.map(r=>sourceKey(r.source))));
-      for(const n of descendants(tree,n=>n.namespace===W&&["t","delText","tab","br","cr"].includes(local(n))))if(!covered.has(sourceKey(n.source)))issue("UNCOVERED_STORY_TEXT","Story text is outside the supported paragraph model.",n.source);
+      for(const n of descendants(tree,n=>n.namespace===W&&["t","delText","tab","br","cr"].includes(local(n))))if(!covered.has(sourceKey(n.source))&&!underSkipped(n.source))issue("UNCOVERED_STORY_TEXT","Story text is outside the supported paragraph model.",n.source);
     }
     for(const comment of evidence.comments){
-      if(!comment.anchors.length)issue("ORPHAN_COMMENT","Comment body has no range or reference anchor.",comment.source);
+      const parkedAnchor=storyParts.some(part=>descendants(part.tree!,n=>n.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(local(n))&&attr(n,"id")===comment.id&&underSkipped(n.source)).length>0);
+      if(!comment.anchors.length&&!parkedAnchor)issue("ORPHAN_COMMENT","Comment body has no range or reference anchor.",comment.source);
       const starts=comment.anchors.filter(a=>a.kind==="start"),ends=comment.anchors.filter(a=>a.kind==="end"),refs=comment.anchors.filter(a=>a.kind==="reference");
       if(starts.length!==ends.length||starts.length>1||ends.length>1||refs.length>1||(starts.length&&starts[0].source.part!==ends[0]?.source.part))issue("AMBIGUOUS_COMMENT_ANCHORS","Comment range/reference association is inconsistent.",comment.source);
       if(new Set(comment.anchors.map(a=>a.source.part)).size>1)issue("CROSS_STORY_COMMENT_ANCHORS","Comment range and reference cross document stories; their association is unresolved.",comment.source);
@@ -409,6 +416,7 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
     }
     // Non-paragraph anchors and dangling relationship IDs cannot be silently lost.
     for(const part of storyParts)for(const n of descendants(part.tree!,n=>n.text===null)){
+      if(underSkipped(n.source))continue;
       for(const a of n.attributes.filter(a=>a.namespace===R))if(!evidence.relationships.some(r=>r.part===part.part&&r.id===a.value))issue("DANGLING_RELATIONSHIP_ID","Story references an absent relationship ID.",n.source);
       if(n.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(local(n))&&!evidence.comments.some(c=>c.anchors.some(a=>a.source.part===n.source.part&&a.source.path===n.source.path)))issue("UNRESOLVED_COMMENT_POSITION","Comment anchor is outside the supported paragraph model.",n.source);
     }

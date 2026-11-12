@@ -136,10 +136,65 @@ await check("ordinary text-box wrappers keep one copy of the words",async()=>{
     assert.equal(matches[0].paragraph.source.part,"word/document.xml");
   }
 });
-await check("different choice and fallback text boxes block instead of becoming two clauses",async()=>{
+await check("a supported choice is the only published text when fallback payment days differ",async()=>{
   const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
-  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch("Customer shall pay within thirty (30) days of invoice.")}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch("Customer shall pay within sixty (60) days of invoice.")}</w:pict></mc:Fallback></mc:AlternateContent>`;
-  blocked(extractDocx(await fixture({body:p(text("1.3 Payment. See the box."))+p(`<w:r>${alternate}</w:r>`)})),"DIVERGENT_ALTERNATE_TEXT");
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch(choiceWords)}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(text("1.3 Payment. See the box."))+p(`<w:r>${alternate}</w:r>`)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const boxChunks=result.chunks.filter(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===choiceWords);
+  assert.equal(boxChunks.length,1);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+  assert.equal(result.evidence.issues.some(issue=>issue.code==="DIVERGENT_ALTERNATE_TEXT"),false);
+});
+await check("an unsupported choice uses the fallback text box alone",async()=>{
+  const fallbackWords="Customer shall pay within thirty (30) days of invoice.";
+  const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="futureShape"><w:drawing>${branch("Customer shall pay within sixty (60) days of invoice.")}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords)}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  assert.equal(result.chunks.length,1);
+  assert.equal(readDocxProjection(result.chunks[0].text).paragraph.proposedText,fallbackWords);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+});
+await check("identical choice and fallback text boxes yield a single chunk",async()=>{
+  const words="Customer shall pay within thirty (30) days of invoice.";
+  const branch=`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing>${branch}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  assert.equal(result.chunks.length,1);
+  assert.equal(readDocxProjection(result.chunks[0].text).paragraph.proposedText,words);
+  assert.equal(readDocxProjection(result.chunks[0].text).paragraph.runs.filter(run=>run.text===words).length,1);
+});
+await check("a picture in the older copy does not block the supported text box",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text("Customer shall pay within sixty (60) days of invoice."))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  assert.equal(result.chunks.length,1);
+  assert.equal(readDocxProjection(result.chunks[0].text).paragraph.proposedText,choiceWords);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+});
+await check("a comment on the unread text-box copy does not block the chosen words",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const note="This comment is on the older text box and is not contract text.";
+  const marked=words=>p('<w:commentRangeStart w:id="0"/>'+text(words)+'<w:commentRangeEnd w:id="0"/>');
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${marked(choiceWords)}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${marked("Customer shall pay within sixty (60) days of invoice.")}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`),parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comment("0",note))}}}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const chosen=result.chunks.filter(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===choiceWords);
+  assert.equal(chosen.length,1);
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+  assert.equal(sourceContainsExcerpt(result.chunks.map(chunk=>chunk.text).join("\n\n"),note),false);
+});
+await check("divergent text boxes with no safe branch are not read as the contract",async()=>{
+  const branch=words=>`<a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text(words))}</w:txbxContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice Requires="futureShape"><w:drawing>${branch("Customer shall pay within thirty (30) days of invoice.")}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch("Customer shall pay within sixty (60) days of invoice.")}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+  blocked(result,"DIVERGENT_ALTERNATE_TEXT");
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("thirty")||chunk.text.includes("sixty")),false);
 });
 await check("a separate text box keeps current words when an earlier box only deletes them",async()=>{
   const sentence="Customer shall pay a late fee of one percent (1%) per month.";
