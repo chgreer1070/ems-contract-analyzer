@@ -121,6 +121,27 @@ for(const [feature,xml,code] of [
   ["unknown content",'<w:futureObligation>'+text("Future schema")+'</w:futureObligation>',"UNKNOWN_WORD_ELEMENT"],
   ["alternate content",'<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Fallback>'+text("Alternative obligation")+'</mc:Fallback></mc:AlternateContent>',"MARKUP_COMPATIBILITY"]
 ])await check(`unsupported ${feature} blocks without publishing partial chunks`,async()=>blocked(extractDocx(await fixture({body:p(text("Supported text ")+xml)})),code));
+await check("a hidden or unresolved text box is not contract-source text",async()=>{
+  const sentence="This hidden sentence is not on the page.";
+  const inner=`<w:txbxContent>${p(text(sentence))}</w:txbxContent>`;
+  const hiddenVml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="position:absolute;visibility:hidden;width:100pt"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const inheritVml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="visibility:inherit"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const hiddenDrawing=`<w:drawing><wp:docPr xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" id="1" name="Box" hidden="1"/>${inner}</w:drawing>`;
+  for(const wrapper of [hiddenVml,inheritVml,hiddenDrawing]){
+    const result=extractDocx(await fixture({body:p(`<w:r>${wrapper}</w:r>`)}));
+    blocked(result,"UNSUPPORTED_VANISH");
+    assert.equal(result.chunks.some(chunk=>chunk.text.includes(sentence)),false);
+  }
+  const visibleVml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="visibility:visible"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const visibleDrawing=`<w:drawing><wp:docPr xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" id="2" name="Box" hidden="0"/>${inner}</w:drawing>`;
+  for(const wrapper of [visibleVml,visibleDrawing]){
+    const result=extractDocx(await fixture({body:p(text("1.2 Fees. The body states the fee rule."))+p(`<w:r>${wrapper}</w:r>`)}));
+    assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+    const matches=result.chunks.map(chunk=>readDocxProjection(chunk.text)).filter(item=>item.paragraph.proposedText===sentence);
+    assert.equal(matches.length,1);
+    assert.equal(matches[0].paragraph.locator,"Text box in section 1.2");
+  }
+});
 await check("ordinary text-box wrappers keep one copy of the words",async()=>{
   const box="The text box states a late fee of one percent (1%) per month.";
   const inner=`<w:txbxContent>${p(text(box))}</w:txbxContent>`;
@@ -265,6 +286,46 @@ await check("footnote words and plain text boxes are contract-source text with a
     {document:boxProjection.paragraph.source.part,section:boxProjection.paragraph.locator,quote:boxProjection.paragraph.proposedText},
     {document:"word/document.xml",section:"Text box in section 1.1",quote:box}
   );
+});
+await check("a footnote label uses the displayed number when the XML id differs",async()=>{
+  const first="The first displayed footnote states net thirty (30) days.";
+  const second="The second displayed footnote states a late fee.";
+  const body=p(text("1.1 Price. See the notes.")+'<w:r><w:footnoteReference w:id="42"/></w:r>')+p('<w:r><w:footnoteReference w:id="7"/></w:r>');
+  const notes='<w:footnote w:type="separator" w:id="-1">'+p(text(" "))+'</w:footnote>'
+    +'<w:footnote w:id="7">'+p(text(second))+'</w:footnote>'
+    +'<w:footnote w:id="42">'+p(text(first))+'</w:footnote>';
+  const result=extractDocx(await fixture({body,parts:{"word/footnotes.xml":{kind:"footnotes",xml:story("footnotes",notes)}}}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const label=words=>readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===words).text).paragraph.locator;
+  assert.equal(label(first),"Footnote 1");
+  assert.equal(label(second),"Footnote 2");
+  assert.equal(proposedTextContainsExcerpt(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===first).text,first),true);
+});
+await check("a footnote whose displayed number starts at five is not cited by its XML id",async()=>{
+  const note="The unit price in the footnote is USD 9.50 per unit.";
+  const body=p(text("1.1 Price. See the footnote.")+'<w:r><w:footnoteReference w:id="42"/></w:r>')+'<w:sectPr><w:footnotePr><w:numFmt w:val="decimal"/><w:numStart w:val="5"/><w:numRestart w:val="continuous"/></w:footnotePr></w:sectPr>';
+  const result=extractDocx(await fixture({body,parts:{"word/footnotes.xml":{kind:"footnotes",xml:story("footnotes",'<w:footnote w:id="42">'+p(text(note))+'</w:footnote>')}}}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const projection=readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===note).text);
+  assert.equal(projection.paragraph.locator,"Footnote 5");
+  assert.equal(projection.paragraph.proposedText,note);
+});
+await check("a footnote number that depends on page layout is labeled as an XML id",async()=>{
+  const note="The unit price in the footnote is USD 9.50 per unit.";
+  const noteXml=story("footnotes",'<w:footnote w:id="42">'+p(text(note))+'</w:footnote>');
+  for(const properties of ['<w:numRestart w:val="eachPage"/>','<w:numFmt w:val="lowerRoman"/>']){
+    const body=p(text("1.1 Price. See the footnote.")+'<w:r><w:footnoteReference w:id="42"/></w:r>')+`<w:sectPr><w:footnotePr>${properties}</w:footnotePr></w:sectPr>`;
+    const result=extractDocx(await fixture({body,parts:{"word/footnotes.xml":{kind:"footnotes",xml:noteXml}}}));
+    assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+    const projection=readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===note).text);
+    assert.equal(projection.paragraph.locator,"Footnote XML id 42");
+    assert.equal(projection.paragraph.proposedText,note);
+    assert.equal(result.chunks.some(chunk=>readDocxProjection(chunk.text).paragraph.locator==="Footnote 42"),false);
+  }
+  const custom=p(text("1.1 Price. See the footnote.")+'<w:r><w:footnoteReference w:id="42" w:customMarkFollows="1"/>'+text("*")+'</w:r>');
+  const customResult=extractDocx(await fixture({body:custom,parts:{"word/footnotes.xml":{kind:"footnotes",xml:noteXml}}}));
+  assert.equal(customResult.evidence.analysisEligible,true,JSON.stringify(customResult.evidence.issues));
+  assert.equal(readDocxProjection(customResult.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===note).text).paragraph.locator,"Footnote XML id 42");
 });
 await check("unused styles are retained; used inherited numbering and style cycles block",async()=>{
   const styleXml='<w:style w:styleId="Unused"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Base"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Base"/></w:style>';

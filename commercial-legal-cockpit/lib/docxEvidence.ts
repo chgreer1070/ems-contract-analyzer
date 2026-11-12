@@ -1,5 +1,5 @@
 
-export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-11-09.v4";
+export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-11-12.v5";
 export const DOCX_CHUNK_PREFIX="CONTRACTTWIN_DOCX_EVIDENCE_V1\n";
 export type XmlSource={part:string;path:string};
 export type XmlNode={name:string;namespace:string;attributes:Array<{name:string;namespace:string;value:string}>;source:XmlSource;text:string|null;children:XmlNode[]};

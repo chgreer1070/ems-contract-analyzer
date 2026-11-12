@@ -42,8 +42,126 @@ function plainTextBox(node:XmlNode){
   if(!words.length||!words.every(word=>boxes.some(box=>word.source.path.startsWith(`${box.source.path}/`))))return false;
   return !descendants(node,n=>IMAGE_PARTS.has(local(n))).length;
 }
+// Same gate as w:vanish: words that are not on the page are not contract text.
+const SHAPE_HIDDEN_FLAG=new Set(["docPr","cNvPr","shape","group","rect","roundrect","oval"]);
+type ShapeVisibility="shown"|"hidden"|"unresolved";
+function combineVisibility(state:ShapeVisibility|null,next:ShapeVisibility|null):ShapeVisibility|null{
+  if(next===null)return state;
+  if(state===null||state===next)return next;
+  if(state==="shown")return next;
+  return "unresolved";
+}
+function styleVisibility(style:string):ShapeVisibility|null{
+  let found:string|null=null;
+  for(const part of style.split(";")){
+    const split=part.indexOf(":");
+    if(split<0||part.slice(0,split).trim().toLowerCase()!=="visibility")continue;
+    const value=part.slice(split+1).trim().toLowerCase();
+    if(found!==null&&found!==value)return "unresolved";
+    found=value;
+  }
+  if(found===null)return null;
+  if(found==="visible")return "shown";
+  if(found==="hidden")return "hidden";
+  return "unresolved";
+}
+function hiddenFlag(value:string):ShapeVisibility{
+  const flag=value.trim().toLowerCase();
+  if(["1","true","on"].includes(flag))return "hidden";
+  if(["0","false","off"].includes(flag))return "shown";
+  return "unresolved";
+}
+function wrapperVisibility(node:XmlNode):ShapeVisibility{
+  let state:ShapeVisibility|null=null;
+  const visit=(item:XmlNode)=>{
+    if(item.text!==null)return;
+    state=combineVisibility(state,styleVisibility(item.attributes.find(a=>a.name.split(":").at(-1)==="style")?.value??""));
+    if(SHAPE_HIDDEN_FLAG.has(local(item)))for(const attribute of item.attributes)if(attribute.name.split(":").at(-1)==="hidden")state=combineVisibility(state,hiddenFlag(attribute.value));
+    item.children.forEach(visit);
+  };
+  visit(node);
+  return state??"shown";
+}
 function ancestorName(name:string){return name.split(":").at(-1)??"";}
-function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>,sectionLabel:string){
+function eachVisible(node:XmlNode,visit:(item:XmlNode)=>void){
+  if(node.text!==null)return;
+  visit(node);
+  const preferred=node.namespace===MC&&local(node)==="AlternateContent"?preferredTextBoxBranch(node):null;
+  (preferred?[preferred]:node.children).forEach(child=>eachVisible(child,visit));
+}
+function footnoteNumbering(sectPr:XmlNode|null):{start:number;restart:"continuous"|"eachSect";explicitStart:boolean}|null{
+  const props=sectPr?child(sectPr,"footnotePr"):null;
+  if(!props)return {start:1,restart:"continuous",explicitStart:false};
+  let start=1,restart:"continuous"|"eachSect"="continuous",explicitStart=false;
+  for(const item of props.children){
+    if(item.text!==null)continue;
+    if(item.namespace!==W)return null;
+    const name=local(item),value=attr(item,"val");
+    if(name==="pos")continue;
+    if(name==="numFmt"){if(value!=="decimal")return null;continue;}
+    if(name==="numStart"){if(value===null||!/^[0-9]{1,9}$/.test(value))return null;start=Number(value);explicitStart=true;continue;}
+    if(name==="numRestart"){if(value!=="continuous"&&value!=="eachSect")return null;restart=value;continue;}
+    return null;
+  }
+  return {start,restart,explicitStart};
+}
+function bodySections(body:XmlNode){
+  const sections:Array<{nodes:XmlNode[];sectPr:XmlNode|null}>=[];
+  let nodes:XmlNode[]=[];
+  for(const node of body.children){
+    if(node.text!==null)continue;
+    if(node.namespace===W&&local(node)==="sectPr"){sections.push({nodes,sectPr:node});nodes=[];continue;}
+    nodes.push(node);
+    if(node.namespace===W&&local(node)==="p"){
+      const properties=child(node,"pPr"),sectPr=properties?child(properties,"sectPr"):null;
+      if(sectPr){sections.push({nodes,sectPr});nodes=[];}
+    }
+  }
+  if(nodes.length)sections.push({nodes,sectPr:null});
+  return sections;
+}
+function footnoteReferences(nodes:XmlNode[]){
+  const found:XmlNode[]=[];
+  for(const node of nodes)eachVisible(node,item=>{if(item.namespace===W&&local(item)==="footnoteReference")found.push(item);});
+  return found;
+}
+// w:id locates the note in XML. It is not the number Word shows. Count the
+// displayed number when every section uses decimal numbering this reader can
+// follow. Otherwise say the XML id outright instead of sending a reader to the
+// wrong footnote.
+function displayedFootnoteLabels(main:XmlNode,stories:Array<{part:string;tree:XmlNode|null}>):Map<string,string>|null{
+  for(const story of stories){
+    if(!story.tree||story.part===main.source.part)continue;
+    const kind=STORY_KINDS[local(story.tree)];
+    if(kind!=="header"&&kind!=="footer"&&kind!=="comments")continue;
+    let outside=false;
+    eachVisible(story.tree,item=>{if(item.namespace===W&&local(item)==="footnoteReference")outside=true;});
+    if(outside)return null;
+  }
+  const body=child(main,"body");
+  if(!body)return null;
+  const labels=new Map<string,string>(),used=new Set<string>();
+  let next:number|null=null;
+  for(const section of bodySections(body)){
+    const mode=footnoteNumbering(section.sectPr);
+    if(!mode)return null;
+    if(next===null||mode.restart==="eachSect")next=mode.start;
+    else if(mode.explicitStart&&mode.start!==next)return null;
+    const ids:string[]=[];
+    for(const reference of footnoteReferences(section.nodes)){
+      const id=attr(reference,"id"),custom=attr(reference,"customMarkFollows");
+      if(id===null||labels.has(id)||ids.includes(id)||(custom!==null&&!["0","false","off"].includes(custom)))return null;
+      ids.push(id);
+    }
+    for(const id of ids){
+      const label=`Footnote ${next}`;
+      if(used.has(label))return null;
+      used.add(label);labels.set(id,label);next!+=1;
+    }
+  }
+  return labels;
+}
+function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>,sectionLabel:string,footnoteLabel:(id:string)=>string){
   const footnote=paragraph.ancestors.find(item=>ancestorName(item.name)==="footnote");
   if(footnote){
     const node=nodeIndex.get(footnote.source.path);
@@ -51,7 +169,7 @@ function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>
     const type=attr(node,"type");
     if(type&&["separator","continuationSeparator","continuationNotice"].includes(type))return null;
     const id=attr(node,"id");
-    return id===null?null:`Footnote ${id}`;
+    return id===null?null:footnoteLabel(id);
   }
   return paragraph.ancestors.some(item=>ancestorName(item.name)==="txbxContent")?`Text box in section ${sectionLabel}`:null;
 }
@@ -186,6 +304,8 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       return `${original}\u0000${proposed}`;
     };
     const storyParts=evidence.parts.filter(p=>p.tree?.namespace===W&&STORY_KINDS[local(p.tree)]);
+    const footnoteLabels=displayedFootnoteLabels(main,storyParts);
+    const footnoteLabel=(id:string)=>footnoteLabels?.get(id)??`Footnote XML id ${id}`;
     for(const part of storyParts){
       const kind=STORY_KINDS[local(part.tree!)];if(kind==="body")continue;
       const expectedType=`application/vnd.openxmlformats-officedocument.wordprocessingml.${kind}+xml`;
@@ -222,7 +342,10 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
         const name=local(n),property=inProperties||(n.namespace===W&&PROPERTY_ROOTS.has(name));
         const preferred=n.namespace===MC&&name==="AlternateContent"?preferredTextBoxBranch(n):null;
         if(preferred)for(const child of branchChildren(n))if(child!==preferred)skipBranch(child);
-        const textBoxHost=!inTextBox&&((n.namespace===W&&(name==="drawing"||name==="pict")&&plainTextBox(n))||Boolean(preferred&&plainTextBox(preferred)));
+        const directTextBox=!inTextBox&&n.namespace===W&&(name==="drawing"||name==="pict")&&plainTextBox(n);
+        const textBoxRoot=directTextBox?n:!inTextBox&&preferred&&plainTextBox(preferred)?preferred:null;
+        if(textBoxRoot&&wrapperVisibility(textBoxRoot)!=="shown")issue("UNSUPPORTED_VANISH",UNSUPPORTED.vanish,textBoxRoot.source);
+        const textBoxHost=textBoxRoot!==null;
         const insideTextBox=inTextBox||textBoxHost;
         if(!insideTextBox&&(n.namespace===MC||n.attributes.some(a=>a.namespace===MC&&a.name.split(":").at(-1)!=="Ignorable")))issue("MARKUP_COMPATIBILITY","Alternate/extension semantics are not yet resolved.",n.source);
         if((!insideTextBox||n.namespace===W)&&n.attributes.some(a=>a.namespace&&!([W,R,MC,"http://www.w3.org/XML/1998/namespace","http://www.w3.org/2000/xmlns/"].includes(a.namespace))&&!(a.namespace==="http://schemas.microsoft.com/office/word/2010/wordml"&&["paraId","textId"].includes(a.name.split(":").at(-1)!))))issue("UNKNOWN_EXTENSION_ATTRIBUTE","Uninterpreted extension attributes can affect document meaning.",n.source);
@@ -387,7 +510,7 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
         const structural=paragraph.ancestors.some(item=>["txbxContent","footnote","endnote"].includes(ancestorName(item.name)));
         const visible=paragraph.proposedText.replace(/\s+/g," ").trim();
         if(!structural){const match=visible.match(heading);if(match)sectionLabel=match[1];}
-        paragraph.locator=structuralLocator(paragraph,nodeIndex,sectionLabel);
+        paragraph.locator=structuralLocator(paragraph,nodeIndex,sectionLabel,footnoteLabel);
       }
       if(activeComments.size)issue("UNMATCHED_COMMENT_START","Comment range remains open at the end of its story.",tree.source);
       evidence.stories.push({part:part.part,kind,paragraphs});
