@@ -1,14 +1,27 @@
 name: ContractTwin core
 
 on:
+  # Every update of main runs these checks, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
   push:
+    branches:
+      - main
     paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
       - "contracttwin/**"
-      - ".github/workflows/contracttwin-core.yml"
+      - "**/*"
+      - "*"
   pull_request:
+    branches:
+      - main
     paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
       - "contracttwin/**"
-      - ".github/workflows/contracttwin-core.yml"
+      - "**/*"
+      - "*"
+  workflow_dispatch:
 
 permissions:
   contents: read

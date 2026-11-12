@@ -1,20 +1,30 @@
 name: Commercial Legal Cockpit - CodeQL
 
 on:
+  # Every update of main runs CodeQL, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
   push:
     branches:
       - build/ems-commercial-legal-cockpit
       - main
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
-      - '.github/workflows/commercial-legal-cockpit-codeql.yml'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
   pull_request:
     branches:
       - main
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
   schedule:
     - cron: '17 9 * * 1'
+  workflow_dispatch:
 
 concurrency:
   group: commercial-legal-cockpit-codeql-${{ github.ref }}
