@@ -356,6 +356,28 @@ await check("document-wide footnote numbering is read before a section override"
     assert.equal(label(result),"Footnote XML id 42");
   }
 });
+await check("a text box keeps each amendment instruction at the start of its own words",async()=>{
+  const instructions=[
+    "A. Section 1 of the Agreement is deleted and replaced in its entirety with the following:",
+    "1. Delivery. Supplier shall deliver the goods within ten days.",
+    "B. Section 2 of the Agreement is deleted and replaced in its entirety with the following:",
+    "2. Delivery. Supplier shall deliver the spare parts within twenty days."
+  ];
+  const body=p(text("1.1 Price. See the box."))+p(`<w:r><w:drawing><w:txbxContent>${instructions.map(line=>p(text(line))).join("")}</w:txbxContent></w:drawing></w:r>`);
+  const result=extractDocx(await fixture({body}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const boxed=instructions.map(line=>readDocxProjection(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===line).text));
+  assert.equal(boxed.length,instructions.length);
+  for(const [index,projection] of boxed.entries()){
+    assert.equal(projection.paragraph.proposedText,instructions[index]);
+    assert.equal(projection.paragraph.proposedText.startsWith("[text box]"),false);
+    assert.equal(projection.paragraph.locator,"Text box in section 1.1");
+    assert.equal(proposedTextContainsExcerpt(result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===instructions[index]).text,instructions[index]),true);
+  }
+  const joined=boxed.map(item=>item.paragraph.proposedText).join("\n");
+  assert.match(joined,/\nB\. Section 2 /);
+  assert.equal(joined.includes("\n[text box] B. Section 2"),false);
+});
 await check("a point comment after a text box stays with the box words",async()=>{
   const box="The text box states a late fee of one percent (1%) per month.";
   const note="This point comment explains the text box and is not contract text.";

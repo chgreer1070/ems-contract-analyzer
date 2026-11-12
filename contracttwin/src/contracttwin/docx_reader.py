@@ -4,8 +4,10 @@ The words a reader would see after accepting the changes are the operative
 text. Insertions are kept. Deletions are left out of that text and listed in
 the redline history. Each footnote paragraph is marked ``[footnote N]``. Each
 text-box paragraph is marked ``[text box]``. That label stays off to the side
-when a numbered heading is recognized, so a heading inside a box is still a
-section. Comments stay notes. The quote checker uses only the operative text.
+when a numbered heading is recognized, and when the next amendment instruction
+is recognized, so a heading or instruction inside a box is still found. The
+label stays on the stored line. Comments stay notes. The quote checker uses
+only the operative text.
 """
 
 from __future__ import annotations
