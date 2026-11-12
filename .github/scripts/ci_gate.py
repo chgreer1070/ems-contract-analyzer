@@ -2,7 +2,9 @@
 """Decide whether the CI gate can pass.
 
 The gate passes only when the latest run of each required validation check
-succeeded. A failed Vercel preview and any npm audit check are ignored.
+succeeded for the same trigger (a pull request, a push, or a manual run).
+A newer result from a different trigger cannot hide or reject that result.
+A failed Vercel preview and any npm audit check are ignored.
 Synthetic fixtures in --self-test cover that rule. No live data is used there.
 """
 
@@ -39,13 +41,32 @@ def sanitize(text: str) -> str:
     return _TOKEN_RE.sub("[redacted]", text)
 
 
-def latest_required(runs: Sequence[Mapping[str, object]]) -> dict[str, Mapping[str, object]]:
+_RUN_ID_RE = re.compile(r"/actions/runs/(\d+)(?:/|$)")
+_ALLOWED_EVENTS = {"push", "pull_request", "workflow_dispatch"}
+
+
+def workflow_run_id(run: Mapping[str, object]) -> str | None:
+    details = run.get("details_url")
+    if not isinstance(details, str):
+        return None
+    match = _RUN_ID_RE.search(details)
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def latest_required(
+    runs: Sequence[Mapping[str, object]],
+    required_event: str | None = None,
+) -> dict[str, Mapping[str, object]]:
     """Keep the newest GitHub Actions run for each required check name."""
     chosen: dict[str, Mapping[str, object]] = {}
     required = set(REQUIRED_CHECKS)
     for run in runs:
         name = run.get("name")
         if name not in required:
+            continue
+        if required_event is not None and str(run.get("event") or "") != required_event:
             continue
         current = chosen.get(str(name))
         if current is None or _prefer(run, current):
@@ -70,8 +91,11 @@ def _prefer(candidate: Mapping[str, object], current: Mapping[str, object]) -> b
     return int(str(candidate.get("id", 0))) > int(str(current.get("id", 0)))
 
 
-def decide(runs: Sequence[Mapping[str, object]]) -> tuple[str, list[str]]:
-    latest = latest_required(runs)
+def decide(
+    runs: Sequence[Mapping[str, object]],
+    required_event: str | None = None,
+) -> tuple[str, list[str]]:
+    latest = latest_required(runs, required_event)
     lines: list[str] = []
     pending: list[str] = []
     failed: list[str] = []
@@ -144,6 +168,48 @@ def fetch_check_runs(repository: str, sha: str) -> list[dict[str, object]]:
     return runs
 
 
+def fetch_workflow_event(repository: str, run_id: str) -> str:
+    if re.fullmatch(r"\d+", run_id) is None:
+        raise RuntimeError("workflow run id is not numeric")
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repository}/actions/runs/{run_id}",
+            "--jq",
+            ".event",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode != 0:
+        detail = sanitize(result.stderr.strip() or result.stdout.strip() or "gh api failed")
+        raise RuntimeError(detail)
+    event = result.stdout.strip()
+    if event not in _ALLOWED_EVENTS:
+        raise RuntimeError(f"workflow run {run_id} has no usable event")
+    return event
+
+
+def annotate_events(
+    repository: str,
+    runs: Sequence[dict[str, object]],
+    cache: dict[str, str],
+) -> None:
+    required = set(REQUIRED_CHECKS)
+    for run in runs:
+        if run.get("name") not in required:
+            continue
+        run_id = workflow_run_id(run)
+        if run_id is None:
+            continue
+        if run_id not in cache:
+            cache[run_id] = fetch_workflow_event(repository, run_id)
+        run["event"] = cache[run_id]
+
+
 def poll_until_decided() -> int:
     cockpit = os.environ.get("LOCAL_COCKPIT_RESULT", "")
     if cockpit != "success":
@@ -157,15 +223,21 @@ def poll_until_decided() -> int:
     if re.fullmatch(r"[0-9a-fA-F]{40}", sha) is None:
         print("CHECK_SHA is not a commit id.")
         return 1
-    print(f"Judging validation checks on {sha}.")
+    required_event = os.environ.get("GATE_EVENT", "")
+    if required_event not in _ALLOWED_EVENTS:
+        print("GATE_EVENT must be push, pull_request, or workflow_dispatch.")
+        return 1
+    print(f"Judging {required_event} validation checks on {sha}.")
     deadline = time.monotonic() + _DEADLINE_SECONDS
+    event_cache: dict[str, str] = {}
     while True:
         try:
             runs = fetch_check_runs(repository, sha)
+            annotate_events(repository, runs, event_cache)
         except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
             print(sanitize(str(error)))
             return 1
-        decision, lines = decide(runs)
+        decision, lines = decide(runs, required_event)
         print("\n".join(lines))
         if decision == PASS:
             return 0
@@ -183,6 +255,7 @@ def _run(
     conclusion: str | None,
     run_id: int,
     app: str | None = "github-actions",
+    event: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "id": run_id,
@@ -192,6 +265,8 @@ def _run(
     }
     if app is not None:
         payload["app"] = {"slug": app}
+    if event is not None:
+        payload["event"] = event
     return payload
 
 
@@ -256,6 +331,43 @@ def run_self_test() -> int:
             print(f"FAIL {label}: expected {expected}, got {decision}")
         else:
             print(f"ok {label}")
+
+    pull_request_runs = [
+        _run(name, "completed", "failure" if name == "Release preflight" else "success", index + 1, event="pull_request")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ]
+    push_runs = [
+        _run(name, "completed", "success", index + 100, event="push")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ]
+    masked = pull_request_runs + push_runs
+    decision, _lines = decide(masked, "pull_request")
+    if decision != FAIL:
+        problems += 1
+        print(f"FAIL a newer push success must not hide a failed pull request check: {decision}")
+    else:
+        print("ok a newer push success must not hide a failed pull request check")
+
+    reversed_runs = [
+        _run(name, "completed", "success", index + 1, event="pull_request")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ] + [
+        _run(name, "completed", "failure" if name == "CodeQL JavaScript / TypeScript" else "success", index + 100, event="push")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ]
+    decision, _lines = decide(reversed_runs, "pull_request")
+    if decision != PASS:
+        problems += 1
+        print(f"FAIL a newer push failure must not reject a successful pull request check: {decision}")
+    else:
+        print("ok a newer push failure must not reject a successful pull request check")
+
+    sample_url = "https://github.com/octo/repo/actions/runs/43234685984/job/131238791278"
+    if workflow_run_id({"details_url": sample_url}) != "43234685984":
+        problems += 1
+        print("FAIL workflow run id was not read from the check link")
+    else:
+        print("ok workflow run id was read from the check link")
     if problems:
         return 1
     print("self-test passed")

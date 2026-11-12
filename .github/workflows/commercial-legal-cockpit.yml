@@ -29,6 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: read
   checks: read
   contents: read
 
@@ -120,6 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
+      actions: read
       checks: read
       contents: read
     steps:
@@ -130,6 +132,7 @@ jobs:
         env:
           LOCAL_COCKPIT_RESULT: ${{ needs.validate.result }}
           GH_TOKEN: ${{ github.token }}
+          GATE_EVENT: ${{ github.event_name }}
           # Pull request checks are stored on the branch tip. github.sha is the
           # temporary merge commit, and that commit has no check runs.
           CHECK_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
