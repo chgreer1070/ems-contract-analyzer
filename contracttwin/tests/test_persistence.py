@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from contracttwin import pipeline
 from contracttwin.api import app, clear_store
+from contracttwin.pipeline import AnalysisRequest, analyze
 from contracttwin.repository import SqliteReadingRepository
 
 from .conftest import API_HEADERS
@@ -41,6 +43,14 @@ def test_versions_survive_reopening_the_database(tmp_path, monkeypatch) -> None:
     assert fetched.status_code == 200
     assert fetched.json()["facts"]
     assert fetched.json()["version"] == 1
+
+
+def test_engine_version_changes_the_stored_identity(monkeypatch) -> None:
+    request = AnalysisRequest(base_name="Base", base_text=BASE, amendments=[])
+    current = analyze(request).analysis_id
+    monkeypatch.setattr(pipeline, "ENGINE_VERSION", "contracttwin-core-0.2.0")
+    previous = analyze(request).analysis_id
+    assert current != previous
 
 
 def test_audit_log_records_the_key_fingerprint_and_rejects_changes(tmp_path, monkeypatch) -> None:

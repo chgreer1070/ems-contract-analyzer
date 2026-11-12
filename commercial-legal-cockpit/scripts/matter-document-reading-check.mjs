@@ -28,7 +28,6 @@ function request(documents, chunks, baseDocumentId, amendmentDocumentIds = []) {
     chunksByDocumentId: new Map(chunks),
     baseDocumentId,
     amendmentDocumentIds,
-    amendmentOrderConfirmed: true,
   });
 }
 
@@ -44,8 +43,8 @@ const reading = request(
 assert.equal(reading.base.role, "base");
 assert.equal(reading.base.text, "Payment is thirty (30) days.");
 assert.equal(reading.amendments[0].text, "Payment is forty-five (45) days.");
-assert.match(reading.notes[0], /confirmed earliest-to-latest/);
-assert.equal(reading.notes[1], "amendment-1.txt is still a draft.");
+assert.deepEqual(reading.notes, ["amendment-1.txt is still a draft."]);
+assert.doesNotMatch(reading.notes.join("\n"), /confirmed earliest-to-latest|amendmentOrderConfirmed/);
 
 const pdf = request(
   [ready({ extractionMethod: "PDF_TEXT", filename: "scan.pdf" })],
@@ -113,6 +112,10 @@ assert.doesNotMatch(page, /contracttwinCoreClient/);
 assert.match(panel, /not an approval/);
 assert.match(panel, /does not save this as a decision/);
 assert.match(panel, /Kept as evidence, not read as the agreement/);
+assert.match(panel, /effective date written in each amendment/);
+assert.match(panel, /order is ambiguous/);
+assert.doesNotMatch(route, /amendmentOrderConfirmed/);
+assert.doesNotMatch(panel, /amendmentOrderConfirmed|Move earlier|explicitly confirmed|I have reviewed and confirm/);
 assert.doesNotMatch(panel, /contracttwinCoreClient|LEGAL_RELIANCE_ENABLED|\/api\/decisions/);
 
 console.log("Matter document reading checks passed.");

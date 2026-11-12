@@ -95,6 +95,16 @@ export type ContractTwinAnalysis = {
   warnings: string[];
 };
 
+export class ContractTwinRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ContractTwinRequestError";
+    this.status = status;
+  }
+}
+
 export async function analyzeAgreementText(
   serviceUrl: string,
   body: ContractTwinAgreementRequest,
@@ -112,7 +122,14 @@ export async function analyzeAgreementText(
   });
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`ContractTwin reading service returned ${response.status}: ${detail}`);
+    let message = `ContractTwin reading service returned ${response.status}: ${detail}`;
+    try {
+      const parsed = JSON.parse(detail) as { detail?: unknown };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) message = parsed.detail;
+    } catch {
+      // The service sometimes returns plain text. Keep that text in the message above.
+    }
+    throw new ContractTwinRequestError(message, response.status);
   }
   return (await response.json()) as ContractTwinAnalysis;
 }
