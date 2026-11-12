@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+from zipfile import ZipFile
+
+from contracttwin.ingest import extract_upload
 from contracttwin.pipeline import AnalysisRequest, analyze
 
 
@@ -86,6 +90,101 @@ The initial term begins on the Effective Date and continues until January 15, 20
             for citation in entry.citations:
                 if citation.quote == notice:
                     assert citation.section == place
+
+
+def test_a_preamble_text_box_date_names_the_box_and_derived_deadlines_keep_it() -> None:
+    """A date in a text box before the first numbered heading is still a preamble date.
+
+    The citation names the box and quotes only its words. A counted deadline
+    keeps that same place. Synthetic sentences only.
+    """
+
+    effective = 'This Agreement is entered into as of January 1, 2026 (the "Effective Date").'
+    term = "The initial term begins on the Effective Date and continues until January 1, 2028."
+    notice = (
+        "Manufacturer shall give written notice at least sixty (60) days before each anniversary "
+        "of the Effective Date before an annual price adjustment may take effect."
+    )
+    cases = (
+        (f"[text box] {effective}", f"[text box] {term}", "Text box in section Preamble"),
+        (f"[text box] [text box] {effective}", f"[text box] [text box] {term}", "Text box in section Preamble"),
+        (f"[footnote 2] {effective}", f"[footnote 2] {term}", "Footnote 2"),
+        (effective, term, "Preamble"),
+    )
+    for effective_line, term_line, place in cases:
+        text = f"{effective_line}\n{term_line}\n1. Pricing\n\n{notice}\n"
+        result = analyze(AnalysisRequest(base_name="Preamble box date", base_text=text, amendments=[]))
+        dated = {
+            fact.attributes.get("date_role"): fact
+            for fact in result.facts
+            if fact.attributes.get("date_role") in {"agreement_effective", "term_end"}
+        }
+        assert set(dated) == {"agreement_effective", "term_end"}, place
+        assert dated["agreement_effective"].section == "Preamble"
+        assert dated["term_end"].section == "Preamble"
+        assert dated["agreement_effective"].citations[0].section == place
+        assert dated["term_end"].citations[0].section == place
+        assert dated["agreement_effective"].citations[0].quote == effective
+        assert dated["term_end"].citations[0].quote == term
+        assert "[text box]" not in dated["agreement_effective"].citations[0].quote
+        assert "[footnote" not in dated["agreement_effective"].citations[0].quote
+        inherited = [
+            citation
+            for fact in result.facts
+            for citation in fact.citations
+            if citation.quote in {effective, term}
+        ]
+        inherited.extend(
+            citation
+            for entry in result.calendar
+            for citation in entry.citations
+            if citation.quote in {effective, term}
+        )
+        assert inherited, place
+        for citation in inherited:
+            assert citation.section == place
+            assert citation.quote in {effective, term}
+        notice_fact = next(fact for fact in result.facts if fact.attributes.get("notice_days_before_anniversary") == 60)
+        assert notice_fact.section == "1"
+        assert notice_fact.citations[0].section == "1"
+        assert notice_fact.citations[0].quote == notice
+
+    extracted = extract_upload("synthetic-preamble-box.docx", _preamble_date_box(effective, term))
+    assert f"[text box] {effective}" in extracted.text.splitlines()
+    assert extracted.text.index(effective) < extracted.text.index("1. Pricing")
+    read = analyze(AnalysisRequest(base_name="Word preamble box", base_text=extracted.text, amendments=[]))
+    word_date = next(fact for fact in read.facts if fact.attributes.get("date_role") == "agreement_effective")
+    assert word_date.section == "Preamble"
+    assert word_date.citations[0].section == "Text box in section Preamble"
+    assert word_date.citations[0].quote == effective
+    assert word_date.citations[0].quote in extracted.text
+
+
+def _preamble_date_box(effective: str, term: str) -> bytes:
+    """A made-up Word file. The date sentences sit in a text box before section 1."""
+
+    def xml(value: str) -> str:
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+    def boxed(value: str) -> str:
+        return (
+            "<w:p><w:r><w:drawing><w:txbxContent><w:p><w:r><w:t>"
+            f"{xml(value)}</w:t></w:r></w:p></w:txbxContent></w:drawing></w:r></w:p>"
+        )
+
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    {boxed(effective)}
+    {boxed(term)}
+    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    return buffer.getvalue()
 
 
 def test_business_day_date_is_not_counted_when_the_meaning_is_missing() -> None:

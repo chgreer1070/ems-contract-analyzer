@@ -80,12 +80,16 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
 
 def _preamble_facts(version: SectionVersion, agreement: bool) -> list[Candidate]:
     found: list[Candidate] = []
-    for line in _lines(version.text):
+    for raw_line in _lines(version.text):
+        # A text box or footnote before the first numbered heading is still the preamble.
+        # The fact keeps that section. The citation names the box or note and quotes its words.
+        locator, line = _citation_locator(version, raw_line)
         if "Amendment Effective Date" in line:
             continue
         # "Effective Date" also appears in the term sentence as a cross-reference.
         # Only a line that sets the date ("entered into" / "as of") is the effective date.
         sets_effective_date = "entered into" in line.lower() or "as of" in line.lower()
+        start = len(found)
         if agreement and sets_effective_date and re.search(r"\bEffective Date\b", line):
             dated = _date_fact(line, version.document_id, version.document_name, "agreement_effective", version.number)
             if dated is not None:
@@ -94,6 +98,9 @@ def _preamble_facts(version: SectionVersion, agreement: bool) -> list[Candidate]
             dated = _date_fact(line, version.document_id, version.document_name, "term_end", version.number)
             if dated is not None:
                 found.append(dated)
+        if locator is not None:
+            for candidate in found[start:]:
+                candidate.citation_section = locator
     return found
 
 
@@ -213,15 +220,32 @@ _TEXT_BOX_LINE = re.compile(r"^\[text box\] (?P<body>.+)$")
 
 
 def _citation_locator(version: SectionVersion, line: str) -> tuple[str | None, str]:
-    """Keep the numbered section for comparisons, and name the quote's place."""
+    """Keep the numbered section for comparisons, and name the quote's place.
 
-    footnote = _FOOTNOTE_LINE.match(line)
-    if footnote and footnote.group("body").strip():
-        return f"Footnote {footnote.group('id').strip()}", footnote.group("body").strip()
-    box = _TEXT_BOX_LINE.match(line)
-    if box and box.group("body").strip():
-        return f"Text box in section {version.number}", box.group("body").strip()
-    return None, line
+    A nested box is stored as ``[text box] [text box] ...``. Peel every leading
+    marker so the quote is the words themselves. The place name stays the
+    outer marker.
+    """
+
+    locator: str | None = None
+    body = line
+    while True:
+        footnote = _FOOTNOTE_LINE.match(body)
+        if footnote and footnote.group("body").strip():
+            if locator is None:
+                locator = f"Footnote {footnote.group('id').strip()}"
+            body = footnote.group("body").strip()
+            continue
+        box = _TEXT_BOX_LINE.match(body)
+        if box and box.group("body").strip():
+            if locator is None:
+                locator = f"Text box in section {version.number}"
+            body = box.group("body").strip()
+            continue
+        break
+    if locator is None:
+        return None, line
+    return locator, body
 
 
 def _definitions(line: str, version: SectionVersion) -> list[Candidate]:
