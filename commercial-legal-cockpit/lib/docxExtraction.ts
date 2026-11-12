@@ -47,7 +47,9 @@ function choiceUsesSupportedShape(node:XmlNode){
 }
 function preferredTextBoxBranch(node:XmlNode){
   const branches=branchChildren(node);
-  const supported=branches.find(child=>local(child)==="Choice"&&choiceUsesSupportedShape(child)&&plainTextBox(child));
+  // The namespace decides the branch. A supported Choice stays selected even when
+  // it is not a plain text box, so an image there blocks instead of publishing the Fallback.
+  const supported=branches.find(child=>local(child)==="Choice"&&choiceUsesSupportedShape(child));
   if(supported)return supported;
   return branches.find(child=>local(child)==="Fallback"&&plainTextBox(child))??null;
 }

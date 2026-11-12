@@ -189,6 +189,16 @@ await check("identical choice and fallback text boxes yield a single chunk",asyn
   assert.equal(readDocxProjection(result.chunks[0].text).paragraph.proposedText,words);
   assert.equal(readDocxProjection(result.chunks[0].text).paragraph.runs.filter(run=>run.text===words).length,1);
 });
+await check("a picture in the supported choice blocks instead of publishing the fallback",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><w:txbxContent>${p(text(fallbackWords))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
+  const result=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`)}));
+  blocked(result,"UNSUPPORTED_DRAWING");
+  assert.equal(result.chunks.some(chunk=>chunk.text.includes("thirty")||chunk.text.includes("sixty")),false);
+  const kept=result.evidence.stories.flatMap(story=>story.paragraphs.map(paragraph=>`${paragraph.originalText}\n${paragraph.proposedText}`)).join("\n");
+  assert.equal(kept.includes("sixty"),false);
+});
 await check("a picture in the older copy does not block the supported text box",async()=>{
   const choiceWords="Customer shall pay within thirty (30) days of invoice.";
   const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing><w:txbxContent>${p(text(choiceWords))}</w:txbxContent></w:drawing></mc:Choice><mc:Fallback><w:pict><a:blip xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><w:txbxContent>${p(text("Customer shall pay within sixty (60) days of invoice."))}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent>`;
