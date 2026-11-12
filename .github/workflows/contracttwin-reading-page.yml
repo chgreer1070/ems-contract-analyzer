@@ -2,19 +2,27 @@ name: ContractTwin reading page
 
 on:
   # Manual runs only re-check the sample reading page. They do not deploy.
+  # Every update of main runs this check, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
   workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
       - "contracttwin/**"
-      - "commercial-legal-cockpit/app/reading/**"
-      - "commercial-legal-cockpit/app/api/reading-sample/**"
-      - "commercial-legal-cockpit/app/matters/**"
-      - "commercial-legal-cockpit/components/MatterSampleReadingLink.tsx"
-      - "commercial-legal-cockpit/scripts/matter-sample-reading-check.mjs"
-      - "commercial-legal-cockpit/e2e/**"
-      - "commercial-legal-cockpit/playwright.config.ts"
-      - "commercial-legal-cockpit/scripts/start-reading-e2e.sh"
-      - ".github/workflows/contracttwin-reading-page.yml"
+      - "**/*"
+      - "*"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
+      - "contracttwin/**"
+      - "**/*"
+      - "*"
 
 permissions:
   contents: read

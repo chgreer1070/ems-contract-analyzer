@@ -1,24 +1,35 @@
 name: Commercial Legal Cockpit
 
 on:
+  # Every update of main runs validation, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
   push:
     branches:
+      - main
       - build/ems-commercial-legal-cockpit
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
-      - '.github/workflows/commercial-legal-cockpit.yml'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
   pull_request:
     branches:
       - main
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
-      - '.github/workflows/commercial-legal-cockpit.yml'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
+  workflow_dispatch:
 
 concurrency:
   group: commercial-legal-cockpit-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
+  checks: read
   contents: read
 
 jobs:
@@ -85,3 +96,24 @@ jobs:
           ALLOW_DEMO_ACCESS: 'true'
           LEGAL_RELIANCE_ENABLED: 'false'
         run: npm run build
+
+  ci-gate:
+    name: CI gate
+    needs: validate
+    if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check the gate rules on synthetic results
+        run: python3 .github/scripts/ci_gate.py --self-test
+      - name: Require the validation checks
+        env:
+          LOCAL_COCKPIT_RESULT: ${{ needs.validate.result }}
+          # Pull request checks are stored on the branch tip. github.sha is the
+          # temporary merge commit, and that commit has no check runs.
+          CHECK_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 .github/scripts/ci_gate.py
