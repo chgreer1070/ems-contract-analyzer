@@ -516,7 +516,8 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
           // A point commentReference does not open a range, so it never enters
           // activeComments. The outer paragraph may also have no words of its
           // own once they move into the box. Keep that point comment on the box.
-          const pointCommentIds=[...commentById.values()].filter(comment=>{
+          // These ids are copied onto a text box only. A paragraph with no box does not scan every comment.
+          const pointCommentIds=nestedBoxes.length===0?[]:[...commentById.values()].filter(comment=>{
             const onParagraph=comment.anchors.some(anchor=>anchor.kind==="reference"&&anchor.paragraphPath===n.source.path&&anchor.source.part===n.source.part);
             const ranged=comment.anchors.some(anchor=>anchor.kind==="start"||anchor.kind==="end");
             return onParagraph&&!ranged;
@@ -600,9 +601,16 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
       const covered=new Set(paragraphs.flatMap(p=>p.runs.map(r=>sourceKey(r.source))));
       for(const n of descendants(tree,n=>n.namespace===W&&["t","delText","tab","br","cr"].includes(local(n))))if(!covered.has(sourceKey(n.source))&&!underSkipped(n.source))issue("UNCOVERED_STORY_TEXT","Story text is outside the supported paragraph model.",n.source);
     }
+    // Walk skipped branches once, and only when a comment still has no anchor.
+    // An ordinary point comment that is already anchored does not rescan the story.
+    const parkedCommentIds=new Set<string>();
+    if(skippedBranches.length&&evidence.comments.some(comment=>comment.anchors.length===0)){
+      for(const part of storyParts)for(const node of descendants(part.tree!,node=>node.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(local(node))&&underSkipped(node.source))){
+        const id=attr(node,"id");if(id!==null)parkedCommentIds.add(id);
+      }
+    }
     for(const comment of evidence.comments){
-      const parkedAnchor=storyParts.some(part=>descendants(part.tree!,n=>n.namespace===W&&["commentRangeStart","commentRangeEnd","commentReference"].includes(local(n))&&attr(n,"id")===comment.id&&underSkipped(n.source)).length>0);
-      if(!comment.anchors.length&&!parkedAnchor)issue("ORPHAN_COMMENT","Comment body has no range or reference anchor.",comment.source);
+      if(!comment.anchors.length&&!parkedCommentIds.has(comment.id))issue("ORPHAN_COMMENT","Comment body has no range or reference anchor.",comment.source);
       const starts=comment.anchors.filter(a=>a.kind==="start"),ends=comment.anchors.filter(a=>a.kind==="end"),refs=comment.anchors.filter(a=>a.kind==="reference");
       if(starts.length!==ends.length||starts.length>1||ends.length>1||refs.length>1||(starts.length&&starts[0].source.part!==ends[0]?.source.part))issue("AMBIGUOUS_COMMENT_ANCHORS","Comment range/reference association is inconsistent.",comment.source);
       if(new Set(comment.anchors.map(a=>a.source.part)).size>1)issue("CROSS_STORY_COMMENT_ANCHORS","Comment range and reference cross document stories; their association is unresolved.",comment.source);

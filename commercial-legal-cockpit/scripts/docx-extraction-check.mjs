@@ -509,4 +509,53 @@ await check("a style used only by the unread text-box copy does not block the ch
   blocked(extractDocx(await fixture({body:p(`<w:r>${chosenHidden}</w:r>`),parts})),"STYLE_SEMANTICS_UNRESOLVED");
 });
 
+await check("a comment that exists only on a skipped text-box copy is not treated as missing",async()=>{
+  const choiceWords="Customer shall pay within thirty (30) days of invoice.";
+  const fallbackWords="Customer shall pay within sixty (60) days of invoice.";
+  const branch=(words,commentId)=>`<w:txbxContent>${p(text(words)+`<w:r><w:commentReference w:id="${commentId}"/></w:r>`)}</w:txbxContent>`;
+  const rangedFallback=`<w:txbxContent>${p('<w:commentRangeStart w:id="3"/>'+text(fallbackWords)+'<w:commentRangeEnd w:id="3"/>')}</w:txbxContent>`;
+  const alternate=`<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><mc:Choice Requires="wps"><w:drawing>${branch(choiceWords,"1")}</w:drawing></mc:Choice><mc:Fallback><w:pict>${branch(fallbackWords,"2")}${rangedFallback}</w:pict></mc:Fallback></mc:AlternateContent>`;
+  const comments=comment("1","Synthetic note on the current text box.")+comment("2","Synthetic note on the unread copy.")+comment("3","Synthetic range that exists only on the unread copy.");
+  const kept=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`),parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comments)}}}));
+  assert.equal(kept.evidence.analysisEligible,true,JSON.stringify(kept.evidence.issues));
+  assert.equal(kept.evidence.issues.some(issue=>issue.code==="ORPHAN_COMMENT"),false);
+  assert.equal(kept.chunks.some(chunk=>chunk.text.includes("thirty")),true);
+  assert.equal(kept.chunks.some(chunk=>chunk.text.includes("sixty")),false);
+  const anchored=kept.evidence.comments.find(item=>item.id==="1");
+  const parked=kept.evidence.comments.find(item=>item.id==="2");
+  const parkedRange=kept.evidence.comments.find(item=>item.id==="3");
+  assert.equal(anchored.anchors.length,1);
+  assert.equal(anchored.anchors[0].kind,"reference");
+  assert.equal(parked.anchors.length,0);
+  assert.equal(parkedRange.anchors.length,0);
+  const missing=comment("8","Synthetic note with no anchor anywhere.");
+  const blockedCopy=extractDocx(await fixture({body:p(`<w:r>${alternate}</w:r>`),parts:{"word/comments.xml":{kind:"comments",xml:story("comments",comments+missing)}}}));
+  const orphans=blockedCopy.evidence.issues.filter(issue=>issue.code==="ORPHAN_COMMENT");
+  assert.equal(blockedCopy.evidence.analysisEligible,false);
+  assert.equal(orphans.length,1);
+  assert.match(orphans[0].source.path,/w:comment\[4\]/);
+  assert.equal(blockedCopy.evidence.comments.find(item=>item.id==="2").anchors.length,0);
+});
+await check("thousands of ordinary point comments stay near the plain extractor time",async()=>{
+  const count=3000;
+  let body="";
+  let notes="";
+  for(let index=0;index<count;index++){
+    body+=p(text(`Synthetic clause ${index} is due.`)+`<w:r><w:commentReference w:id="${index}"/></w:r>`);
+    notes+=comment(String(index),`Synthetic note ${index}.`);
+  }
+  const started=performance.now();
+  const result=extractDocx(await fixture({body,parts:{"word/comments.xml":{kind:"comments",xml:story("comments",notes)}}}));
+  const elapsed=performance.now()-started;
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues.slice(0,5)));
+  assert.equal(result.evidence.comments.length,count);
+  assert.equal(result.evidence.issues.some(issue=>issue.code==="ORPHAN_COMMENT"),false);
+  assert.ok(result.evidence.comments.every(item=>item.anchors.length===1&&item.anchors[0].kind==="reference"));
+  assert.equal(result.chunks.length,count);
+  // The old per-comment story walk took about 22 seconds on this shape.
+  // The plain extractor, with no text boxes, took about 2 seconds. Stay under 6.
+  console.log(`ordinary point comments: ${count} extracted in ${Math.round(elapsed)}ms`);
+  assert.ok(elapsed<6000,`extraction took ${Math.round(elapsed)}ms`);
+});
+
 console.log(`DOCX evidence regression checks passed: ${cases} synthetic scenarios. No external AI, customer source, database or deployment was used.`);
