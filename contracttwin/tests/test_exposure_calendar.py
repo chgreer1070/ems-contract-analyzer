@@ -51,6 +51,43 @@ The initial term begins on the Effective Date and continues until March 1, 2025.
     assert assumptions[0].id in notice.depends_on
 
 
+def test_a_boxed_or_footnote_notice_keeps_its_place_on_derived_deadlines() -> None:
+    notice = (
+        "Manufacturer shall give written notice at least sixty (60) days before each anniversary "
+        "of the Effective Date before an annual price adjustment may take effect."
+    )
+    preamble = """This Agreement is entered into as of January 15, 2024 (the "Effective Date"), by and between Northwind Devices, Inc. and Harborline Manufacturing, LLC.
+
+The initial term begins on the Effective Date and continues until January 15, 2026.
+"""
+    cases = (
+        (f"[text box] {notice}", "Text box in section 1"),
+        (f"[footnote 1] {notice}", "Footnote 1"),
+    )
+    for labeled, place in cases:
+        text = f"{preamble}\n1. Pricing\n\n{labeled}\n"
+        result = analyze(AnalysisRequest(base_name="Boxed notice", base_text=text, amendments=[]))
+        source = next(fact for fact in result.facts if fact.attributes.get("notice_days_before_anniversary") == 60)
+        assert source.section == "1"
+        assert source.citations[0].section == place
+        assert source.citations[0].quote == notice
+        derived = [
+            fact
+            for fact in result.facts
+            if fact.kind == "inference" and any(item.quote == notice for item in fact.citations)
+        ]
+        assert derived, place
+        for fact in derived:
+            assert fact.section == "1", place
+            cited = next(item for item in fact.citations if item.quote == notice)
+            assert cited.section == place
+            assert cited.quote == notice
+        for entry in result.calendar:
+            for citation in entry.citations:
+                if citation.quote == notice:
+                    assert citation.section == place
+
+
 def test_business_day_date_is_not_counted_when_the_meaning_is_missing() -> None:
     text = """1. Notices
 

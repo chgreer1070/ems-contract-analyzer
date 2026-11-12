@@ -73,6 +73,7 @@ def _anniversaries(
             break
         assumption_id = None
         if assumed:
+            effective_citation = effective.citations[0]
             assumption = Candidate(
                 kind="assumption",
                 domain="notice",
@@ -82,9 +83,10 @@ def _anniversaries(
                 ),
                 operative=True,
                 section=effective.section,
-                document_id=effective.citations[0].document_id,
-                document_name=effective.citations[0].document_name,
-                quote=effective.citations[0].quote,
+                citation_section=effective_citation.section,
+                document_id=effective_citation.document_id,
+                document_name=effective_citation.document_name,
+                quote=effective_citation.quote,
                 attributes={"assumption": "february-29-anniversary"},
             )
             accepted, rejected = review_candidates([assumption], documents)
@@ -260,6 +262,7 @@ def _inference_candidate(
         statement=statement,
         operative=True,
         section=notice.section,
+        citation_section=first.section,
         document_id=first.document_id,
         document_name=first.document_name,
         quote=first.quote,
