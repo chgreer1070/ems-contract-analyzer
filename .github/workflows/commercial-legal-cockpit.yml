@@ -117,7 +117,10 @@ jobs:
   ci-gate:
     name: CI gate
     needs: validate
-    if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+    # A hand start of this workflow rechecks the cockpit only. The other
+    # validation workflows are started on their own, so the aggregate gate
+    # stays on pull requests and on pushes to main.
+    if: always() && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:

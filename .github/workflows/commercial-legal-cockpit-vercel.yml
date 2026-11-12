@@ -36,9 +36,11 @@ on:
           - production
 
 concurrency:
-  group: commercial-legal-cockpit-vercel-${{ github.ref }}
-  # A release may have written migrations and its per-release target receipt;
-  # serialize subsequent runs instead of interrupting that promotion protocol.
+  # Production dispatches stay in one line so a release is not interrupted.
+  # Release preflight on main gets its own line, so a waiting production
+  # approval cannot hold up the CI gate. The production job keeps its own
+  # database lock below.
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_target == 'production' && 'commercial-legal-cockpit-vercel-production' || format('commercial-legal-cockpit-vercel-{0}', github.run_id) }}
   cancel-in-progress: false
 
 permissions:

@@ -187,9 +187,17 @@ def fetch_workflow_event(repository: str, run_id: str) -> str:
     if result.returncode != 0:
         detail = sanitize(result.stderr.strip() or result.stdout.strip() or "gh api failed")
         raise RuntimeError(detail)
-    event = result.stdout.strip()
-    if event not in _ALLOWED_EVENTS:
-        raise RuntimeError(f"workflow run {run_id} has no usable event")
+    return usable_event(result.stdout.strip())
+
+
+def usable_event(event: str) -> str:
+    """Keep any real workflow trigger, including a weekly schedule.
+
+    The gate later ignores triggers that do not match the run being judged.
+    A scheduled CodeQL run must not be treated as a broken API response.
+    """
+    if re.fullmatch(r"[a-z0-9_]+", event) is None:
+        raise RuntimeError("workflow run has no usable event")
     return event
 
 
@@ -361,6 +369,34 @@ def run_self_test() -> int:
         print(f"FAIL a newer push failure must not reject a successful pull request check: {decision}")
     else:
         print("ok a newer push failure must not reject a successful pull request check")
+
+    scheduled = [
+        _run(name, "completed", "failure", index + 500, event="schedule")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ]
+    push_success = [
+        _run(name, "completed", "success", index + 1, event="push")
+        for index, name in enumerate(REQUIRED_CHECKS)
+    ]
+    decision, _lines = decide(push_success + scheduled, "push")
+    if decision != PASS:
+        problems += 1
+        print(f"FAIL a scheduled failure must not reject a successful push check: {decision}")
+    else:
+        print("ok a scheduled failure must not reject a successful push check")
+    try:
+        if usable_event("schedule") != "schedule":
+            raise RuntimeError("schedule was not kept")
+        usable_event("")
+    except RuntimeError as error:
+        if "no usable event" not in str(error):
+            problems += 1
+            print(f"FAIL scheduled runs should stay readable: {error}")
+        else:
+            print("ok a weekly schedule is a real trigger and a blank event is not")
+    else:
+        problems += 1
+        print("FAIL a blank event was accepted")
 
     sample_url = "https://github.com/octo/repo/actions/runs/43234685984/job/131238791278"
     if workflow_run_id({"details_url": sample_url}) != "43234685984":
