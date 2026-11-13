@@ -5,7 +5,7 @@ This file records what the current synthetic checks do and do not prove. It repl
 ## What was ported
 
 - The bounded OOXML reader and receipt (`lib/docxPackage.ts`, `lib/docxExtraction.ts`, `lib/docxEvidence.ts`, `lib/docxReceipt.ts`).
-- Extraction, clause grounding, and term filtering so comments, revision metadata, and deleted wording are not treated as operative contract text.
+- Extraction, clause grounding, and term filtering so comments, revision metadata, and deleted wording are not treated as operative contract text. Footnote words and plain text-box words are contract-source text, cited with the document, a section or structural locator, and a verbatim quote. They are still not an accepted agreement.
 - Worker behavior that stores the receipt, blocks incomplete DOCX without OCR fallback, and refuses legacy raw-text DOCX for later analysis.
 - The synthetic extraction and pipeline checks, retargeted at the current worker.
 - The six acceptance-agent charters under `acceptance/docx/agents/`. They are instructions for a later human review. They are not a record that the review already passed.

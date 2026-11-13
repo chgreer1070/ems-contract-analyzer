@@ -1,5 +1,5 @@
 
-export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-10-09.v2";
+export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-11-12.v7";
 export const DOCX_CHUNK_PREFIX="CONTRACTTWIN_DOCX_EVIDENCE_V1\n";
 export type XmlSource={part:string;path:string};
 export type XmlNode={name:string;namespace:string;attributes:Array<{name:string;namespace:string;value:string}>;source:XmlSource;text:string|null;children:XmlNode[]};
@@ -9,7 +9,7 @@ export type CommentAnchor={kind:"start"|"end"|"reference";source:XmlSource;parag
 export type DocxComment={id:string;author:string|null;initials:string|null;date:string|null;source:XmlSource;text:string;anchors:CommentAnchor[]};
 export type DocxRun={text:string;source:XmlSource;revisionKeys:string[];commentIds:string[];kind:string};
 export type DocxTableCell={source:XmlSource;originalText:string;proposedText:string;properties:XmlNode|null};
-export type DocxParagraph={source:XmlSource;ancestors:Array<{name:string;source:XmlSource}>;style:string|null;numbering:XmlNode|null;tableContext:{source:XmlSource;rowIndex:number;cellIndex:number;gridColumn:number;gridSpan:number;verticalMerge:string|null;rowCells:DocxTableCell[];firstRow:DocxTableCell[];headerRows:DocxTableCell[][]}|null;runs:DocxRun[];originalText:string;proposedText:string};
+export type DocxParagraph={source:XmlSource;ancestors:Array<{name:string;source:XmlSource}>;style:string|null;numbering:XmlNode|null;tableContext:{source:XmlSource;rowIndex:number;cellIndex:number;gridColumn:number;gridSpan:number;verticalMerge:string|null;rowCells:DocxTableCell[];firstRow:DocxTableCell[];headerRows:DocxTableCell[][]}|null;runs:DocxRun[];originalText:string;proposedText:string;locator:string|null};
 export type DocxEvidence={
   version:1;extractorVersion:string;sourceSha256:string;legalEvidenceReady:false;
   analysisEligible:boolean;issues:DocxIssue[];
@@ -27,7 +27,7 @@ export function projectDocxParagraph(evidence:DocxEvidence,paragraph:DocxParagra
 export function readDocxProjection(text:string):DocxProjection|null{
   if(!text.startsWith(DOCX_CHUNK_PREFIX))return null;
   const value=JSON.parse(text.slice(DOCX_CHUNK_PREFIX.length)) as DocxProjection;
-  if(value.version!==1||value.context!=="UNAPPROVED_NEGOTIATION_EVIDENCE"||typeof value.storyKind!=="string"||!Array.isArray(value.paragraph?.runs)||typeof value.paragraph.originalText!=="string"||typeof value.paragraph.proposedText!=="string")throw new Error("Invalid DOCX evidence projection.");
+  if(value.version!==1||value.context!=="UNAPPROVED_NEGOTIATION_EVIDENCE"||typeof value.storyKind!=="string"||!Array.isArray(value.paragraph?.runs)||typeof value.paragraph.originalText!=="string"||typeof value.paragraph.proposedText!=="string"||(value.paragraph.locator!=null&&typeof value.paragraph.locator!=="string"))throw new Error("Invalid DOCX evidence projection.");
   return value;
 }
 

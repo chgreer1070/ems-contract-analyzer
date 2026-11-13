@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+from zipfile import ZipFile
+
+from contracttwin.ingest import extract_upload
 from contracttwin.pipeline import AnalysisRequest, analyze
 
 BASE = """CONTRACT
@@ -81,6 +85,43 @@ A. Section 9.1 of the Agreement is deleted and replaced in its entirety with the
     assert any("was not in the base agreement" in warning for warning in result.warnings)
 
 
+def test_a_text_box_label_does_not_merge_the_next_amendment() -> None:
+    """A text-box label sits in front of each line. The next instruction still ends the prior replacement.
+
+    The quoted replacement stays an exact slice of the amendment, label included.
+    The same words without the label separate the same way. Synthetic text only.
+    """
+
+    goods = "1. Delivery. Supplier shall deliver the goods within ten days."
+    parts = "2. Delivery. Supplier shall deliver the spare parts within twenty days."
+    paragraphs = [
+        "AMENDMENT NO. 1",
+        'This Amendment No. 1 is entered into as of March 1, 2025 (the "Amendment Effective Date").',
+        "A. Section 1 of the Agreement is deleted and replaced in its entirety with the following:",
+        goods,
+        "B. Section 2 of the Agreement is deleted and replaced in its entirety with the following:",
+        parts,
+    ]
+    base = """CONTRACT
+
+1. Delivery
+
+Supplier shall deliver the goods within five days.
+
+2. Acceptance
+
+Supplier shall deliver the spare parts within five days.
+"""
+    unlabeled = "\n".join(paragraphs)
+    labeled = extract_upload("synthetic-amendment.docx", _amendment_text_box(paragraphs)).text
+    assert labeled.splitlines() == [f"[text box] {line}" for line in paragraphs]
+
+    plain = _read(base, unlabeled)
+    boxed = _read(base, labeled)
+    _assert_separated(plain, unlabeled, goods, parts, boxed=False)
+    _assert_separated(boxed, labeled, goods, parts, boxed=True)
+
+
 def test_dangling_cross_reference_is_unresolved() -> None:
     text = """1. Terms
 
@@ -91,3 +132,71 @@ def test_dangling_cross_reference_is_unresolved() -> None:
     assert result.cross_references[0].to_section == "9.9"
     assert result.cross_references[0].resolved is False
     assert "Section 9.9" in result.cross_references[0].citation.quote
+
+
+def _read(base: str, amendment: str):
+    return analyze(
+        AnalysisRequest(
+            base_name="Synthetic Base",
+            base_text=base,
+            amendments=[("Synthetic Amendment", amendment, "2025-03-01")],
+        )
+    )
+
+
+def _assert_separated(result, source: str, goods: str, parts: str, boxed: bool) -> None:
+    def deliveries(operative: bool, section: str) -> list[str]:
+        return [
+            item.statement
+            for item in result.obligation_register
+            if item.operative is operative and item.section == section and "shall deliver" in item.statement
+        ]
+
+    assert deliveries(True, "1") == [goods]
+    assert deliveries(True, "2") == [parts]
+    assert parts not in deliveries(True, "1")
+    assert "five days" not in " ".join(deliveries(True, "1") + deliveries(True, "2"))
+
+    for section, sentence in (("1", goods), ("2", parts)):
+        obligation = next(
+            item
+            for item in result.obligation_register
+            if item.operative and item.section == section and item.statement == sentence
+        )
+        assert obligation.citation.quote == sentence
+        assert obligation.citation.quote in source
+        place = f"Text box in section {section}" if boxed else section
+        assert obligation.citation.section == place
+        clause = next(item for item in result.clause_register if item.operative and item.section == section)
+        assert clause.citation.quote in source
+        assert sentence in clause.citation.quote
+        assert (goods if section == "2" else parts) not in clause.citation.quote
+        if boxed:
+            assert clause.citation.quote == f"[text box] {sentence}"
+        else:
+            assert clause.citation.quote == sentence
+            assert "[text box]" not in clause.citation.quote
+
+
+def _amendment_text_box(paragraphs: list[str]) -> bytes:
+    def xml(value: str) -> str:
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+    inner = "".join(f"<w:p><w:r><w:t>{xml(line)}</w:t></w:r></w:p>" for line in paragraphs)
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent>{inner}</w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    return buffer.getvalue()

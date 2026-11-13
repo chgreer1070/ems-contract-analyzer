@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from contracttwin.segment import TEXT_BOX_LABEL, segment
+
 SECTION_REPLACEMENT_RE = re.compile(
     r"Section\s+(?P<num>\d+(?:\.\d+)*)\b[^\n]{0,120}?deleted and replaced in its entirety with the following:\s*\n+",
     re.IGNORECASE,
@@ -19,7 +21,13 @@ DEFINITION_REPLACEMENT_RE = re.compile(
     re.IGNORECASE,
 )
 # The next amendment instruction, not a lettered sentence inside the new section.
-NEXT_CLAUSE_RE = re.compile(r"\n(?=[A-Z]\.\s+(?:Section\s+\d|The definition\b|Except\b))", re.IGNORECASE)
+# A text-box label may sit between the line break and that instruction. The match
+# is only the line break, so the replacement stays an exact slice of the source.
+_TEXT_BOX_LABEL = re.escape(TEXT_BOX_LABEL)
+NEXT_CLAUSE_RE = re.compile(
+    rf"\n(?=(?:{_TEXT_BOX_LABEL})*[A-Z]\.\s+(?:Section\s+\d|The definition\b|Except\b))",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -53,8 +61,6 @@ class Ledger:
 
 
 def build_ledger(base: PreparedDocument, amendments: list[PreparedDocument]) -> Ledger:
-    from contracttwin.segment import segment
-
     preamble, sections = segment(base.text)
     ledger = Ledger()
     if preamble is not None:
