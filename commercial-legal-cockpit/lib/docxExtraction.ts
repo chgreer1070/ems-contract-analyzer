@@ -440,7 +440,8 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
           if(UNSUPPORTED[name]&&!textBoxShape)issue(`UNSUPPORTED_${name.toUpperCase()}`,UNSUPPORTED[name],n.source);
           else if(!textBoxShape&&!property&&!CONTENT_NAMES.has(name)&&!REVISION_NAMES.has(name))issue("UNKNOWN_WORD_ELEMENT",`Uninterpreted Word element: ${name}.`,n.source);
         }else if(!insideTextBox)issue("UNSUPPORTED_NAMESPACE","Non-Word story content requires another validated adapter.",n.source);
-        n.children.forEach(c=>scan(c,property,insideTextBox));
+        // The exemption covers the shape wrapper only. Words inside w:txbxContent are checked like body text, so an equation cannot drop out of a published clause.
+        n.children.forEach(c=>scan(c,property,insideTextBox&&!(n.namespace===W&&name==="txbxContent")));
       };scan(part.tree!);
     }
     for(const part of evidence.parts){

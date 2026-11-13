@@ -157,6 +157,21 @@ await check("ordinary text-box wrappers keep one copy of the words",async()=>{
     assert.equal(matches[0].paragraph.source.part,"word/document.xml");
   }
 });
+await check("an equation inside a text box blocks the same way it does in the body",async()=>{
+  const gap="Cancellation fee is  USD.";
+  const math='<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>50000</m:t></m:r></m:oMath>';
+  const clause=p(text("Cancellation fee is ")+math+text(" USD."));
+  const inner=`<w:txbxContent>${clause}</w:txbxContent>`;
+  const drawing=p(`<w:r><w:drawing><wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="urn:synthetic"><wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:txbx>${inner}</wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`);
+  const vml=p(`<w:r><w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml"><v:textbox>${inner}</v:textbox></v:shape></w:pict></w:r>`);
+  for(const body of [drawing,vml,clause]){
+    const result=extractDocx(await fixture({body}));
+    blocked(result,"UNSUPPORTED_NAMESPACE");
+    const mathIssue=result.evidence.issues.find(issue=>issue.blocking&&issue.code==="UNSUPPORTED_NAMESPACE"&&issue.source?.path.includes("oMath"));
+    assert.ok(mathIssue,JSON.stringify(result.evidence.issues.map(issue=>[issue.code,issue.source?.path])));
+    assert.equal(result.chunks.some(chunk=>chunk.text.includes(gap)||chunk.text.includes("50000")),false);
+  }
+});
 await check("a supported choice is the only published text when fallback payment days differ",async()=>{
   const branch=words=>`<w:txbxContent>${p(text(words))}</w:txbxContent>`;
   const choiceWords="Customer shall pay within thirty (30) days of invoice.";
