@@ -7,8 +7,9 @@ text-box paragraph is marked ``[text box]``. That label stays off to the side
 when a numbered heading is recognized, and when the next amendment instruction
 is recognized, so a heading or instruction inside a box is still found. The
 label stays on the stored line. Inside a table, that line stays on its own
-line: other cells in the row are not joined onto it. Comments stay notes. The
-quote checker uses only the operative text.
+line: other cells in the row are not joined onto it. A box anchored between
+two parts of one sentence stays on its own line, and those parts stay one
+sentence. Comments stay notes. The quote checker uses only the operative text.
 """
 
 from __future__ import annotations
@@ -72,8 +73,23 @@ def read_docx(data: bytes, filename: str) -> tuple[str, list[Revision], list[Ann
 
 
 def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
-    chunks: list[str] = []
+    body: list[str] = []
+    pending_space: list[str] = []
+    leading_boxes: list[str] = []
+    trailing_boxes: list[str] = []
     revisions: list[Revision] = []
+    body_started = False
+
+    def add_body(text: str) -> None:
+        nonlocal body_started
+        if not text.strip():
+            pending_space.append(text)
+            return
+        if body_started:
+            body.extend(pending_space)
+        pending_space.clear()
+        body.append(text)
+        body_started = True
 
     def walk(node) -> None:
         for child in list(node):
@@ -81,7 +97,7 @@ def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
                 inserted = _visible_text(child, deleted=False)
                 if inserted:
                     revisions.append(Revision(kind="insertion", text=inserted, location=location))
-                    chunks.append(inserted)
+                    add_body(inserted)
             elif child.tag == f"{WORD_NAMESPACE}del":
                 deleted = _visible_text(child, deleted=True)
                 if deleted:
@@ -93,21 +109,36 @@ def _paragraph(paragraph, location: str) -> tuple[str, list[Revision]]:
                     f"{_TEXT_BOX_LABEL}{part.strip()}" for part in box_text.split("\n") if part.strip()
                 )
                 if labeled:
-                    prefix = "\n" if any(chunk.strip() for chunk in chunks) else ""
-                    chunks.append(f"{prefix}{labeled}\n")
+                    # A box before any body words stays in front. A box after
+                    # body words have started is kept after the joined sentence.
+                    (trailing_boxes if body_started else leading_boxes).append(labeled)
             elif child.tag in _COMMENT_TAGS:
                 continue
             elif child.tag == f"{WORD_NAMESPACE}t":
-                chunks.append(child.text or "")
+                add_body(child.text or "")
             elif child.tag == f"{WORD_NAMESPACE}tab":
-                chunks.append("\t")
+                add_body("\t")
             elif child.tag in {f"{WORD_NAMESPACE}br", f"{WORD_NAMESPACE}cr"}:
-                chunks.append("\n")
+                add_body("\n")
             else:
                 walk(child)
 
     walk(paragraph)
-    return "".join(chunks), revisions
+    if body_started:
+        body.extend(pending_space)
+    pieces: list[str] = []
+    if leading_boxes:
+        pieces.append("\n".join(leading_boxes))
+    body_text = "".join(body)
+    if body_text.strip():
+        if pieces:
+            pieces.append("\n")
+        pieces.append(body_text)
+    if trailing_boxes:
+        if pieces:
+            pieces.append("\n")
+        pieces.append("\n".join(trailing_boxes))
+    return "".join(pieces), revisions
 
 
 def _paragraphs_in(node, location: str) -> tuple[str, list[Revision]]:

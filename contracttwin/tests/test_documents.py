@@ -147,6 +147,112 @@ def test_a_text_box_and_the_words_after_it_stay_separate() -> None:
     assert f"{box}{following}" not in extracted.text
 
 
+def test_a_text_box_between_body_runs_keeps_the_sentence_together() -> None:
+    """A box anchored in the middle of a sentence does not split that sentence.
+
+    The box stays on its own line. The notice day count stays with the notice
+    words, so the anniversary notice is still read. Synthetic words only.
+    """
+
+    before = "Customer shall give written notice at least "
+    box = "Rates remain fixed."
+    after = "thirty (30) days before each anniversary of the Effective Date."
+    sentence = f"{before}{after}"
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t>{before}</w:t></w:r>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent><w:p><w:r><w:t>{box}</w:t></w:r></w:p></w:txbxContent>
+        </w:drawing>
+      </w:r>
+      <w:r><w:t>{after}</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    payload = buffer.getvalue()
+    extracted = extract_upload("synthetic-split-notice.docx", payload)
+    assert sentence in extracted.text.splitlines()
+    assert f"[text box] {box}" in extracted.text.splitlines()
+    assert before.strip() not in extracted.text.splitlines()
+    assert after not in extracted.text.splitlines()
+
+    response = client.post(
+        "/v1/agreements/files",
+        data={"manifest": '{"base": {"name": "Synthetic Notice", "role": "base", "filename": "synthetic-split-notice.docx"}}'},
+        files=[("files", ("synthetic-split-notice.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+    )
+    assert response.status_code == 200, response.text
+    facts = response.json()["facts"]
+    notice = next(fact for fact in facts if fact["attributes"].get("notice_days_before_anniversary") == 30)
+    citation = notice["citations"][0]
+    assert notice["section"] == "1"
+    assert citation["section"] == "1"
+    assert citation["quote"] == sentence
+    assert box not in citation["quote"]
+
+
+def test_a_leading_text_box_does_not_indent_the_following_heading() -> None:
+    """Space, a tab, or a line break before a box must not stick to the next line.
+
+    The heading stays exactly ``1. Pricing``, so the price stays in section 1.
+    Synthetic words only.
+    """
+
+    note = "See the box."
+    price = "The unit price for product NW-100 is USD 9.50 per unit."
+
+    def paragraph(before: str) -> str:
+        return f"""<w:p>
+      {before}
+      <w:r>
+        <w:drawing>
+          <w:txbxContent><w:p><w:r><w:t>{note}</w:t></w:r></w:p></w:txbxContent>
+        </w:drawing>
+      </w:r>
+      <w:r><w:t>1. Pricing</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>{price}</w:t></w:r></w:p>"""
+
+    cases = (
+        '<w:r><w:t xml:space="preserve"> </w:t></w:r>',
+        "<w:r><w:tab/></w:r>",
+        "<w:r><w:br/></w:r>",
+    )
+    for before in cases:
+        document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    {paragraph(before)}
+  </w:body>
+</w:document>
+"""
+        buffer = BytesIO()
+        with ZipFile(buffer, "w") as package:
+            package.writestr("word/document.xml", document)
+        payload = buffer.getvalue()
+        extracted = extract_upload("synthetic-leading-box.docx", payload)
+        assert "1. Pricing" in extracted.text.splitlines(), extracted.text
+        assert " 1. Pricing" not in extracted.text.splitlines()
+        assert "\t1. Pricing" not in extracted.text
+        response = client.post(
+            "/v1/agreements/files",
+            data={"manifest": '{"base": {"name": "Synthetic Leading Box", "role": "base", "filename": "synthetic-leading-box.docx"}}'},
+            files=[("files", ("synthetic-leading-box.docx", payload, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+        )
+        assert response.status_code == 200, response.text
+        fact = next(item for item in response.json()["facts"] if item["attributes"].get("unit_price") == "9.50")
+        assert fact["section"] == "1"
+        assert fact["citations"][0]["quote"] == price
+
+
 def test_a_text_box_in_the_first_table_cell_does_not_cover_the_later_cell() -> None:
     """A late-fee text box in the first cell stays in that cell.
 
