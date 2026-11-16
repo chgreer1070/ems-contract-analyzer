@@ -8,7 +8,10 @@ from zipfile import ZipFile
 from fastapi.testclient import TestClient
 
 from contracttwin.api import app
+from contracttwin.docx_reader import read_docx
+from contracttwin.extract_rules import extract_rules
 from contracttwin.ingest import IngestError, extract_upload
+from contracttwin.precedence import PreparedDocument, build_ledger
 from contracttwin.quote_check import Candidate, review_candidates
 
 from .conftest import API_HEADERS
@@ -119,6 +122,208 @@ def test_footnote_and_text_box_citations_name_the_document_the_place_and_the_exa
         assert citation["quote"] == box
         assert citation["quote"] in extracted.text
     assert not any(deleted in item["quote"] or comment in item["quote"] for fact in facts for item in fact["citations"])
+
+
+def test_a_footnote_xml_id_is_cited_as_the_number_on_the_page() -> None:
+    """The only normally numbered note can be stored as XML id 42.
+
+    Word shows footnote 1. The citation must say Footnote 1. The check reads
+    the file, finds the price, and accepts the citation. Synthetic words only.
+    """
+
+    note = "The unit price for product NW-100 is USD 9.50 per unit."
+    separator_settings = '<w:footnote w:id="-1"/><w:footnote w:id="0"/>'
+    payloads = (
+        _docx_with_displayed_footnote([("42", note)]),
+        _docx_with_displayed_footnote([("42", note)], settings_footnote_pr=separator_settings),
+    )
+    for payload in payloads:
+        text, accepted, rejected = _cited_footnote_facts(payload)
+        assert rejected == []
+        assert f"[footnote 1] {note}" in text.splitlines()
+        assert "[footnote 42]" not in text
+        assert "[footnote XML id 42]" not in text
+        fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+        citation = fact.citations[0]
+        assert fact.section == "1.1"
+        assert citation.document_name == "Synthetic Footnote"
+        assert citation.section == "Footnote 1"
+        assert citation.quote == note
+        assert citation.quote in text
+        assert not any(item.section == "Footnote 42" for item in fact.citations)
+
+
+def test_footnote_numbers_follow_reference_order_and_a_later_start() -> None:
+    """The first reference is footnote 1 even when its XML id is the larger one.
+
+    A note that Word numbers from 5 stays footnote 5, including when that
+    start is written in the document settings. Synthetic words only.
+    """
+
+    first = "The unit price for product NW-100 is USD 9.50 per unit."
+    second = "The unit price for product NW-200 is USD 8.25 per unit."
+    text, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote([("42", first), ("7", second)])
+    )
+    assert rejected == []
+    assert f"[footnote 2] {second}" in text.splitlines()
+    assert f"[footnote 1] {first}" in text.splitlines()
+    by_price = {fact.attributes.get("unit_price"): fact.citations[0].section for fact in accepted}
+    assert by_price["9.50"] == "Footnote 1"
+    assert by_price["8.25"] == "Footnote 2"
+
+    start_at_five = '<w:numFmt w:val="decimal"/><w:numStart w:val="5"/><w:numRestart w:val="continuous"/>'
+    for payload in (
+        _docx_with_displayed_footnote([("42", first)], section_footnote_pr=start_at_five),
+        _docx_with_displayed_footnote(
+            [("42", first)],
+            settings_footnote_pr='<w:numFmt w:val="decimal"/><w:numStart w:val="5"/>',
+        ),
+    ):
+        _text, accepted, rejected = _cited_footnote_facts(payload)
+        assert rejected == []
+        fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+        assert fact.citations[0].section == "Footnote 5"
+        assert fact.citations[0].quote == first
+
+    overridden, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote(
+            [("42", first)],
+            section_footnote_pr='<w:numFmt w:val="decimal"/><w:numStart w:val="8"/>',
+            settings_footnote_pr='<w:numFmt w:val="lowerRoman"/><w:numStart w:val="5"/>',
+        )
+    )
+    assert rejected == []
+    assert "[footnote 8]" in overridden
+    fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+    assert fact.citations[0].section == "Footnote 8"
+    assert fact.citations[0].quote == first
+
+
+def test_a_footnote_number_that_cannot_be_counted_names_the_xml_id() -> None:
+    """A number this reader cannot count is not presented as the page number.
+
+    Synthetic words only.
+    """
+
+    note = "The unit price for product NW-100 is USD 9.50 per unit."
+    cases = (
+        ("roman numerals", {"section_footnote_pr": '<w:numFmt w:val="lowerRoman"/>'}),
+        ("page restart", {"section_footnote_pr": '<w:numRestart w:val="eachPage"/>'}),
+        ("custom mark", {"custom_mark": True}),
+        ("note in a header", {"header_reference": True}),
+        (
+            "two numbering blocks",
+            {
+                "sect_pr_xml": (
+                    "<w:sectPr><w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr>"
+                    "<w:footnotePr><w:numFmt w:val=\"lowerRoman\"/></w:footnotePr></w:sectPr>"
+                )
+            },
+        ),
+    )
+    for name, options in cases:
+        text, accepted, rejected = _cited_footnote_facts(_docx_with_displayed_footnote([("42", note)], **options))
+        assert rejected == [], name
+        fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+        assert fact.section == "1.1", name
+        assert fact.citations[0].section == "Footnote XML id 42", name
+        assert fact.citations[0].quote == note
+        assert fact.citations[0].quote in text
+        assert "[footnote XML id 42]" in text
+        assert "[footnote 42]" not in text
+        assert "[footnote 1]" not in text
+
+
+def test_repeated_footnote_copies_are_counted_once() -> None:
+    """A compatibility copy of the same note is still one footnote.
+
+    Two copies that name different notes are not counted. Synthetic words only.
+    """
+
+    note = "The unit price for product NW-100 is USD 9.50 per unit."
+    same = """<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+      <mc:Choice><w:r><w:footnoteReference w:id="42"/></w:r></mc:Choice>
+      <mc:Fallback><w:r><w:footnoteReference w:id="42"/></w:r></mc:Fallback>
+    </mc:AlternateContent>"""
+    different = """<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+      <mc:Choice><w:r><w:footnoteReference w:id="42"/></w:r></mc:Choice>
+      <mc:Fallback><w:r><w:footnoteReference w:id="7"/></w:r></mc:Fallback>
+    </mc:AlternateContent>"""
+    text, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote([("42", note)], reference_xml=same)
+    )
+    assert rejected == []
+    fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+    assert fact.citations[0].section == "Footnote 1"
+    assert "[footnote 1]" in text
+    other = "The unit price for product NW-200 is USD 8.25 per unit."
+    text, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote([("42", note), ("7", other)], reference_xml=different)
+    )
+    assert rejected == []
+    sections = {fact.citations[0].section for fact in accepted}
+    assert sections == {"Footnote XML id 42", "Footnote XML id 7"}
+    assert "[footnote 1]" not in text
+
+
+def test_a_deleted_footnote_reference_does_not_take_a_page_number() -> None:
+    """A reference that was deleted is not footnote 1 after the change is accepted.
+
+    A deleted earlier reference also does not push the remaining note to footnote 2.
+    Synthetic words only.
+    """
+
+    note = "The unit price for product NW-100 is USD 9.50 per unit."
+    deleted = (
+        '<w:del w:id="1" w:author="Synthetic Counsel" w:date="2026-10-08T12:00:00Z">'
+        '<w:r><w:footnoteReference w:id="42"/></w:r></w:del>'
+    )
+    text, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote([("42", note)], reference_xml=deleted)
+    )
+    assert rejected == []
+    fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+    assert fact.citations[0].section == "Footnote XML id 42"
+    assert fact.citations[0].quote == note
+    assert "[footnote 1]" not in text
+
+    live_after_deletion = deleted.replace('w:id="42"', 'w:id="99"') + '<w:r><w:footnoteReference w:id="42"/></w:r>'
+    text, accepted, rejected = _cited_footnote_facts(
+        _docx_with_displayed_footnote([("42", note)], reference_xml=live_after_deletion)
+    )
+    assert rejected == []
+    fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+    assert fact.citations[0].section == "Footnote 1"
+    assert fact.citations[0].quote == note
+
+
+def test_a_damaged_unused_part_does_not_block_the_footnote_number() -> None:
+    """A broken part that is not a header, footer, or comment still leaves the note readable.
+
+    Synthetic words only.
+    """
+
+    note = "The unit price for product NW-100 is USD 9.50 per unit."
+    source = BytesIO(_docx_with_displayed_footnote([("42", note)]))
+    buffer = BytesIO()
+    with ZipFile(source) as incoming, ZipFile(buffer, "w") as outgoing:
+        for item in incoming.infolist():
+            outgoing.writestr(item.filename, incoming.read(item.filename))
+        outgoing.writestr(
+            "word/theme/theme1.xml",
+            '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">MARKER</a:theme>',
+        )
+    data = bytearray(buffer.getvalue())
+    marker = data.find(b"MARKER")
+    assert marker > 0
+    data[marker] = ord("X")
+    text, accepted, rejected = _cited_footnote_facts(bytes(data))
+    assert rejected == []
+    fact = next(item for item in accepted if item.attributes.get("unit_price") == "9.50")
+    assert fact.citations[0].section == "Footnote 1"
+    assert fact.citations[0].quote == note
+    assert f"[footnote 1] {note}" in text.splitlines()
 
 
 def test_a_text_box_and_the_words_after_it_stay_separate() -> None:
@@ -525,6 +730,99 @@ def _docx_with_notes() -> bytes:
         package.writestr("word/document.xml", document)
         package.writestr("word/footnotes.xml", footnotes)
         package.writestr("word/comments.xml", comments)
+    return buffer.getvalue()
+
+
+def _cited_footnote_facts(payload: bytes):
+    text, _revisions, _annotations, _warnings = read_docx(payload, "synthetic-footnote.docx")
+    document = PreparedDocument(
+        document_id="doc",
+        name="Synthetic Footnote",
+        role="base",
+        text=text,
+        manifest_effective_date=None,
+        filename="synthetic-footnote.docx",
+    )
+    ledger = build_ledger(document, [])
+    candidates, _rule_warnings = extract_rules(ledger, [])
+    accepted, rejected = review_candidates(candidates, {"doc": ("Synthetic Footnote", text)})
+    return text, accepted, rejected
+
+
+def _docx_with_displayed_footnote(
+    notes: list[tuple[str, str]],
+    *,
+    section_footnote_pr: str = "",
+    settings_footnote_pr: str = "",
+    sect_pr_xml: str = "",
+    header_reference: bool = False,
+    custom_mark: bool = False,
+    reference_xml: str = "",
+) -> bytes:
+    """Build a synthetic Word file. ``notes`` is (XML id, words) in reference order."""
+
+    custom = ' w:customMarkFollows="1"' if custom_mark else ""
+    references = reference_xml or "".join(
+        f'<w:r><w:footnoteReference w:id="{note_id}"{custom}/></w:r>' for note_id, _words in notes
+    )
+    if sect_pr_xml:
+        sect_pr = sect_pr_xml
+    elif section_footnote_pr:
+        sect_pr = f"<w:sectPr><w:footnotePr>{section_footnote_pr}</w:footnotePr></w:sectPr>"
+    else:
+        sect_pr = ""
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t>1.1 Price. See the footnote.</w:t></w:r>
+      {references}
+    </w:p>
+    {sect_pr}
+  </w:body>
+</w:document>
+"""
+    stored = "".join(
+        f'<w:footnote w:id="{note_id}"><w:p><w:r><w:t>{words}</w:t></w:r></w:p></w:footnote>'
+        for note_id, words in reversed(notes)
+    )
+    footnotes = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:t> </w:t></w:r></w:p></w:footnote>
+  {stored}
+</w:footnotes>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+        package.writestr("word/footnotes.xml", footnotes)
+        if settings_footnote_pr:
+            package.writestr(
+                "word/settings.xml",
+                f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnotePr>{settings_footnote_pr}</w:footnotePr>
+</w:settings>
+""",
+            )
+            package.writestr(
+                "word/_rels/document.xml.rels",
+                """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+</Relationships>
+""",
+            )
+        if header_reference:
+            package.writestr(
+                "word/header1.xml",
+                """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:footnoteReference w:id="99"/></w:r></w:p>
+</w:hdr>
+""",
+            )
     return buffer.getvalue()
 
 

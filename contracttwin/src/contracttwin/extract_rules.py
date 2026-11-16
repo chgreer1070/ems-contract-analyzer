@@ -229,7 +229,8 @@ def _citation_locator(section_number: str, line: str) -> tuple[str | None, str]:
 
     A nested box is stored as ``[text box] [text box] ...``. Peel every leading
     marker so the quote is the words themselves. The place name stays the
-    outer marker.
+    outer marker. A footnote marker already carries the number on the page,
+    or ``XML id N`` when that number cannot be counted.
     """
 
     locator: str | None = None

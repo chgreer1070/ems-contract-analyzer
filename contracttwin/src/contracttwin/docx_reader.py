@@ -2,8 +2,11 @@
 
 The words a reader would see after accepting the changes are the operative
 text. Insertions are kept. Deletions are left out of that text and listed in
-the redline history. Each footnote paragraph is marked ``[footnote N]``. Each
-text-box paragraph is marked ``[text box]``. That label stays off to the side
+the redline history. Each footnote paragraph is marked ``[footnote N]``. N is
+the number on the page when decimal notes can be counted in order. When that
+number cannot be counted, the marker says ``[footnote XML id N]`` so the XML
+id is not shown as the page number. Each text-box paragraph is marked
+``[text box]``. That label stays off to the side
 when a numbered heading is recognized, and when the next amendment instruction
 is recognized, so a heading or instruction inside a box is still found. The
 label stays on the stored line. Inside a table, that line stays on its own
@@ -15,14 +18,24 @@ sentence. Comments stay notes. The quote checker uses only the operative text.
 from __future__ import annotations
 
 import os
+import posixpath
+import re
+from dataclasses import dataclass
 from io import BytesIO
+from urllib.parse import unquote
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 from contracttwin.models import Annotation, Revision
 
 WORD_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_REL_NAMESPACE = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+_OFFICE_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_MC_NAMESPACE = "{http://schemas.openxmlformats.org/markup-compatibility/2006}"
 _TEXT_BOX_LABEL = "[text box] "
+_UNSET = object()
+_UNRESOLVED = object()
+_FOOTNOTE_START = re.compile(r"^[0-9]{1,9}$")
 _COMMENT_TAGS = {
     f"{WORD_NAMESPACE}commentRangeStart",
     f"{WORD_NAMESPACE}commentRangeEnd",
@@ -45,15 +58,18 @@ def read_docx(data: bytes, filename: str) -> tuple[str, list[Revision], list[Ann
                 raise DocxReadError(f"{os.path.basename(filename)} has no document body.") from exc
             footnotes_xml = _optional_zip(package, "word/footnotes.xml")
             comments_xml = _optional_zip(package, "word/comments.xml")
+            try:
+                root = ElementTree.fromstring(xml)
+            except ElementTree.ParseError as exc:
+                raise DocxReadError(
+                    f"{os.path.basename(filename)} has a document body that could not be read."
+                ) from exc
+            body = _word_child(root, "body")
+            if body is None:
+                raise DocxReadError(f"{os.path.basename(filename)} has no document body.")
+            footnote_labels = _displayed_footnote_labels(package, root) if footnotes_xml is not None else None
     except BadZipFile as exc:
         raise DocxReadError(f"{os.path.basename(filename)} could not be read as a Word file.") from exc
-    try:
-        root = ElementTree.fromstring(xml)
-    except ElementTree.ParseError as exc:
-        raise DocxReadError(f"{os.path.basename(filename)} has a document body that could not be read.") from exc
-    body = root.find(f"{WORD_NAMESPACE}body")
-    if body is None:
-        raise DocxReadError(f"{os.path.basename(filename)} has no document body.")
     lines: list[str] = []
     revisions: list[Revision] = []
     for child in list(body):
@@ -67,7 +83,7 @@ def read_docx(data: bytes, filename: str) -> tuple[str, list[Revision], list[Ann
             lines.extend(table_lines)
             revisions.extend(found)
     if footnotes_xml is not None:
-        lines.extend(_footnotes(footnotes_xml))
+        lines.extend(_footnotes(footnotes_xml, footnote_labels))
     annotations = _comments(comments_xml) if comments_xml is not None else []
     return "\n".join(lines), revisions, annotations, []
 
@@ -159,18 +175,353 @@ def _optional_zip(package: ZipFile, name: str) -> bytes | None:
         return None
 
 
-def _footnotes(xml: bytes) -> list[str]:
+@dataclass(frozen=True)
+class _FootnoteFields:
+    fmt: object
+    start: object
+    restart: object
+
+
+def _footnotes(xml: bytes, labels: dict[str, str] | None) -> list[str]:
     root = ElementTree.fromstring(xml)
     lines: list[str] = []
-    for note in root.findall(f"{WORD_NAMESPACE}footnote"):
+    for note in list(root):
+        if note.tag != f"{WORD_NAMESPACE}footnote":
+            continue
         if note.attrib.get(f"{WORD_NAMESPACE}type") in {"separator", "continuationSeparator"}:
             continue
         note_id = note.attrib.get(f"{WORD_NAMESPACE}id", "")
         text, _revisions = _paragraphs_in(note, f"footnote {note_id}")
+        marker = _footnote_marker(note_id, labels)
         for paragraph in text.split("\n"):
             if paragraph.strip():
-                lines.append(f"[footnote {note_id}] {paragraph.strip()}")
+                lines.append(f"[footnote {marker}] {paragraph.strip()}")
     return lines
+
+
+def _footnote_marker(note_id: str, labels: dict[str, str] | None) -> str:
+    if labels is not None and note_id in labels:
+        return labels[note_id]
+    if note_id:
+        return f"XML id {note_id}"
+    return note_id
+
+
+def _displayed_footnote_labels(package: ZipFile, document: ElementTree.Element) -> dict[str, str] | None:
+    """Map each footnote XML id to the number on the page.
+
+    ``w:id`` only locates the note. It is not the number Word shows. The count
+    follows decimal numbering from the document settings and each section.
+    When that number cannot be counted, None tells the caller to say the XML
+    id outright instead of sending a reader to the wrong note.
+    """
+
+    defaults = _document_footnote_defaults(package)
+    if defaults is None or _outside_footnote_reference(package):
+        return None
+    body = _word_child(document, "body")
+    if body is None:
+        return None
+    labels: dict[str, str] = {}
+    used: set[str] = set()
+    next_number: int | None = None
+    for nodes, sect_pr in _body_sections(body):
+        mode = _section_footnote_mode(defaults, sect_pr)
+        if mode is None:
+            return None
+        start, restart, explicit_start = mode
+        if next_number is None or restart == "eachSect":
+            next_number = start
+        elif explicit_start and start != next_number:
+            return None
+        references = _footnote_references(nodes)
+        if references is None:
+            return None
+        ids: list[str] = []
+        for reference in references:
+            note_id = _word_attr(reference, "id")
+            custom = _word_attr(reference, "customMarkFollows")
+            if (
+                note_id is None
+                or note_id in labels
+                or note_id in ids
+                or (custom is not None and custom not in {"0", "false", "off"})
+            ):
+                return None
+            ids.append(note_id)
+        for note_id in ids:
+            label = str(next_number)
+            if label in used:
+                return None
+            used.add(label)
+            labels[note_id] = label
+            next_number += 1
+    return labels
+
+
+def _document_footnote_defaults(package: ZipFile) -> _FootnoteFields | None:
+    implicit = _FootnoteFields("decimal", 1, "continuous")
+    try:
+        rels = package.read("word/_rels/document.xml.rels")
+    except KeyError:
+        return implicit
+    except BadZipFile:
+        return None
+    try:
+        root = ElementTree.fromstring(rels)
+    except ElementTree.ParseError:
+        return None
+    links = []
+    for item in list(root):
+        if item.tag != f"{_REL_NAMESPACE}Relationship":
+            continue
+        if item.attrib.get("TargetMode") == "External":
+            continue
+        if item.attrib.get("Type") == f"{_OFFICE_REL}/settings":
+            links.append(item)
+    if not links:
+        return implicit
+    if len(links) != 1:
+        return None
+    target = _resolve_part("word/document.xml", links[0].attrib.get("Target", ""))
+    if target is None:
+        return None
+    try:
+        settings_xml = package.read(target)
+    except (KeyError, BadZipFile):
+        return None
+    try:
+        settings = ElementTree.fromstring(settings_xml)
+    except ElementTree.ParseError:
+        return None
+    if settings.tag != f"{WORD_NAMESPACE}settings":
+        return None
+    props = _word_children(settings, "footnotePr")
+    if len(props) > 1:
+        return None
+    if not props:
+        return implicit
+    return _merge_footnote_fields(implicit, _read_footnote_fields(props[0]))
+
+
+def _section_footnote_mode(defaults: _FootnoteFields, sect_pr):
+    props = _word_children(sect_pr, "footnotePr")
+    if len(props) > 1:
+        return None
+    if not props:
+        return _footnote_mode(defaults, False)
+    section_fields = _read_footnote_fields(props[0])
+    explicit_start = isinstance(section_fields.start, int)
+    return _footnote_mode(_merge_footnote_fields(defaults, section_fields), explicit_start)
+
+
+def _read_footnote_fields(props) -> _FootnoteFields:
+    fmt: object = _UNSET
+    start: object = _UNSET
+    restart: object = _UNSET
+    for item in list(props):
+        if not isinstance(item.tag, str):
+            continue
+        if not item.tag.startswith(WORD_NAMESPACE):
+            return _FootnoteFields(_UNRESOLVED, _UNRESOLVED, _UNRESOLVED)
+        name = item.tag[len(WORD_NAMESPACE) :]
+        value = _word_attr(item, "val")
+        # pos places the note. A footnote child names the separator. Neither one changes the number on the page.
+        if name in {"pos", "footnote"}:
+            continue
+        if name == "numFmt":
+            fmt = _assign_footnote_field(fmt, "decimal" if value == "decimal" else None)
+            continue
+        if name == "numStart":
+            accepted = int(value) if value is not None and _FOOTNOTE_START.fullmatch(value) else None
+            start = _assign_footnote_field(start, accepted)
+            continue
+        if name == "numRestart":
+            restart = _assign_footnote_field(restart, value if value in {"continuous", "eachSect"} else None)
+            continue
+        return _FootnoteFields(_UNRESOLVED, _UNRESOLVED, _UNRESOLVED)
+    return _FootnoteFields(fmt, start, restart)
+
+
+def _assign_footnote_field(current: object, accepted: object) -> object:
+    if current is _UNRESOLVED or accepted is None:
+        return _UNRESOLVED
+    if current is not _UNSET:
+        return current if current == accepted else _UNRESOLVED
+    return accepted
+
+
+def _merge_footnote_fields(base: _FootnoteFields, overlay: _FootnoteFields) -> _FootnoteFields:
+    def pick(current: object, nxt: object) -> object:
+        return current if nxt is _UNSET else nxt
+
+    return _FootnoteFields(
+        pick(base.fmt, overlay.fmt),
+        pick(base.start, overlay.start),
+        pick(base.restart, overlay.restart),
+    )
+
+
+def _footnote_mode(fields: _FootnoteFields, explicit_start: bool):
+    if fields.fmt != "decimal" or not isinstance(fields.start, int) or fields.restart not in {"continuous", "eachSect"}:
+        return None
+    return fields.start, fields.restart, explicit_start
+
+
+def _body_sections(body) -> list[tuple[list, ElementTree.Element | None]]:
+    sections: list[tuple[list, ElementTree.Element | None]] = []
+    nodes: list = []
+    for child in list(body):
+        if child.tag == f"{WORD_NAMESPACE}sectPr":
+            sections.append((nodes, child))
+            nodes = []
+            continue
+        nodes.append(child)
+        if child.tag == f"{WORD_NAMESPACE}p":
+            properties = _word_child(child, "pPr")
+            sect_pr = _word_child(properties, "sectPr")
+            if sect_pr is not None:
+                sections.append((nodes, sect_pr))
+                nodes = []
+    if nodes:
+        sections.append((nodes, None))
+    return sections
+
+
+def _footnote_references(nodes: list) -> list | None:
+    found: list = []
+    for node in nodes:
+        nested = _references_under(node)
+        if nested is None:
+            return None
+        found.extend(nested)
+    return found
+
+
+def _references_under(node) -> list | None:
+    found: list = []
+    for child in list(node):
+        if not isinstance(child.tag, str):
+            continue
+        # Accepted text leaves out a deletion and a move away, so those references are not on the page.
+        if child.tag in {f"{WORD_NAMESPACE}del", f"{WORD_NAMESPACE}moveFrom"}:
+            continue
+        if child.tag == f"{_MC_NAMESPACE}AlternateContent":
+            chosen = _references_in_alternate(child)
+            if chosen is None:
+                return None
+            found.extend(chosen)
+            continue
+        if child.tag == f"{WORD_NAMESPACE}footnoteReference":
+            found.append(child)
+        nested = _references_under(child)
+        if nested is None:
+            return None
+        found.extend(nested)
+    return found
+
+
+def _references_in_alternate(node) -> list | None:
+    """Count one copy when every branch names the same notes.
+
+    A compatibility copy repeats the same reference. Branches that name
+    different notes are not counted, because this reader does not choose one.
+    """
+
+    branches = [
+        child
+        for child in list(node)
+        if child.tag in {f"{_MC_NAMESPACE}Choice", f"{_MC_NAMESPACE}Fallback"}
+    ]
+    if not branches:
+        return _references_under(node)
+    sequences = []
+    for branch in branches:
+        refs = _references_under(branch)
+        if refs is None:
+            return None
+        sequences.append(refs)
+    keys = [tuple(_reference_key(ref) for ref in refs) for refs in sequences]
+    if any(key != keys[0] for key in keys):
+        return None
+    return sequences[0]
+
+
+def _reference_key(ref) -> tuple[str | None, str | None]:
+    return (_word_attr(ref, "id"), _word_attr(ref, "customMarkFollows"))
+
+
+def _outside_footnote_reference(package: ZipFile) -> bool:
+    for name in package.namelist():
+        if not name.endswith(".xml") or name == "word/document.xml":
+            continue
+        try:
+            data = package.read(name)
+        except KeyError:
+            continue
+        except BadZipFile:
+            if _could_be_outside_story(name):
+                return True
+            continue
+        try:
+            root = ElementTree.fromstring(data)
+        except ElementTree.ParseError:
+            if _could_be_outside_story(name):
+                return True
+            continue
+        if not isinstance(root.tag, str) or not root.tag.startswith(WORD_NAMESPACE):
+            continue
+        if root.tag[len(WORD_NAMESPACE) :] not in {"hdr", "ftr", "comments"}:
+            continue
+        if _contains_footnote_reference(root):
+            return True
+    return False
+
+
+def _could_be_outside_story(name: str) -> bool:
+    base = posixpath.basename(name).lower()
+    return base.startswith("header") or base.startswith("footer") or base == "comments.xml"
+
+
+def _contains_footnote_reference(node) -> bool:
+    for item in node.iter():
+        if item.tag == f"{WORD_NAMESPACE}footnoteReference":
+            return True
+    return False
+
+
+def _resolve_part(owner: str, target: str) -> str | None:
+    decoded = unquote(target)
+    if any(ord(char) < 32 for char in decoded) or any(char in decoded for char in "\\?#"):
+        return None
+    if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", decoded):
+        return None
+    joined = decoded[1:] if decoded.startswith("/") else posixpath.join(posixpath.dirname(owner), decoded)
+    result = posixpath.normpath(joined)
+    if result.startswith("../") or result in {"..", "", "."}:
+        return None
+    return result
+
+
+def _word_child(node, name: str):
+    if node is None:
+        return None
+    wanted = f"{WORD_NAMESPACE}{name}"
+    for child in list(node):
+        if child.tag == wanted:
+            return child
+    return None
+
+
+def _word_children(node, name: str) -> list:
+    if node is None:
+        return []
+    wanted = f"{WORD_NAMESPACE}{name}"
+    return [child for child in list(node) if child.tag == wanted]
+
+
+def _word_attr(node, name: str) -> str | None:
+    return node.attrib.get(f"{WORD_NAMESPACE}{name}")
 
 
 def _comments(xml: bytes) -> list[Annotation]:
