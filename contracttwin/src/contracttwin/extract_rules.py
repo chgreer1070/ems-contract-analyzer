@@ -10,7 +10,7 @@ import re
 
 from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
-from contracttwin.segment import HEADER_RE
+from contracttwin.segment import match_heading
 from contracttwin.terms import term_candidates
 from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
 
@@ -53,39 +53,48 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
     for document_id, name, text in amendments:
         # Lines before the first numbered heading are the preamble. A heading keeps its own number.
         section = "Preamble"
-        for line in text.split("\n"):
-            header = HEADER_RE.match(line)
+        for raw_line in text.split("\n"):
+            header = match_heading(raw_line)
             if header is not None:
                 section = header.group("num")
+            # A text box or footnote stays in this section. The citation names that place.
+            locator, line = _citation_locator(section, raw_line)
             if "Amendment Effective Date" in line and find_dates(line):
                 dated = _date_fact(line, document_id, name, "amendment_effective", section)
                 if dated is not None:
+                    if locator is not None:
+                        dated.citation_section = locator
                     candidates.append(dated)
             if "this Amendment controls" in line:
-                candidates.append(
-                    Candidate(
-                        kind="fact",
-                        domain="precedence",
-                        statement="On and after its effective date, this amendment controls where it conflicts with the agreement.",
-                        operative=True,
-                        section=section,
-                        document_id=document_id,
-                        document_name=name,
-                        quote=line,
-                        attributes={"precedence": "amendment_controls"},
-                    )
+                candidate = Candidate(
+                    kind="fact",
+                    domain="precedence",
+                    statement="On and after its effective date, this amendment controls where it conflicts with the agreement.",
+                    operative=True,
+                    section=section,
+                    document_id=document_id,
+                    document_name=name,
+                    quote=line,
+                    attributes={"precedence": "amendment_controls"},
                 )
+                if locator is not None:
+                    candidate.citation_section = locator
+                candidates.append(candidate)
     return candidates, warnings
 
 
 def _preamble_facts(version: SectionVersion, agreement: bool) -> list[Candidate]:
     found: list[Candidate] = []
-    for line in _lines(version.text):
+    for raw_line in _lines(version.text):
+        # A text box or footnote before the first numbered heading is still the preamble.
+        # The fact keeps that section. The citation names the box or note and quotes its words.
+        locator, line = _citation_locator(version.number, raw_line)
         if "Amendment Effective Date" in line:
             continue
         # "Effective Date" also appears in the term sentence as a cross-reference.
         # Only a line that sets the date ("entered into" / "as of") is the effective date.
         sets_effective_date = "entered into" in line.lower() or "as of" in line.lower()
+        start = len(found)
         if agreement and sets_effective_date and re.search(r"\bEffective Date\b", line):
             dated = _date_fact(line, version.document_id, version.document_name, "agreement_effective", version.number)
             if dated is not None:
@@ -94,12 +103,17 @@ def _preamble_facts(version: SectionVersion, agreement: bool) -> list[Candidate]
             dated = _date_fact(line, version.document_id, version.document_name, "term_end", version.number)
             if dated is not None:
                 found.append(dated)
+        if locator is not None:
+            for candidate in found[start:]:
+                candidate.citation_section = locator
     return found
 
 
 def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candidate]:
     found: list[Candidate] = []
-    for line in _lines(version.text):
+    for raw_line in _lines(version.text):
+        locator, line = _citation_locator(version.number, raw_line)
+        start = len(found)
         found.extend(_definitions(line, version))
         found.extend(_days(line, version, warnings))
         found.extend(_percents(line, version, warnings))
@@ -200,7 +214,44 @@ def _section_facts(version: SectionVersion, warnings: list[str]) -> list[Candida
                     )
                 )
         found.extend(term_candidates(line, version, warnings))
+        if locator is not None:
+            for candidate in found[start:]:
+                candidate.citation_section = locator
     return found
+
+
+_FOOTNOTE_LINE = re.compile(r"^\[footnote (?P<id>[^\]\n]+)\] (?P<body>.+)$")
+_TEXT_BOX_LINE = re.compile(r"^\[text box\] (?P<body>.+)$")
+
+
+def _citation_locator(section_number: str, line: str) -> tuple[str | None, str]:
+    """Keep the numbered section for comparisons, and name the quote's place.
+
+    A nested box is stored as ``[text box] [text box] ...``. Peel every leading
+    marker so the quote is the words themselves. The place name stays the
+    outer marker. A footnote marker already carries the number on the page,
+    or ``XML id N`` when that number cannot be counted.
+    """
+
+    locator: str | None = None
+    body = line
+    while True:
+        footnote = _FOOTNOTE_LINE.match(body)
+        if footnote and footnote.group("body").strip():
+            if locator is None:
+                locator = f"Footnote {footnote.group('id').strip()}"
+            body = footnote.group("body").strip()
+            continue
+        box = _TEXT_BOX_LINE.match(body)
+        if box and box.group("body").strip():
+            if locator is None:
+                locator = f"Text box in section {section_number}"
+            body = box.group("body").strip()
+            continue
+        break
+    if locator is None:
+        return None, line
+    return locator, body
 
 
 def _definitions(line: str, version: SectionVersion) -> list[Candidate]:
