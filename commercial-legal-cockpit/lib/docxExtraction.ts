@@ -74,19 +74,24 @@ function combineVisibility(state:ShapeVisibility|null,next:ShapeVisibility|null)
   if(state==="shown")return next;
   return "unresolved";
 }
-function styleVisibility(style:string):ShapeVisibility|null{
+function styleFlag(style:string,name:string):string|"conflict"|null{
   let found:string|null=null;
   for(const part of style.split(";")){
     const split=part.indexOf(":");
-    if(split<0||part.slice(0,split).trim().toLowerCase()!=="visibility")continue;
+    if(split<0||part.slice(0,split).trim().toLowerCase()!==name)continue;
     const value=part.slice(split+1).trim().toLowerCase();
-    if(found!==null&&found!==value)return "unresolved";
+    if(found!==null&&found!==value)return "conflict";
     found=value;
   }
-  if(found===null)return null;
-  if(found==="visible")return "shown";
-  if(found==="hidden")return "hidden";
-  return "unresolved";
+  return found;
+}
+function styleVisibility(style:string):ShapeVisibility|null{
+  const visibility=styleFlag(style,"visibility");
+  const display=styleFlag(style,"display");
+  const fromVisibility:ShapeVisibility|null=visibility===null?null:visibility==="conflict"?"unresolved":visibility==="visible"?"shown":visibility==="hidden"?"hidden":"unresolved";
+  // display:none hides the shape. Any other stated display value stays unresolved.
+  const fromDisplay:ShapeVisibility|null=display===null?null:display==="none"?"hidden":"unresolved";
+  return combineVisibility(fromVisibility,fromDisplay);
 }
 function hiddenFlag(value:string):ShapeVisibility{
   const flag=value.trim().toLowerCase();

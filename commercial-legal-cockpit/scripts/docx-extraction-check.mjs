@@ -126,8 +126,11 @@ await check("a hidden or unresolved text box is not contract-source text",async(
   const inner=`<w:txbxContent>${p(text(sentence))}</w:txbxContent>`;
   const hiddenVml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="position:absolute;visibility:hidden;width:100pt"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
   const inheritVml=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="visibility:inherit"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const hiddenDisplay=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="display:none"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const hiddenDespiteVisible=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="visibility:visible;display:none"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
+  const unresolvedDisplay=`<w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" style="display:inline"><v:textbox>${inner}</v:textbox></v:shape></w:pict>`;
   const hiddenDrawing=`<w:drawing><wp:docPr xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" id="1" name="Box" hidden="1"/>${inner}</w:drawing>`;
-  for(const wrapper of [hiddenVml,inheritVml,hiddenDrawing]){
+  for(const wrapper of [hiddenVml,inheritVml,hiddenDisplay,hiddenDespiteVisible,unresolvedDisplay,hiddenDrawing]){
     const result=extractDocx(await fixture({body:p(`<w:r>${wrapper}</w:r>`)}));
     blocked(result,"UNSUPPORTED_VANISH");
     assert.equal(result.chunks.some(chunk=>chunk.text.includes(sentence)),false);
