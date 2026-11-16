@@ -1,24 +1,28 @@
 name: ContractTwin reading page
 
 on:
-  pull_request:
+  # Manual runs only re-check the sample reading page. They do not deploy.
+  # Every update of main runs this check, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
+  workflow_dispatch:
+  push:
+    branches:
+      - main
     paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
       - "contracttwin/**"
-      - "commercial-legal-cockpit/app/reading/**"
-      - "commercial-legal-cockpit/app/api/reading-sample/**"
-      - "commercial-legal-cockpit/app/matters/**"
-      - "commercial-legal-cockpit/components/MatterSampleReadingLink.tsx"
-      - "commercial-legal-cockpit/scripts/matter-sample-reading-check.mjs"
-      - "commercial-legal-cockpit/e2e/**"
-      - "commercial-legal-cockpit/components/MatterDocumentReading.tsx"
-      - "commercial-legal-cockpit/app/api/matters/**"
-      - "commercial-legal-cockpit/lib/matterDocumentReading.mjs"
-      - "commercial-legal-cockpit/lib/contracttwinCoreClient.ts"
-      - "commercial-legal-cockpit/scripts/matter-reading-regression-check.mjs"
-      - "commercial-legal-cockpit/scripts/matter-document-reading-check.mjs"
-      - "commercial-legal-cockpit/playwright.config.ts"
-      - "commercial-legal-cockpit/scripts/start-reading-e2e.sh"
-      - ".github/workflows/contracttwin-reading-page.yml"
+      - "**/*"
+      - "*"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - "commercial-legal-cockpit/**"
+      - "contracttwin/**"
+      - "**/*"
+      - "*"
 
 permissions:
   contents: read
@@ -72,3 +76,10 @@ jobs:
           CONTRACTTWIN_API_KEY: e2e-reading-key
           CONTRACTTWIN_CORE_URL: http://127.0.0.1:8080
         run: npx playwright test
+
+      - name: Upload the Harborline reading screenshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harborline-reading-screenshot
+          path: commercial-legal-cockpit/e2e-success/harborline-reading.png
+          if-no-files-found: error

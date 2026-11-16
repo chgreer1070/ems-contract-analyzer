@@ -1,18 +1,28 @@
 name: Commercial Legal Cockpit - Vercel
 
 on:
+  # Every update of main runs release preflight, including a workflow-only commit.
+  # `.github/workflows/**` stays in the filter so a workflow edit cannot be skipped.
+  # Deploy jobs below are unchanged and are not part of the CI gate.
   push:
     branches:
       - main
       - build/ems-commercial-legal-cockpit
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
-      - '.github/workflows/commercial-legal-cockpit-vercel.yml'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
   pull_request:
     branches:
       - main
     paths:
+      - '.github/workflows/**'
       - 'commercial-legal-cockpit/**'
+      - 'contracttwin/**'
+      - '**/*'
+      - '*'
   workflow_dispatch:
     inputs:
       deployment_target:
@@ -26,9 +36,11 @@ on:
           - production
 
 concurrency:
-  group: commercial-legal-cockpit-vercel-${{ github.ref }}
-  # A release may have written migrations and its per-release target receipt;
-  # serialize subsequent runs instead of interrupting that promotion protocol.
+  # Production dispatches stay in one line so a release is not interrupted.
+  # Release preflight on main gets its own line, so a waiting production
+  # approval cannot hold up the CI gate. The production job keeps its own
+  # database lock below.
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_target == 'production' && 'commercial-legal-cockpit-vercel-production' || format('commercial-legal-cockpit-vercel-{0}', github.run_id) }}
   cancel-in-progress: false
 
 permissions:
