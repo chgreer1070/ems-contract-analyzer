@@ -230,7 +230,7 @@ function displayedFootnoteLabels(main:XmlNode,stories:Array<{part:string;tree:Xm
   }
   return labels;
 }
-function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>,sectionLabel:string,footnoteLabel:(id:string)=>string){
+function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>,sectionLabel:string|null,footnoteLabel:(id:string)=>string){
   const footnote=paragraph.ancestors.find(item=>ancestorName(item.name)==="footnote");
   if(footnote){
     const node=nodeIndex.get(footnote.source.path);
@@ -240,7 +240,9 @@ function structuralLocator(paragraph:DocxParagraph,nodeIndex:Map<string,XmlNode>
     const id=attr(node,"id");
     return id===null?null:footnoteLabel(id);
   }
-  return paragraph.ancestors.some(item=>ancestorName(item.name)==="txbxContent")?`Text box in section ${sectionLabel}`:null;
+  // sectionLabel stays null until a numbered heading is read. A text box is
+  // then the preamble, including when the file has no numbered headings.
+  return paragraph.ancestors.some(item=>ancestorName(item.name)==="txbxContent")?`Text box in section ${sectionLabel??"Preamble"}`:null;
 }
 function plainText(node:XmlNode):string{
   if(node.namespace===W&&["t","delText"].includes(local(node)))return node.children.map(n=>n.text??"").join("");
@@ -594,7 +596,8 @@ export function extractDocx(bytes:ArrayBuffer):{evidence:DocxEvidence;chunks:Sou
         if(contextBytes>4*1024*1024){issue("TABLE_CONTEXT_LIMIT","Table analysis context exceeds the supported evidence budget.",paragraph.source);break;}
         paragraph.tableContext=context;
       }
-      let sectionLabel="1";
+      // Null until a numbered heading is read. Section 1 is not the default.
+      let sectionLabel:string|null=null;
       const heading=/^(\d+(?:\.\d+)*)(?:\.|\s)\s*\S/;
       for(const paragraph of paragraphs){
         const structural=paragraph.ancestors.some(item=>["txbxContent","footnote","endnote"].includes(ancestorName(item.name)));

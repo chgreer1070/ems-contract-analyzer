@@ -160,8 +160,39 @@ def test_a_preamble_text_box_date_names_the_box_and_derived_deadlines_keep_it() 
     assert word_date.citations[0].quote in extracted.text
 
 
-def _preamble_date_box(effective: str, term: str) -> bytes:
-    """A made-up Word file. The date sentences sit in a text box before section 1."""
+def test_a_text_box_with_no_numbered_heading_is_not_called_section_1() -> None:
+    """A date box in a file with no numbered headings stays in the preamble.
+
+    The citation does not invent section 1. Synthetic sentences only.
+    """
+
+    effective = 'This Agreement is entered into as of January 1, 2026 (the "Effective Date").'
+    term = "The initial term begins on the Effective Date and continues until January 1, 2028."
+    text = f"[text box] {effective}\n[text box] {term}\n"
+    result = analyze(AnalysisRequest(base_name="No numbered headings", base_text=text, amendments=[]))
+    dated = {
+        fact.attributes.get("date_role"): fact
+        for fact in result.facts
+        if fact.attributes.get("date_role") in {"agreement_effective", "term_end"}
+    }
+    assert set(dated) == {"agreement_effective", "term_end"}
+    for fact in dated.values():
+        assert fact.section == "Preamble"
+        assert fact.citations[0].section == "Text box in section Preamble"
+        assert fact.citations[0].section != "Text box in section 1"
+    extracted = extract_upload("synthetic-no-heading-box.docx", _preamble_date_box(effective, term, heading=False))
+    assert "1. Pricing" not in extracted.text
+    assert extracted.text.splitlines() == [f"[text box] {effective}", f"[text box] {term}"]
+    read = analyze(AnalysisRequest(base_name="Word file with no numbered headings", base_text=extracted.text, amendments=[]))
+    word_date = next(fact for fact in read.facts if fact.attributes.get("date_role") == "agreement_effective")
+    assert word_date.section == "Preamble"
+    assert word_date.citations[0].section == "Text box in section Preamble"
+    assert word_date.citations[0].quote == effective
+    assert "Text box in section 1" not in {citation.section for fact in read.facts for citation in fact.citations}
+
+
+def _preamble_date_box(effective: str, term: str, *, heading: bool = True) -> bytes:
+    """A made-up Word file. The date sentences sit in a text box, before section 1 when a heading is included."""
 
     def xml(value: str) -> str:
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
@@ -177,7 +208,7 @@ def _preamble_date_box(effective: str, term: str) -> bytes:
   <w:body>
     {boxed(effective)}
     {boxed(term)}
-    <w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>
+    {"<w:p><w:r><w:t>1. Pricing</w:t></w:r></w:p>" if heading else ""}
   </w:body>
 </w:document>
 """

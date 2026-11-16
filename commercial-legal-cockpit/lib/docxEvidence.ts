@@ -1,5 +1,5 @@
 
-export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-11-12.v7";
+export const DOCX_EXTRACTOR_VERSION="docx-negotiation-2026-11-16.v8";
 export const DOCX_CHUNK_PREFIX="CONTRACTTWIN_DOCX_EVIDENCE_V1\n";
 export type XmlSource={part:string;path:string};
 export type XmlNode={name:string;namespace:string;attributes:Array<{name:string;namespace:string;value:string}>;source:XmlSource;text:string|null;children:XmlNode[]};
@@ -23,6 +23,14 @@ export type DocxProjection={version:1;sourceSha256:string;storyKind:string;parag
 export function projectDocxParagraph(evidence:DocxEvidence,paragraph:DocxParagraph):DocxProjection{
   const keys=new Set(paragraph.runs.flatMap(r=>r.revisionKeys));
   return {version:1,context:"UNAPPROVED_NEGOTIATION_EVIDENCE",sourceSha256:evidence.sourceSha256,storyKind:evidence.stories.find(s=>s.part===paragraph.source.part)!.kind,paragraph,revisions:evidence.revisions.filter(r=>keys.has(r.key)),comments:evidence.comments.filter(c=>c.anchors.some(a=>a.source.part===paragraph.source.part&&a.paragraphPath===paragraph.source.path)||paragraph.runs.some(r=>r.commentIds.includes(c.id))),references:evidence.references.filter(r=>r.source.part===paragraph.source.part&&r.source.path.startsWith(paragraph.source.path+"/"))};
+}
+// The place a finding shows for one DOCX chunk, without the file name.
+// A text box or footnote uses its locator. With no locator, the XML part and path stay.
+export function docxSourcePlace(content:string):string|null{
+  const projection=readDocxProjection(content);
+  if(!projection)return null;
+  if(projection.paragraph.locator)return `${projection.paragraph.locator} · unapproved contract-source text`;
+  return `${projection.paragraph.source.part} · ${projection.paragraph.source.path} · unapproved original/proposed negotiation evidence`;
 }
 export function readDocxProjection(text:string):DocxProjection|null{
   if(!text.startsWith(DOCX_CHUNK_PREFIX))return null;

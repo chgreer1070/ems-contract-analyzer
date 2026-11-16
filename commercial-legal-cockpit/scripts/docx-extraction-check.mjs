@@ -4,7 +4,7 @@ import { createTypeScriptLoader } from "./ts-test-loader.mjs";
 
 const load=createTypeScriptLoader();
 const {extractDocx}=load("lib/docxExtraction.ts");
-const {readDocxProjection,sourceTextViews,proposedTextContainsExcerpt}=load("lib/docxEvidence.ts");
+const {readDocxProjection,docxSourcePlace,sourceTextViews,proposedTextContainsExcerpt}=load("lib/docxEvidence.ts");
 const {createDocxReceipt,assertDocxReceipt,sha256}=load("lib/docxReceipt.ts");
 const {sourceContainsExcerpt}=load("lib/analysisEngine.ts");
 const {extractDocument}=load("lib/documentExtraction.ts");
@@ -405,6 +405,36 @@ await check("a text box keeps each amendment instruction at the start of its own
   const joined=boxed.map(item=>item.paragraph.proposedText).join("\n");
   assert.match(joined,/\nB\. Section 2 /);
   assert.equal(joined.includes("\n[text box] B. Section 2"),false);
+});
+await check("a text box before the first numbered heading is the preamble, not section 1",async()=>{
+  const date='This Agreement is entered into as of January 1, 2026 (the "Effective Date").';
+  const intro="The parties agree as follows.";
+  const price="The unit price for product NW-100 is USD 9.50 per unit.";
+  const box=words=>`<w:r><w:drawing><w:txbxContent>${p(text(words))}</w:txbxContent></w:drawing></w:r>`;
+  const result=extractDocx(await fixture({body:p(box(date))+p(text(intro))+p(text("1. Pricing"))+p(box(price))}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const chunkFor=words=>result.chunks.find(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===words);
+  const dateChunk=chunkFor(date),introChunk=chunkFor(intro),priceChunk=chunkFor(price);
+  assert.equal(readDocxProjection(dateChunk.text).paragraph.locator,"Text box in section Preamble");
+  assert.equal(readDocxProjection(introChunk.text).paragraph.locator,null);
+  assert.equal(readDocxProjection(priceChunk.text).paragraph.locator,"Text box in section 1");
+  const filename="synthetic-preamble.docx";
+  assert.equal(`${filename} · ${docxSourcePlace(dateChunk.text)}`,`${filename} · Text box in section Preamble · unapproved contract-source text`);
+  assert.equal(docxSourcePlace(dateChunk.text).includes("section 1"),false);
+  assert.match(docxSourcePlace(introChunk.text),/^word\/document\.xml · \//);
+  assert.equal(docxSourcePlace(introChunk.text).includes("section 1"),false);
+  assert.equal(docxSourcePlace(priceChunk.text),`Text box in section 1 · unapproved contract-source text`);
+  assert.equal(result.chunks.some(chunk=>readDocxProjection(chunk.text).paragraph.proposedText===date&&readDocxProjection(chunk.text).paragraph.locator==="Text box in section 1"),false);
+});
+await check("a text box with no numbered headings is not labeled section 1",async()=>{
+  const sentence="Customer shall pay a late fee of one percent (1%) per month.";
+  const result=extractDocx(await fixture({body:p(`<w:r><w:drawing><w:txbxContent>${p(text(sentence))}</w:txbxContent></w:drawing></w:r>`)}));
+  assert.equal(result.evidence.analysisEligible,true,JSON.stringify(result.evidence.issues));
+  const chunk=result.chunks.find(item=>readDocxProjection(item.text).paragraph.proposedText===sentence);
+  assert.equal(readDocxProjection(chunk.text).paragraph.locator,"Text box in section Preamble");
+  assert.equal(docxSourcePlace(chunk.text),"Text box in section Preamble · unapproved contract-source text");
+  assert.equal(result.chunks.some(item=>(readDocxProjection(item.text).paragraph.locator??"").includes("section 1")),false);
+  assert.equal(docxSourcePlace(chunk.text).includes("word/document.xml"),false);
 });
 await check("a point comment after a text box stays with the box words",async()=>{
   const box="The text box states a late fee of one percent (1%) per month.";

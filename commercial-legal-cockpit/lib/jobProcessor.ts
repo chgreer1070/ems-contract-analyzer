@@ -4,7 +4,7 @@ import { analyzeContractText, legalRelianceEnabled, PROMPT_VERSION, sourceContai
 import { query, withTransaction } from "@/lib/db";
 import { inferDependencies, DEPENDENCY_PROMPT_VERSION, DEPENDENCY_SCHEMA_VERSION } from "@/lib/dependencyEngine";
 import { extractDocument } from "@/lib/documentExtraction";
-import { proposedTextContainsExcerpt, readDocxProjection } from "@/lib/docxEvidence";
+import { docxSourcePlace, proposedTextContainsExcerpt } from "@/lib/docxEvidence";
 import { assertDocxReceipt, createDocxReceipt } from "@/lib/docxReceipt";
 import { enrichFindings, type EnrichedFinding } from "@/lib/findings";
 import { assertJobLease, completeJob, continueJob, enqueueJobWithClient, failJob, heartbeatJob, JobLeaseLostError, pollAzureOcr, transitionJobWithFence, waitExternal, type ProcessingJob } from "@/lib/jobs-internal";
@@ -156,11 +156,8 @@ async function persistChunks(job:ProcessingJob,documentId:string,matterId:string
 function sourceLocator(finding:CoreFinding,chunks:Array<{id:string;page_number:number|null;chunk_index:number;content:string}>,filename:string){
   const chunk=chunks.find(c=>sourceContainsExcerpt(c.content,finding.sourceExcerpt));
   if(!chunk) return `${filename} · verified source excerpt`;
-  const projection=readDocxProjection(chunk.content);
-  if(projection){
-    if(projection.paragraph.locator)return `${filename} · ${projection.paragraph.locator} · unapproved contract-source text`;
-    return `${filename} · ${projection.paragraph.source.part} · ${projection.paragraph.source.path} · unapproved original/proposed negotiation evidence`;
-  }
+  const place=docxSourcePlace(chunk.content);
+  if(place)return `${filename} · ${place}`;
   return chunk.page_number?`${filename} · p. ${chunk.page_number}`:`${filename} · text chunk ${chunk.chunk_index+1}`;
 }
 
