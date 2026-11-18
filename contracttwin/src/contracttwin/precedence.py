@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from contracttwin.segment import TEXT_BOX_LABEL, segment
-from contracttwin.textutil import AmbiguousAmendmentDate, stated_amendment_effective_date
+from contracttwin.textutil import AmbiguousAmendmentDate, UnreadableAmendmentDate, stated_amendment_effective_date
 
 SECTION_REPLACEMENT_RE = re.compile(
     r"Section\s+(?P<num>\d+(?:\.\d+)*)\b[^\n]{0,120}?deleted and replaced in its entirety with the following:\s*\n+",
@@ -138,6 +138,11 @@ def _in_stated_date_order(amendments: list[PreparedDocument]) -> list[PreparedDo
             raise ValueError(
                 f"{label} names an Amendment Effective Date, but more than one date on that line could be that date, "
                 "so the reading stopped."
+            ) from None
+        except UnreadableAmendmentDate:
+            raise ValueError(
+                f"{label} names an Amendment Effective Date, but that date could not be read, "
+                "so the reading stopped. A later date was not used to place the amendment."
             ) from None
         if stated is None:
             raise ValueError(
