@@ -21,6 +21,7 @@ class Candidate:
     document_id: str | None
     document_name: str | None
     quote: str | None
+    citation_section: str | None = None
     attributes: dict[str, str | int | float | bool | None] = field(default_factory=dict)
     extra_quotes: list[tuple[str, str, str, str | None]] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
@@ -66,8 +67,9 @@ def _citations_for(
     candidate: Candidate,
     documents: dict[str, tuple[str, str]],
 ) -> tuple[list[Citation], str | None]:
+    cited_section = candidate.citation_section or candidate.section
     quotes: list[tuple[str | None, str | None, str | None, str | None]] = [
-        (candidate.document_id, candidate.document_name, candidate.section, candidate.quote)
+        (candidate.document_id, candidate.document_name, cited_section, candidate.quote)
     ]
     quotes.extend(candidate.extra_quotes)
     if not candidate.statement.strip():

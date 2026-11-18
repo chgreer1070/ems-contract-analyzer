@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+from zipfile import ZipFile
+
+from contracttwin.ingest import extract_upload
 from contracttwin.pipeline import AnalysisRequest, analyze
 
 from .conftest import harborline_analysis, read_fixture
@@ -198,6 +202,103 @@ The parties entered into the replacement as of April 1, 2025 (the "Amendment Eff
     assert controls["2.2"] == "If this Amendment conflicts with the Agreement, this Amendment controls."
     assert _values(result, "net_days", operative=True) == {60}
     assert _values(result, "net_days", operative=False) == {45}
+
+
+def test_an_amendment_text_box_names_the_box_and_quotes_only_its_words() -> None:
+    """An amendment date or control sentence in a text box cites the box.
+
+    The fact stays in the preamble or the numbered section. The quote is the
+    sentence itself, without the text-box label. Synthetic words only.
+    """
+
+    preamble_date = 'This Amendment No. 1 is entered into as of March 1, 2025 (the "Amendment Effective Date").'
+    preamble_controls = "If this Amendment conflicts with the Agreement, this Amendment controls on and after the Amendment Effective Date."
+    section_date = 'The parties entered into the replacement as of April 1, 2025 (the "Amendment Effective Date").'
+    section_controls = "If this Amendment conflicts with the Agreement, this Amendment controls."
+    amendment = "\n".join(
+        [
+            f"[text box] {preamble_date}",
+            f"[text box] {preamble_controls}",
+            "[text box] 2.2 Payment",
+            f"[text box] {section_date}",
+            f"[text box] {section_controls}",
+        ]
+    )
+    base = """CONTRACT
+
+This Contract is entered into as of January 15, 2024 (the "Effective Date").
+
+2. Pricing
+
+2.2 Payment. Customer shall pay each undisputed invoice within forty-five (45) days after the invoice date.
+"""
+    result = analyze(AnalysisRequest(base_name="Base", base_text=base, amendments=[("Amendment No. 1", amendment, "2025-03-01")]))
+    assert result.rejected == []
+    dated = {
+        fact.section: fact
+        for fact in result.facts
+        if fact.attributes.get("date_role") == "amendment_effective"
+    }
+    assert dated["Preamble"].citations[0].section == "Text box in section Preamble"
+    assert dated["Preamble"].citations[0].quote == preamble_date
+    assert "[text box]" not in dated["Preamble"].citations[0].quote
+    assert dated["2.2"].citations[0].section == "Text box in section 2.2"
+    assert dated["2.2"].citations[0].quote == section_date
+    controls = {
+        fact.section: fact
+        for fact in result.facts
+        if fact.attributes.get("precedence") == "amendment_controls"
+    }
+    assert controls["Preamble"].citations[0].section == "Text box in section Preamble"
+    assert controls["Preamble"].citations[0].quote == preamble_controls
+    assert controls["2.2"].citations[0].section == "Text box in section 2.2"
+    assert controls["2.2"].citations[0].quote == section_controls
+
+    extracted = extract_upload("synthetic-amendment-box.docx", _amendment_box(preamble_date, preamble_controls))
+    assert f"[text box] {preamble_date}" in extracted.text.splitlines()
+    read = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=base,
+            amendments=[("Amendment No. 1", extracted.text, "2025-03-01")],
+        )
+    )
+    word_date = next(fact for fact in read.facts if fact.attributes.get("date_role") == "amendment_effective")
+    assert word_date.section == "Preamble"
+    assert word_date.citations[0].section == "Text box in section Preamble"
+    assert word_date.citations[0].quote == preamble_date
+    assert word_date.citations[0].quote in extracted.text
+    word_controls = next(fact for fact in read.facts if fact.attributes.get("precedence") == "amendment_controls")
+    assert word_controls.citations[0].section == "Text box in section Preamble"
+    assert word_controls.citations[0].quote == preamble_controls
+
+
+def _amendment_box(date_line: str, controls_line: str) -> bytes:
+    """A made-up Word file. Both amendment sentences sit in one text box."""
+
+    def xml(value: str) -> str:
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <w:txbxContent>
+            <w:p><w:r><w:t>{xml(date_line)}</w:t></w:r></w:p>
+            <w:p><w:r><w:t>{xml(controls_line)}</w:t></w:r></w:p>
+          </w:txbxContent>
+        </w:drawing>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+"""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as package:
+        package.writestr("word/document.xml", document)
+    return buffer.getvalue()
 
 
 def _values(result, key: str, operative: bool) -> set[object]:

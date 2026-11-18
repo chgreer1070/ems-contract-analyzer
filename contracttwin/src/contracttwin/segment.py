@@ -7,6 +7,19 @@ from dataclasses import dataclass
 
 # Accepts "1. Title", "1.1 Title", and "1.1. Title".
 HEADER_RE = re.compile(r"^(?P<num>\d+(?:\.\d+)*)(?:\.|\s)\s*(?P<title>\S.*)$")
+TEXT_BOX_LABEL = "[text box] "
+
+
+def match_heading(line: str) -> re.Match[str] | None:
+    """Recognize a numbered heading. A text-box label is not part of the heading.
+
+    The label stays on the stored line so a citation can still name the box.
+    """
+
+    candidate = line
+    while candidate.startswith(TEXT_BOX_LABEL):
+        candidate = candidate[len(TEXT_BOX_LABEL) :]
+    return HEADER_RE.match(candidate)
 
 
 @dataclass(frozen=True)
@@ -25,7 +38,7 @@ def segment(text: str) -> tuple[SectionSlice | None, list[SectionSlice]]:
     """
 
     line_spans = _line_spans(text)
-    header_indexes = [index for index, (_, _, content) in enumerate(line_spans) if HEADER_RE.match(content)]
+    header_indexes = [index for index, (_, _, content) in enumerate(line_spans) if match_heading(content)]
     if not header_indexes:
         preamble = _slice(text, 0, len(text))
         if preamble is None:
@@ -45,7 +58,7 @@ def segment(text: str) -> tuple[SectionSlice | None, list[SectionSlice]]:
         body = _slice(text, start, end)
         if body is None:
             continue
-        match = HEADER_RE.match(line_spans[line_index][2])
+        match = match_heading(line_spans[line_index][2])
         if match is None:
             continue
         title = match.group("title").strip() or match.group("num")
