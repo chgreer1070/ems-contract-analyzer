@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
 from io import BytesIO
 from zipfile import ZipFile
 
 from contracttwin.ingest import extract_upload
 from contracttwin.pipeline import AnalysisRequest, analyze
+from contracttwin.textutil import AmbiguousAmendmentDate, UnreadableAmendmentDate, stated_amendment_effective_date
 
 BASE = """CONTRACT
 
@@ -34,6 +36,77 @@ A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the
 
 1.1 Payment. Customer shall pay each undisputed invoice within thirty (30) days after the invoice date (Net 30).
 """
+
+
+def test_stated_dates_beat_typed_dates_and_input_order() -> None:
+    """The date written in each amendment places it. A reversed typed date does not."""
+
+    early_text = FIRST.replace("March 1, 2025", "March 1, 2024")
+    late_text = SECOND
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("Typed later", early_text, "2026-01-01"),
+                ("Typed earlier", late_text, "2020-01-01"),
+            ],
+        )
+    )
+    net = [(fact.operative, fact.attributes["net_days"]) for fact in result.facts if "net_days" in fact.attributes]
+    assert (True, 30) in net
+    assert (False, 20) in net
+    reversed_result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("Typed earlier", late_text, "2020-01-01"),
+                ("Typed later", early_text, "2026-01-01"),
+            ],
+        )
+    )
+    reversed_net = [
+        (fact.operative, fact.attributes["net_days"]) for fact in reversed_result.facts if "net_days" in fact.attributes
+    ]
+    assert reversed_net == net
+
+
+def test_an_undated_amendment_is_refused() -> None:
+    undated = """AMENDMENT
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date (Net 20).
+"""
+    try:
+        analyze(AnalysisRequest(base_name="Base", base_text=BASE, amendments=[("No date", undated, "2025-03-01")]))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("An amendment with no stated effective date must be refused.")
+    assert "No date" in message
+    assert "no stated effective date" in message
+
+
+def test_tied_stated_dates_are_refused_as_ambiguous() -> None:
+    same_day = SECOND.replace("June 1, 2025", "March 1, 2025")
+    try:
+        analyze(
+            AnalysisRequest(
+                base_name="Base",
+                base_text=BASE,
+                amendments=[("Amendment No. 2", same_day, "2025-06-01"), ("Amendment No. 1", FIRST, "2025-03-01")],
+            )
+        )
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Two amendments with the same stated effective date must be refused.")
+    assert "ambiguous" in message
+    assert "2025-03-01" in message
+    assert "Amendment No. 1" in message
+    assert "Amendment No. 2" in message
 
 
 def test_later_amendment_wins_and_the_price_section_is_unchanged() -> None:
@@ -142,6 +215,331 @@ def _read(base: str, amendment: str):
             amendments=[("Synthetic Amendment", amendment, "2025-03-01")],
         )
     )
+
+
+def test_the_label_date_places_the_amendment_when_the_agreement_date_is_also_on_the_line() -> None:
+    """The date beside "Amendment Effective Date" places the amendment, not an earlier agreement date."""
+
+    opening = (
+        'This Amendment to the Agreement entered into as of January 1, 2024 '
+        'is effective as of June 1, 2025 (the "Amendment Effective Date").'
+    )
+    assert stated_amendment_effective_date(opening) == date(2025, 6, 1)
+    after_the_label = (
+        'This Amendment is entered into as of June 1, 2025 (the "Amendment Effective Date"), '
+        "and amends the Agreement entered into as of January 1, 2024."
+    )
+    assert stated_amendment_effective_date(after_the_label) == date(2025, 6, 1)
+    assert stated_amendment_effective_date('entered into as of 2025-03-01 (the "Amendment Effective Date").') == date(
+        2025, 3, 1
+    )
+    june = f"""AMENDMENT
+
+{opening}
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within thirty (30) days after the invoice date (Net 30).
+"""
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("June amendment", june, "2025-06-01"),
+                ("March amendment", FIRST, "2025-03-01"),
+            ],
+        )
+    )
+    net = [(fact.operative, fact.attributes["net_days"]) for fact in result.facts if "net_days" in fact.attributes]
+    assert (True, 30) in net
+    assert (False, 20) in net
+    dated = [
+        fact.attributes["date"]
+        for fact in result.facts
+        if fact.attributes.get("date_role") == "amendment_effective"
+        and fact.citations
+        and fact.citations[0].document_name == "June amendment"
+    ]
+    assert dated == ["2025-06-01"]
+
+
+def test_two_dates_for_the_same_label_are_refused() -> None:
+    text = """AMENDMENT
+
+This Amendment is entered into as of January 1, 2024 (the "Amendment Effective Date") and as of June 1, 2025 (the "Amendment Effective Date").
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within thirty (30) days after the invoice date.
+"""
+    try:
+        analyze(AnalysisRequest(base_name="Base", base_text=BASE, amendments=[("Two dates", text, None)]))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Two dates for one label must be refused.")
+    assert "Two dates" in message
+    assert "more than one date" in message
+
+
+def test_a_later_unclear_label_does_not_move_the_first_date() -> None:
+    text = """This Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date.
+The parties entered into the replacement as of January 1, 2024 (the "Amendment Effective Date") or as of April 1, 2025 (the "Amendment Effective Date").
+"""
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[("Amendment", text, "2025-03-01")],
+        )
+    )
+    assert any(fact.operative and fact.attributes.get("net_days") == 20 for fact in result.facts)
+    dates = [
+        fact.attributes["date"] for fact in result.facts if fact.attributes.get("date_role") == "amendment_effective"
+    ]
+    assert dates == ["2025-03-01"]
+    assert any("more than one date" in warning for warning in result.warnings)
+
+
+def test_disagreeing_label_dates_stop_the_reading() -> None:
+    """Two different dates named by the label are not collapsed, and a later line does not rescue them."""
+
+    for line in (
+        'as of January 1, 2024 (the "Amendment Effective Date") or June 1, 2025 (the "Amendment Effective Date").',
+        'January 1, 2024 (the "Amendment Effective Date") or June 1, 2025 (the "Amendment Effective Date").',
+    ):
+        try:
+            stated_amendment_effective_date(
+                line + '\nThis Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").'
+            )
+        except AmbiguousAmendmentDate:
+            pass
+        else:
+            raise AssertionError("Disagreeing label dates must be refused before a later line is used.")
+    text = """AMENDMENT
+
+as of January 1, 2024 (the "Amendment Effective Date") or June 1, 2025 (the "Amendment Effective Date").
+
+This Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within thirty (30) days after the invoice date.
+"""
+    try:
+        analyze(AnalysisRequest(base_name="Base", base_text=BASE, amendments=[("Two labels", text, None)]))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("A later clear date must not override disagreeing label dates.")
+    assert "Two labels" in message
+    assert "more than one date" in message
+
+
+def test_a_line_break_before_the_label_does_not_let_replacement_text_set_the_date() -> None:
+    """PDF extraction keeps the line break between the opening date and its label.
+
+    The date on that opening places the amendment. A different date written
+    inside the replacement text does not. Synthetic words only.
+    """
+
+    opening = 'This Amendment No. 2 is entered into as of June 1, 2025\n(the "Amendment Effective Date").'
+    replacement_date = (
+        'The parties entered into the replacement as of January 1, 2025 (the "Amendment Effective Date").'
+    )
+    june = f"""AMENDMENT NO. 2
+
+{opening}
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within thirty (30) days after the invoice date (Net 30).
+{replacement_date}
+"""
+    assert stated_amendment_effective_date(june) == date(2025, 6, 1)
+    with_blank_line = 'This Amendment is entered into as of June 1, 2025\n\n(the "Amendment Effective Date").'
+    assert stated_amendment_effective_date(with_blank_line) == date(2025, 6, 1)
+    split_year = (
+        'This Amendment is entered into as of June 1,\n'
+        '2025 (the "Amendment Effective Date").\n'
+        + replacement_date
+    )
+    assert stated_amendment_effective_date(split_year) == date(2025, 6, 1)
+    wrapped_agreement_date = (
+        "This Amendment to the Agreement entered into as of January 1, 2024 "
+        "is effective as of June 1, 2025\n"
+        '(the "Amendment Effective Date").'
+    )
+    assert stated_amendment_effective_date(wrapped_agreement_date) == date(2025, 6, 1)
+    windows_break = 'entered into as of June 1, 2025\r\n(the "Amendment Effective Date").\r\n' + replacement_date
+    assert stated_amendment_effective_date(windows_break) == date(2025, 6, 1)
+    continued = (
+        'entered into as of June 1, 2025\n'
+        '(the "Amendment Effective Date"). The parties entered into the replacement '
+        'as of January 1, 2025 (the "Amendment Effective Date").'
+    )
+    assert stated_amendment_effective_date(continued) == date(2025, 6, 1)
+    already_labeled = (
+        'entered into as of March 1, 2025 (the "Amendment Effective Date"). '
+        "Draft entered into as of June 1, 2025\n"
+        '(the "Amendment Effective Date").'
+    )
+    assert stated_amendment_effective_date(already_labeled) == date(2025, 3, 1)
+    boxed = (
+        "[text box] entered into as of June 1, 2025\n"
+        '[text box] (the "Amendment Effective Date").\n'
+        "[text box] " + replacement_date
+    )
+    assert stated_amendment_effective_date(boxed) == date(2025, 6, 1)
+    same_line_as_replacement = (
+        '(the "Amendment Effective Date").\n\n'
+        'entered into as of June 1, 2025 (the "Amendment Effective Date"). '
+        "Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n"
+        + replacement_date
+    )
+    assert stated_amendment_effective_date(same_line_as_replacement) == date(2025, 6, 1)
+
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[
+                ("June amendment", june, "2025-06-01"),
+                ("March amendment", FIRST, "2025-03-01"),
+            ],
+        )
+    )
+    net = [(fact.operative, fact.attributes["net_days"]) for fact in result.facts if "net_days" in fact.attributes]
+    assert (True, 30) in net
+    assert (False, 20) in net
+    june_dates = [
+        fact.attributes["date"]
+        for fact in result.facts
+        if fact.attributes.get("date_role") == "amendment_effective"
+        and fact.citations
+        and fact.citations[0].document_name == "June amendment"
+    ]
+    assert june_dates[0] == "2025-06-01"
+    assert not any("does not match the date written" in warning for warning in result.warnings)
+
+
+def test_an_unreadable_opening_label_is_not_filled_from_replacement_text() -> None:
+    """A label with no readable date stops the reading. Replacement text does not supply one."""
+
+    text = """AMENDMENT
+
+(the "Amendment Effective Date").
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date (Net 20).
+The parties entered into the replacement as of January 1, 2025 (the "Amendment Effective Date").
+"""
+    try:
+        stated_amendment_effective_date(text)
+    except UnreadableAmendmentDate:
+        pass
+    else:
+        raise AssertionError("An unreadable opening label must not use a later date.")
+    try:
+        analyze(AnalysisRequest(base_name="Base", base_text=BASE, amendments=[("Unreadable", text, None)]))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("An unreadable opening label must stop the reading.")
+    assert "Unreadable" in message
+    assert "could not be read" in message
+    assert "later date was not used" in message
+    for unread in (
+        '(the "Amendment Effective Date"),\n\n'
+        "A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n"
+        'The parties entered into the replacement as of January 1, 2025 (the "Amendment Effective Date").',
+        '(the "Amendment Effective Date").\n\n'
+        "A. Section 1.1 is deleted and\n"
+        "replaced in its entirety with the following:\n\n"
+        'The parties entered into the replacement as of January 1, 2025 (the "Amendment Effective Date").',
+        "entered into as of January 1, 2024 is effective June 1,\n"
+        '2025 (the "Amendment Effective Date").\n\n'
+        "A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:\n\n"
+        'The parties entered into the replacement as of January 1, 2025 (the "Amendment Effective Date").',
+    ):
+        try:
+            stated_amendment_effective_date(unread)
+        except UnreadableAmendmentDate:
+            pass
+        else:
+            raise AssertionError("Replacement text must not supply a date the opening could not be read as.")
+
+
+def test_an_extra_unparsed_instruction_is_warned_beside_a_parsed_replacement() -> None:
+    text = """This Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").
+
+A. Section 1.1 of the Agreement is deleted and replaced in its entirety with the following:
+
+1.1 Payment. Customer shall pay each undisputed invoice within twenty (20) days after the invoice date (Net 20).
+
+B. Section 1.2 is amended by substituting five (5) days for ten (10) days.
+"""
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[("Partial", text, "2025-03-01")],
+        )
+    )
+    assert any(fact.operative and fact.attributes.get("net_days") == 20 for fact in result.facts)
+    price = next(clause for clause in result.clause_register if clause.section == "1.2" and clause.operative)
+    assert "USD 12.40" in price.citation.quote
+    assert any("was not applied in full" in warning for warning in result.warnings)
+
+
+def test_an_unparsed_amendment_leaves_the_original_term_and_says_so() -> None:
+    base = """1. Pricing
+
+1.1 Payment. Customer shall pay each undisputed invoice within sixty (60) days after the invoice date.
+
+1.2 Firm Period. The first thirty (30) days are non-cancellable and non-returnable (NCNR).
+
+1.3 Inventory. Customer shall pay an Excess and Obsolete exposure of USD 10000.00 for the named program.
+"""
+    amendment = """This Amendment is entered into as of June 1, 2025 (the "Amendment Effective Date").
+
+Section 1.1 is amended by substituting thirty (30) days for sixty (60) days.
+"""
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=base,
+            amendments=[("Substitution", amendment, "2025-06-01")],
+        )
+    )
+    operative = {
+        fact.attributes["net_days"] for fact in result.facts if fact.operative and "net_days" in fact.attributes
+    }
+    assert operative == {60}
+    assert any("was not applied" in warning for warning in result.warnings)
+    assert not any("could not be read" in warning for warning in result.warnings)
+
+
+def test_a_recognized_replacement_is_not_marked_unapplied() -> None:
+    text = FIRST.replace(
+        "within twenty (20) days after the invoice date (Net 20).",
+        "within twenty (20) days after the invoice date (Net 20). This sentence is not made by substituting a different number.",
+    )
+    result = analyze(
+        AnalysisRequest(
+            base_name="Base",
+            base_text=BASE,
+            amendments=[("Amendment No. 1", text, "2025-03-01")],
+        )
+    )
+    assert any(fact.operative and fact.attributes.get("net_days") == 20 for fact in result.facts)
+    assert not any("was not applied" in warning for warning in result.warnings)
 
 
 def _assert_separated(result, source: str, goods: str, parts: str, boxed: bool) -> None:

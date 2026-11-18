@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ENGINE_VERSION = "contracttwin-core-0.2.0"
+ENGINE_VERSION = "contracttwin-core-0.2.1"
 
 DISCLAIMER = (
     "This is a source-grounded reading aid, not a legal conclusion, not a financial "

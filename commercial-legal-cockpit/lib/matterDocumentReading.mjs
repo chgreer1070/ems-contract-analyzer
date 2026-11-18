@@ -67,7 +67,7 @@ export function textFromChunks(document, chunks) {
   return text;
 }
 
-export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseDocumentId, amendmentDocumentIds, amendmentOrderConfirmed = false }) {
+export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseDocumentId, amendmentDocumentIds }) {
   if (!Array.isArray(documents)) fail("Documents are required.", 400);
   if (typeof baseDocumentId !== "string" || baseDocumentId.length === 0) fail("Choose the base agreement.", 400);
   if (!Array.isArray(amendmentDocumentIds)) fail("Amendments must be a list.", 400);
@@ -86,8 +86,7 @@ export function buildMatterReadingRequest({ documents, chunksByDocumentId, baseD
   for (const amendment of amendments) {
     if (amendment.documentType !== "AMENDMENT") fail(`${amendment.filename} is not an amendment.`, 400);
   }
-  if (amendments.length && amendmentOrderConfirmed !== true) fail("Confirm the amendment order from earliest to latest before reading. Selection order is not verified chronology.", 400);
-  const notes = amendments.length ? ["Amendments use the explicitly confirmed earliest-to-latest order. Effective dates have not been independently verified; this is a conditional reading."] : [];
+  const notes = [];
   const toPayload = (document, role) => {
     const text = textFromChunks(document, chunksByDocumentId.get(document.id) ?? []);
     if (document.extractionMethod === "PDF_TEXT") {
