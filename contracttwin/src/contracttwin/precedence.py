@@ -11,9 +11,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 
-from contracttwin.textutil import stated_amendment_effective_date
-
 from contracttwin.segment import TEXT_BOX_LABEL, segment
+from contracttwin.textutil import AmbiguousAmendmentDate, stated_amendment_effective_date
 
 SECTION_REPLACEMENT_RE = re.compile(
     r"Section\s+(?P<num>\d+(?:\.\d+)*)\b[^\n]{0,120}?deleted and replaced in its entirety with the following:\s*\n+",
@@ -21,6 +20,11 @@ SECTION_REPLACEMENT_RE = re.compile(
 )
 DEFINITION_REPLACEMENT_RE = re.compile(
     r"The definition of \"(?P<term>[^\"]+)\" in Section\s+(?P<num>\d+(?:\.\d+)*)\b[^\n]{0,120}?deleted and replaced with the following:\s*\n+",
+    re.IGNORECASE,
+)
+# A change this reader does not apply. "deleted and replaced" keeps its own warning.
+_UNREAD_CHANGE = re.compile(
+    r"Section\s+\d+(?:\.\d+)*\b[^\n]{0,120}?\bis\s+(?:hereby\s+)?amended\b|\bsubstitut(?:e|ed|es|ing)\b",
     re.IGNORECASE,
 )
 # The next amendment instruction, not a lettered sentence inside the new section.
@@ -94,6 +98,17 @@ def build_ledger(base: PreparedDocument, amendments: list[PreparedDocument]) -> 
             ledger.warnings.append(
                 f"{amendment.name} mentions a replacement, but that replacement could not be read. The earlier section was left unchanged."
             )
+        elif _has_unparsed_change(amendment.text):
+            if operations:
+                ledger.warnings.append(
+                    f"{amendment.name} was not applied in full. An instruction was not a replacement this reading understands, "
+                    "so that part was left unchanged."
+                )
+            else:
+                ledger.warnings.append(
+                    f"{amendment.name} was not applied. Its instructions were not a replacement this reading understands, "
+                    "so the earlier text was left unchanged."
+                )
         for start, number, body in operations:
             if not body:
                 ledger.warnings.append(
@@ -116,8 +131,14 @@ def _in_stated_date_order(amendments: list[PreparedDocument]) -> list[PreparedDo
 
     dated: list[tuple[date, PreparedDocument]] = []
     for amendment in amendments:
-        stated = stated_amendment_effective_date(amendment.text)
         label = amendment.filename or amendment.name
+        try:
+            stated = stated_amendment_effective_date(amendment.text)
+        except AmbiguousAmendmentDate:
+            raise ValueError(
+                f"{label} names an Amendment Effective Date, but more than one date on that line could be that date, "
+                "so the reading stopped."
+            ) from None
         if stated is None:
             raise ValueError(
                 f"{label} has no stated effective date, so it was not read. "
@@ -136,6 +157,27 @@ def _in_stated_date_order(amendments: list[PreparedDocument]) -> list[PreparedDo
             "so their order is ambiguous and the reading stopped."
         )
     return [amendment for _, amendment in sorted(dated, key=lambda item: item[0])]
+
+
+def _covered_spans(text: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    for pattern in (SECTION_REPLACEMENT_RE, DEFINITION_REPLACEMENT_RE):
+        for match in pattern.finditer(text):
+            remainder = text[match.end() :]
+            boundary = NEXT_CLAUSE_RE.search(remainder)
+            end = match.end() + boundary.start() if boundary else len(text)
+            spans.append((match.start(), end))
+    return spans
+
+
+def _has_unparsed_change(text: str) -> bool:
+    """True when a section change sits outside a replacement this reader parsed."""
+
+    covered = _covered_spans(text)
+    return any(
+        not any(start <= match.start() and match.end() <= end for start, end in covered)
+        for match in _UNREAD_CHANGE.finditer(text)
+    )
 
 
 def _operations(text: str) -> list[tuple[int, str, str]]:

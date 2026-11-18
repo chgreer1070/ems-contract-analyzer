@@ -12,7 +12,13 @@ from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
 from contracttwin.segment import match_heading
 from contracttwin.terms import term_candidates
-from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
+from contracttwin.textutil import (
+    AmbiguousAmendmentDate,
+    amendment_effective_date_on_line,
+    date_after_phrase,
+    find_dates,
+    parenthetical_agrees,
+)
 
 DAYS_RE = re.compile(
     r"\b(?P<label>[A-Za-z][A-Za-z \-]{0,80}?)\s*\((?P<num>\d+)\)\s+(?P<unit>business days|days)\b",
@@ -60,7 +66,13 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
             # A text box or footnote stays in this section. The citation names that place.
             locator, line = _citation_locator(section, raw_line)
             if "Amendment Effective Date" in line and find_dates(line):
-                dated = _date_fact(line, document_id, name, "amendment_effective", section)
+                try:
+                    dated = _date_fact(line, document_id, name, "amendment_effective", section)
+                except AmbiguousAmendmentDate:
+                    warnings.append(
+                        f"{name} names more than one date for the Amendment Effective Date, so that line was not used."
+                    )
+                    dated = None
                 if dated is not None:
                     if locator is not None:
                         dated.citation_section = locator
@@ -369,6 +381,8 @@ def _percents(line: str, version: SectionVersion, warnings: list[str]) -> list[C
 def _date_fact(line: str, document_id: str, document_name: str, role: str, section: str | None) -> Candidate | None:
     if role == "term_end":
         found = date_after_phrase(line, "until")
+    elif role == "amendment_effective":
+        found = amendment_effective_date_on_line(line)
     else:
         found = date_after_phrase(line, "as of") or date_after_phrase(line, "entered into")
     if found is None:

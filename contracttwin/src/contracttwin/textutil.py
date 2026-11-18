@@ -128,19 +128,114 @@ def date_after_phrase(text: str, phrase: str) -> date | None:
     return None
 
 
+_LABEL = "Amendment Effective Date"
+_DEFINITION_GAP = re.compile(r'^[\s,]*\((?:the|this)\s*"$')
+_INTRODUCER = re.compile(r"(?:as of|entered into)\b", re.IGNORECASE)
+
+
+class AmbiguousAmendmentDate(Exception):
+    """More than one date on a line could be the Amendment Effective Date."""
+
+
+def _date_spans(text: str) -> list[tuple[int, int, date]]:
+    spans: list[tuple[int, int, date]] = []
+    for match in DATE_RE.finditer(text):
+        try:
+            value = date(int(match.group(3)), _MONTHS[match.group(1).lower()], int(match.group(2)))
+        except ValueError:
+            continue
+        spans.append((match.start(), match.end(), value))
+    for match in ISO_DATE_RE.finditer(text):
+        try:
+            value = date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        except ValueError:
+            continue
+        spans.append((match.start(), match.end(), value))
+    spans.sort(key=lambda item: item[0])
+    return spans
+
+
+def _introduced(region: str) -> bool:
+    """True when `region` ends with "as of" or "entered into" and no date sits between."""
+
+    matches = list(_INTRODUCER.finditer(region))
+    if not matches:
+        return False
+    return not find_dates(region[matches[-1].end() :])
+
+
+def amendment_effective_date_on_line(line: str) -> date | None:
+    """The date this line's Amendment Effective Date label names.
+
+    The label names the date written immediately before it, as in
+    `(the "Amendment Effective Date")`, when "as of" or "entered into"
+    introduces that date. A single introduced date on the line is that date
+    as well. More than one date that could be the label is refused.
+    """
+
+    if _LABEL not in line:
+        return None
+    spans = _date_spans(line)
+    if not spans:
+        return None
+    label_positions: list[int] = []
+    start = 0
+    while True:
+        found = line.find(_LABEL, start)
+        if found < 0:
+            break
+        label_positions.append(found)
+        start = found + len(_LABEL)
+    parenthetical: list[date] = []
+    introduced_parenthetical: list[date] = []
+    for label_pos in label_positions:
+        before = [span for span in spans if span[1] <= label_pos]
+        if not before:
+            continue
+        date_start, date_end, value = before[-1]
+        previous_end = before[-2][1] if len(before) > 1 else 0
+        gap = line[date_end:label_pos]
+        if not _DEFINITION_GAP.fullmatch(gap):
+            continue
+        parenthetical.append(value)
+        if _introduced(line[previous_end:date_start]):
+            introduced_parenthetical.append(value)
+    unique_parenthetical = list(dict.fromkeys(parenthetical))
+    if len(unique_parenthetical) > 1:
+        raise AmbiguousAmendmentDate
+    if len(introduced_parenthetical) == 1:
+        return introduced_parenthetical[0]
+    if unique_parenthetical:
+        if len(spans) > 1:
+            raise AmbiguousAmendmentDate
+        return None
+    introduced: list[date] = []
+    cursor = 0
+    for date_start, date_end, value in spans:
+        if _introduced(line[cursor:date_start]):
+            introduced.append(value)
+        cursor = date_end
+    unique_introduced = list(dict.fromkeys(introduced))
+    if len(unique_introduced) > 1 or (len(unique_introduced) == 1 and len(spans) > 1):
+        raise AmbiguousAmendmentDate
+    if len(unique_introduced) == 1:
+        return unique_introduced[0]
+    return None
+
+
 def stated_amendment_effective_date(text: str) -> date | None:
     """The first effective date this amendment states for itself.
 
-    A line counts when it names "Amendment Effective Date" and a real date
-    follows "as of" or "entered into" on that same line. That is the same
-    line rule the fact reader uses. A later line that repeats the label does
-    not change which date places the amendment.
+    A line counts when it names "Amendment Effective Date" and one date on
+    that line is the date the label names. The fact reader uses the same
+    association on each line. A date for the original agreement on the same
+    line does not place the amendment. A later line that repeats the label
+    does not move the first date. A line where more than one date could be
+    the label is refused.
     """
 
     for line in text.split("\n"):
-        if "Amendment Effective Date" not in line or not find_dates(line):
-            continue
-        found = date_after_phrase(line, "as of") or date_after_phrase(line, "entered into")
+        found = amendment_effective_date_on_line(line)
         if found is not None:
             return found
     return None

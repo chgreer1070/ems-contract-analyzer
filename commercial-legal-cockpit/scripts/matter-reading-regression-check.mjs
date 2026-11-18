@@ -112,6 +112,38 @@ assert.equal(result.status, 400);
 assert.match(result.body.error, /ambiguous/);
 assert.match(result.body.error, /2025-03-01/);
 console.log('TIED_DATE_REFUSAL ' + JSON.stringify({ ok: result.body.ok, error: result.body.error }));
+const completeBase = [
+  '1. Pricing',
+  '',
+  '1.1 Payment. Customer shall pay each undisputed invoice within sixty (60) days after the invoice date.',
+  '',
+  '1.2 Firm Period. The first thirty (30) days are non-cancellable and non-returnable (NCNR).',
+  '',
+  '1.3 Inventory. Customer shall pay an Excess and Obsolete exposure of USD 10000.00 for the named program.',
+].join('\n');
+fixture();
+texts[baseId] = completeBase;
+texts[aId] = amend('twenty (20)', 'March 1, 2025');
+documents[0].server_sha256 = hash(texts[baseId]);
+documents[1].server_sha256 = hash(texts[aId]);
+result = await read([aId]);
+assert.equal(result.status, 200);
+assert.deepEqual(operativeDays(result.body), [20]);
+assert.equal(result.body.warnings.some(warning => warning.includes('was not applied')), false);
+assert.equal(result.body.operativeStatusUncertain, false);
+fixture();
+texts[baseId] = completeBase;
+texts[aId] = 'This Amendment is entered into as of June 1, 2025 (the "Amendment Effective Date").\nSection 1.1 is amended by substituting thirty (30) days for sixty (60) days.\n';
+documents[0].server_sha256 = hash(texts[baseId]);
+documents[1].server_sha256 = hash(texts[aId]);
+result = await read([aId]);
+assert.equal(result.status, 200);
+assert.deepEqual(operativeDays(result.body), [60]);
+assert.ok(result.body.warnings.some(warning => warning.includes('was not applied')));
+assert.equal(result.body.operativeStatusUncertain, true);
+const unchangedPayment = result.body.facts.find(fact => fact.operative && fact.attributes.net_days === 60);
+assert.match(helpers.readingFactLabel(unchangedPayment, result.body.operativeStatusUncertain), /operative status requires review/);
+console.log('UNPARSED_AMENDMENT ' + JSON.stringify({ operativeStatusUncertain: result.body.operativeStatusUncertain, operativeNetDays: operativeDays(result.body), warnings: result.body.warnings }));
 fixture(); texts[aId] = 'This Amendment is entered into as of March 1, 2025 (the "Amendment Effective Date").\nSection 1.1 is deleted and replaced with language to be agreed.';
 documents[1].server_sha256 = hash(texts[aId]);
 result = await read([aId]);
