@@ -51,6 +51,10 @@ jobs:
         working-directory: commercial-legal-cockpit
         run: npm ci --no-audit --no-fund
 
+      - name: Check matter readings use stated amendment dates
+        working-directory: commercial-legal-cockpit
+        run: npm run test:matter-reading-regressions
+
       - name: Install the browser
         working-directory: commercial-legal-cockpit
         run: npx playwright install --with-deps chromium

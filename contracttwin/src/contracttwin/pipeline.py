@@ -337,7 +337,7 @@ def _date_warnings(base: PreparedDocument, amendments: list[PreparedDocument], f
         if cited and cited[0] != amendment.manifest_effective_date:
             warnings.append(
                 f"{amendment.name}: the date typed in with the file does not match the date written in the amendment. "
-                "The written date is the fact. The typed date was used only to decide which amendment is later."
+                "The written date was used to place this amendment. The typed date was not."
             )
     return warnings
 

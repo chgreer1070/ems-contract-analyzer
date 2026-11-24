@@ -12,7 +12,15 @@ from contracttwin.precedence import Ledger, SectionVersion
 from contracttwin.quote_check import Candidate
 from contracttwin.segment import match_heading
 from contracttwin.terms import term_candidates
-from contracttwin.textutil import date_after_phrase, find_dates, parenthetical_agrees
+from contracttwin.textutil import (
+    MIN_QUOTE_CHARS,
+    AmbiguousAmendmentDate,
+    amendment_effective_date_on_line,
+    date_after_phrase,
+    find_dates,
+    joined_declaration,
+    parenthetical_agrees,
+)
 
 DAYS_RE = re.compile(
     r"\b(?P<label>[A-Za-z][A-Za-z \-]{0,80}?)\s*\((?P<num>\d+)\)\s+(?P<unit>business days|days)\b",
@@ -53,14 +61,26 @@ def extract_rules(ledger: Ledger, amendments: list[tuple[str, str, str]]) -> tup
     for document_id, name, text in amendments:
         # Lines before the first numbered heading are the preamble. A heading keeps its own number.
         section = "Preamble"
-        for raw_line in text.split("\n"):
+        raw_lines = text.split("\n")
+        for index, raw_line in enumerate(raw_lines):
             header = match_heading(raw_line)
             if header is not None:
                 section = header.group("num")
             # A text box or footnote stays in this section. The citation names that place.
             locator, line = _citation_locator(section, raw_line)
+            wrapped = _wrapped_amendment_fact(
+                raw_lines, index, text, document_id, name, section, locator, warnings
+            )
+            if wrapped is not None:
+                candidates.append(wrapped)
             if "Amendment Effective Date" in line and find_dates(line):
-                dated = _date_fact(line, document_id, name, "amendment_effective", section)
+                try:
+                    dated = _date_fact(line, document_id, name, "amendment_effective", section)
+                except AmbiguousAmendmentDate:
+                    warnings.append(
+                        f"{name} names more than one date for the Amendment Effective Date, so that line was not used."
+                    )
+                    dated = None
                 if dated is not None:
                     if locator is not None:
                         dated.citation_section = locator
@@ -366,9 +386,85 @@ def _percents(line: str, version: SectionVersion, warnings: list[str]) -> list[C
     return found
 
 
+def _wrapped_amendment_fact(
+    lines: list[str],
+    index: int,
+    document_text: str,
+    document_id: str,
+    document_name: str,
+    section: str,
+    locator: str | None,
+    warnings: list[str],
+) -> Candidate | None:
+    """A date whose label starts on the next line, quoted from the source lines."""
+
+    try:
+        wrapped = joined_declaration(lines, index)
+    except AmbiguousAmendmentDate:
+        warnings.append(
+            f"{document_name} names more than one date for the Amendment Effective Date, so that line was not used."
+        )
+        return None
+    if wrapped is None:
+        return None
+    _found, label_index = wrapped
+    bodies: list[str] = []
+    for raw in lines[index : label_index + 1]:
+        _place, body = _citation_locator(section, raw)
+        if body.strip():
+            bodies.append(body)
+    if not bodies:
+        return None
+    words = "\n".join(bodies)
+    raw_slice = "\n".join(lines[index : label_index + 1])
+    date_body = bodies[0]
+    label_body = bodies[-1]
+    extra: str | None = None
+    if words in document_text and len(words) >= MIN_QUOTE_CHARS:
+        quote = words
+    elif (
+        len(date_body) >= MIN_QUOTE_CHARS
+        and date_body in document_text
+        and label_body in document_text
+    ):
+        quote = date_body
+        extra = label_body if label_body != date_body else None
+    elif raw_slice in document_text and len(raw_slice) >= MIN_QUOTE_CHARS:
+        quote = raw_slice
+    else:
+        return None
+    label_words = label_body.lstrip()
+    head = re.match(
+        r'(\d{4}\s*)?\((?:the|this)\s*"Amendment Effective Date"\)?',
+        label_words,
+        re.IGNORECASE,
+    )
+    if head is None:
+        return None
+    logical = date_body.rstrip() + " " + head.group(0)
+    try:
+        dated = _date_fact(logical, document_id, document_name, "amendment_effective", section)
+    except AmbiguousAmendmentDate:
+        warnings.append(
+            f"{document_name} names more than one date for the Amendment Effective Date, so that line was not used."
+        )
+        return None
+    if dated is None:
+        return None
+    dated.quote = quote
+    if locator is not None:
+        dated.citation_section = locator
+    if extra is not None:
+        cited_section = dated.citation_section or section
+        dated.extra_quotes.append((document_id, document_name, cited_section, extra))
+    return dated
+
+
 def _date_fact(line: str, document_id: str, document_name: str, role: str, section: str | None) -> Candidate | None:
     if role == "term_end":
         found = date_after_phrase(line, "until")
+    elif role == "amendment_effective":
+        found = amendment_effective_date_on_line(line)
     else:
         found = date_after_phrase(line, "as of") or date_after_phrase(line, "entered into")
     if found is None:
